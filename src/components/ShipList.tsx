@@ -7,6 +7,14 @@ import {
   estimatedTimeToBridge,
   formatETA,
 } from "../utils/geo";
+import {
+  BoltIcon,
+  MapPinIcon,
+  ClockIcon,
+  ArrowUpIcon,
+  FlagIcon,
+  ArrowsPointingOutIcon,
+} from "@heroicons/react/20/solid";
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>;
@@ -38,59 +46,68 @@ export default function ShipList({ ships, onSelectShip }: ShipListProps) {
       <div className="flex flex-col gap-2">
         {sorted.map((ship) => {
           const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
+          const headingDeg = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
           return (
             <div
               key={ship.mmsi}
               className={`bg-slate-900 border rounded-lg p-3 cursor-pointer transition-colors ${
                 ship.approaching
                   ? "border-red-500 border-2"
-                  : "border-slate-600 hover:border-blue-500"
+                  : "border-slate-700 hover:border-blue-500"
               }`}
               onClick={() => onSelectShip?.(ship)}
             >
+              {/* Header: name + badge */}
               <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-sm">{ship.name}</span>
+                <span className="font-semibold text-sm text-slate-100 truncate">{ship.name}</span>
                 {ship.approaching && (
-                  <span className="text-[0.65rem] font-bold text-red-500 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
+                  <span className="shrink-0 text-[0.6rem] font-bold text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
                     APPROACHING
                   </span>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                <div className="flex flex-col">
-                  <span className="text-[0.65rem] text-slate-400 uppercase tracking-wide">Distance</span>
-                  <span className="text-slate-200">{formatDistance(ship.distanceToBridge)}</span>
+
+              {/* Primary stats row */}
+              <div className="flex gap-4 mb-2">
+                <div className="flex items-center gap-1.5 min-w-0" title="Distance to bridge">
+                  <MapPinIcon className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-sm font-semibold text-slate-100">{formatDistance(ship.distanceToBridge)}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.65rem] text-slate-400 uppercase tracking-wide">Speed</span>
-                  <span className="text-slate-200">{formatSpeed(ship.sog)}</span>
+                <div className="flex items-center gap-1.5 min-w-0" title="Speed over ground">
+                  <BoltIcon className="w-4 h-4 text-blue-400 shrink-0" />
+                  <span className="text-sm font-semibold text-slate-100">{formatSpeed(ship.sog)}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.65rem] text-slate-400 uppercase tracking-wide">Heading</span>
-                  <span className="text-slate-200">{formatHeading(ship.trueHeading)}</span>
+                <div className="flex items-center gap-1.5 min-w-0" title="Estimated time to bridge">
+                  <ClockIcon className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span className="text-sm font-semibold text-slate-100">{formatETA(eta)}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.65rem] text-slate-400 uppercase tracking-wide">ETA</span>
-                  <span className="text-slate-200">{formatETA(eta)}</span>
+              </div>
+
+              {/* Secondary info */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                <div className="flex items-center gap-1" title="Heading">
+                  <ArrowUpIcon className="w-3 h-3" style={{ transform: `rotate(${headingDeg}deg)` }} />
+                  <span>{formatHeading(headingDeg)}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[0.65rem] text-slate-400 uppercase tracking-wide">Status</span>
-                  <span className="text-slate-200 text-[0.75rem]">
-                    {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
-                  </span>
-                </div>
+                <span title="Navigation status">{NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}</span>
                 {ship.destination && (
-                  <div className="flex flex-col">
-                    <span className="text-[0.65rem] text-slate-400 uppercase tracking-wide">Destination</span>
-                    <span className="text-slate-200">{ship.destination}</span>
+                  <div className="flex items-center gap-1" title="Destination">
+                    <FlagIcon className="w-3 h-3" />
+                    <span className="truncate max-w-32">{ship.destination}</span>
+                  </div>
+                )}
+                {ship.length && ship.length > 0 && (
+                  <div className="flex items-center gap-1" title="Vessel dimensions">
+                    <ArrowsPointingOutIcon className="w-3 h-3" />
+                    <span>{ship.length}m × {ship.width}m</span>
                   </div>
                 )}
               </div>
-              <div className="flex justify-between mt-2 pt-1.5 border-t border-slate-600 text-[0.7rem] text-slate-400">
-                <span>MMSI: {ship.mmsi}</span>
-                <span>
-                  {new Date(ship.lastUpdate).toLocaleTimeString()}
-                </span>
+
+              {/* Footer */}
+              <div className="flex justify-between mt-2 pt-1.5 border-t border-slate-700/60 text-[0.65rem] text-slate-500">
+                <span title="MMSI identifier">{ship.mmsi}</span>
+                <span title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
               </div>
             </div>
           );

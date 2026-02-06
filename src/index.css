@@ -52,27 +52,11 @@
   font-size: 0.95rem;
   color: #1e293b;
 }
-.ship-popup table {
-  width: 100%;
-  font-size: 0.8rem;
-  border-collapse: collapse;
+
+.ship-popup {
+  min-width: 220px;
 }
-.ship-popup td {
-  padding: 0.15rem 0.5rem 0.15rem 0;
-  color: #475569;
-}
-.ship-popup td:first-child {
-  font-weight: 600;
-  color: #1e293b;
-  white-space: nowrap;
-}
-.approaching-badge {
-  margin-top: 0.5rem;
-  padding: 0.2rem 0.5rem;
-  background: #ef4444;
-  color: white;
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-align: center;
-  border-radius: 4px;
+
+.leaflet-popup-content {
+  margin: 10px 12px;
 }

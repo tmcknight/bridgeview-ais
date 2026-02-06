@@ -15,6 +15,14 @@ import {
   estimatedTimeToBridge,
   formatETA,
 } from "../utils/geo";
+import {
+  BoltIcon,
+  MapPinIcon,
+  ClockIcon,
+  ArrowUpIcon,
+  FlagIcon,
+  ArrowsPointingOutIcon,
+} from "@heroicons/react/20/solid";
 
 // Bridge line coordinates (approximate endpoints of the Blue Water Bridge)
 const BRIDGE_LINE: [number, number][] = [
@@ -40,6 +48,7 @@ function createShipIcon(ship: TrackedShip): L.DivIcon {
 
 function ShipMarker({ ship }: { ship: TrackedShip }) {
   const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
+  const headingDeg = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
 
   return (
     <Marker
@@ -48,60 +57,57 @@ function ShipMarker({ ship }: { ship: TrackedShip }) {
     >
       <Popup>
         <div className="ship-popup">
-          <h3>{ship.name}</h3>
-          <table>
-            <tbody>
-              <tr>
-                <td>MMSI</td>
-                <td>{ship.mmsi}</td>
-              </tr>
-              <tr>
-                <td>Status</td>
-                <td>{NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}</td>
-              </tr>
-              <tr>
-                <td>Speed</td>
-                <td>{formatSpeed(ship.sog)}</td>
-              </tr>
-              <tr>
-                <td>Heading</td>
-                <td>{formatHeading(ship.trueHeading)}</td>
-              </tr>
-              <tr>
-                <td>Course</td>
-                <td>{formatHeading(ship.cog)}</td>
-              </tr>
-              <tr>
-                <td>Distance to Bridge</td>
-                <td>{formatDistance(ship.distanceToBridge)}</td>
-              </tr>
-              <tr>
-                <td>ETA to Bridge</td>
-                <td>{formatETA(eta)}</td>
-              </tr>
-              {ship.destination && (
-                <tr>
-                  <td>Destination</td>
-                  <td>{ship.destination}</td>
-                </tr>
-              )}
-              {ship.length && ship.length > 0 && (
-                <tr>
-                  <td>Size</td>
-                  <td>
-                    {ship.length}m × {ship.width}m
-                  </td>
-                </tr>
-              )}
-              <tr>
-                <td>Last Update</td>
-                <td>{new Date(ship.lastUpdate).toLocaleTimeString()}</td>
-              </tr>
-            </tbody>
-          </table>
-          {ship.approaching && (
-            <div className="approaching-badge">APPROACHING BRIDGE</div>
-          )}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <h3 className="!m-0 text-base font-bold text-slate-800 leading-tight">{ship.name}</h3>
+            {ship.approaching && (
+              <span className="shrink-0 text-[0.6rem] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded tracking-wide">
+                APPROACHING
+              </span>
+            )}
+          </div>
+
+          {/* Primary stats */}
+          <div className="flex gap-3 mb-2">
+            <div className="flex items-center gap-1 text-slate-700" title="Speed over ground">
+              <BoltIcon className="w-3.5 h-3.5 text-blue-500" />
+              <span className="text-sm font-semibold">{formatSpeed(ship.sog)}</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-700" title="Distance to bridge">
+              <MapPinIcon className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-sm font-semibold">{formatDistance(ship.distanceToBridge)}</span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-700" title="Estimated time to bridge">
+              <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="text-sm font-semibold">{formatETA(eta)}</span>
+            </div>
+          </div>
+
+          {/* Secondary details */}
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 mb-1.5">
+            <div className="flex items-center gap-1" title="Heading">
+              <ArrowUpIcon className="w-3 h-3 text-slate-400" style={{ transform: `rotate(${headingDeg}deg)` }} />
+              <span>{formatHeading(headingDeg)}</span>
+            </div>
+            <span title="Navigation status">{NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}</span>
+            {ship.destination && (
+              <div className="flex items-center gap-1" title="Destination">
+                <FlagIcon className="w-3 h-3 text-slate-400" />
+                <span>{ship.destination}</span>
+              </div>
+            )}
+            {ship.length && ship.length > 0 && (
+              <div className="flex items-center gap-1" title="Vessel dimensions">
+                <ArrowsPointingOutIcon className="w-3 h-3 text-slate-400" />
+                <span>{ship.length}m × {ship.width}m</span>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="text-[0.65rem] text-slate-400 pt-1 border-t border-slate-200 flex justify-between">
+            <span title="MMSI identifier">{ship.mmsi}</span>
+            <span title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
+          </div>
         </div>
       </Popup>
     </Marker>
@@ -144,7 +150,7 @@ function RecenterButton() {
   const map = useMap();
   return (
     <button
-      className="absolute top-2.5 right-2.5 z-[1000] w-9 h-9 bg-white border-2 border-black/20 rounded text-lg text-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-100"
+      className="absolute top-2.5 right-2.5 z-1000 w-9 h-9 bg-white border-2 border-black/20 rounded text-lg text-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-100"
       onClick={() => map.setView([BRIDGE_CENTER.lat, BRIDGE_CENTER.lng], DEFAULT_ZOOM)}
       title="Re-center on bridge"
     >

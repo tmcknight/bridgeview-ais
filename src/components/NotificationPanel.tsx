@@ -31,7 +31,7 @@ export default function NotificationPanel({
       leaveFrom="opacity-100"
       leaveTo="opacity-0"
     >
-      <div className="absolute top-2.5 left-2.5 z-[1000] w-[340px] max-h-[400px] overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.4)] max-md:w-[calc(100%-20px)]">
+      <div className="absolute top-2.5 left-2.5 z-1000 w-85 max-h-100 overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.4)] max-md:w-[calc(100%-20px)]">
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-600">
           <h3 className="text-sm">Notifications ({active.length})</h3>
           <Button

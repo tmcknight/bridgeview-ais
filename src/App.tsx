@@ -56,7 +56,7 @@ function App() {
             onClear={clearNotifications}
           />
         </div>
-        <aside className="w-[380px] shrink-0 overflow-y-auto bg-slate-800 border-l border-slate-600 max-md:w-full max-md:border-l-0 max-md:border-t max-md:border-slate-600 max-md:h-[50vh]">
+        <aside className="w-95 shrink-0 overflow-y-auto bg-slate-800 border-l border-slate-600 max-md:w-full max-md:border-l-0 max-md:border-t max-md:border-slate-600 max-md:h-[50vh]">
           <ShipList ships={ships} />
         </aside>
       </main>
