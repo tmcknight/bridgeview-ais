@@ -22,13 +22,9 @@ import {
   ArrowUpIcon,
   FlagIcon,
   ArrowsPointingOutIcon,
+  GlobeAmericasIcon,
+  ArrowsUpDownIcon,
 } from "@heroicons/react/20/solid";
-
-// Bridge line coordinates (approximate endpoints of the Blue Water Bridge)
-const BRIDGE_LINE: [number, number][] = [
-  [43.0003, -82.4225], // Sarnia (Canadian) side
-  [42.9985, -82.4065], // Port Huron (US) side
-];
 
 function createShipIcon(ship: TrackedShip): L.DivIcon {
   const rotation = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
@@ -124,21 +120,27 @@ function BridgeMarker() {
 
   return (
     <>
-      <Polyline
-        positions={BRIDGE_LINE}
-        pathOptions={{
-          color: "#f59e0b",
-          weight: 4,
-          dashArray: "10, 6",
-          opacity: 0.8,
-        }}
-      />
       <Marker position={[BRIDGE_CENTER.lat, BRIDGE_CENTER.lng]} icon={bridgeIcon}>
         <Popup>
           <div className="ship-popup">
-            <h3>Blue Water Bridge</h3>
-            <p>Connects Sarnia, ON to Port Huron, MI</p>
-            <p>Air Draft: ~46m (152 ft)</p>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">Blue Water Bridge</h3>
+            </div>
+
+            <div className="flex gap-3 mb-2">
+              <div className="flex items-center gap-1 text-slate-700" title="Connects Sarnia, ON and Port Huron, MI">
+                <GlobeAmericasIcon className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-sm font-semibold">Sarnia ↔ Port Huron</span>
+              </div>
+              <div className="flex items-center gap-1 text-slate-700" title="Air draft clearance">
+                <ArrowsUpDownIcon className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-sm font-semibold">~46 m (152 ft)</span>
+              </div>
+            </div>
+
+            <div className="text-[0.65rem] text-slate-400 pt-1 border-t border-slate-200">
+              <span>International crossing over the St. Clair River</span>
+            </div>
           </div>
         </Popup>
       </Marker>

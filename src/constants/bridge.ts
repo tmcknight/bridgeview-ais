@@ -1,8 +1,8 @@
 // Blue Water Bridge coordinates (Sarnia, ON / Port Huron, MI)
 // The bridge spans the St. Clair River at approximately these coordinates
 export const BRIDGE_CENTER = {
-  lat: 42.9991,
-  lng: -82.4135,
+  lat: 42.9982,
+  lng: -82.4230,
 };
 
 // Bounding box for the area around the bridge
