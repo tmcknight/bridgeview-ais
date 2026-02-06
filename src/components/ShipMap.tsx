@@ -1,5 +1,8 @@
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { MapContainer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
+import "maplibre-gl/dist/maplibre-gl.css";
+import "@maplibre/maplibre-gl-leaflet";
+import { useEffect } from "react";
 import type { TrackedShip } from "../types/ais";
 import { NAV_STATUS_LABELS } from "../types/ais";
 import {
@@ -100,7 +103,7 @@ function ShipMarker({ ship }: { ship: TrackedShip }) {
           </div>
 
           {/* Footer */}
-          <div className="text-[0.65rem] text-slate-400 pt-1 border-t border-slate-200 flex justify-between">
+          <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200 flex justify-between">
             <span title="MMSI identifier">{ship.mmsi}</span>
             <span title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
           </div>
@@ -138,7 +141,7 @@ function BridgeMarker() {
               </div>
             </div>
 
-            <div className="text-[0.65rem] text-slate-400 pt-1 border-t border-slate-200">
+            <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200">
               <span>International crossing over the St. Clair River</span>
             </div>
           </div>
@@ -148,11 +151,26 @@ function BridgeMarker() {
   );
 }
 
+function FiordBaseLayer() {
+  const map = useMap();
+  useEffect(() => {
+    const gl = L.maplibreGL({
+      style: "https://tiles.openfreemap.org/styles/fiord",
+      attribution:
+        '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Style: <a href="https://github.com/openmaptiles/fiord-color-gl-style">Fiord Color</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>) | Tiles by <a href="https://openfreemap.org/">OpenFreeMap</a>',
+    }).addTo(map);
+    return () => {
+      map.removeLayer(gl);
+    };
+  }, [map]);
+  return null;
+}
+
 function RecenterButton() {
   const map = useMap();
   return (
     <button
-      className="absolute top-2.5 right-2.5 z-1000 w-9 h-9 bg-white border-2 border-black/20 rounded text-lg text-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-100"
+      className="absolute top-2.5 right-2.5 z-1000 w-9 h-9 bg-slate-800 border-2 border-slate-600/40 rounded text-lg text-slate-700 flex items-center justify-center cursor-pointer hover:bg-slate-700"
       onClick={() => map.setView([BRIDGE_CENTER.lat, BRIDGE_CENTER.lng], DEFAULT_ZOOM)}
       title="Re-center on bridge"
     >
@@ -175,10 +193,7 @@ export default function ShipMap({ ships }: ShipMapProps) {
         maxZoom={MAX_ZOOM}
         className="w-full h-full"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <FiordBaseLayer />
         <BridgeMarker />
         {Array.from(ships.values()).map((ship) => (
           <ShipMarker key={ship.mmsi} ship={ship} />
