@@ -1,47 +1,30 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import ShipMap from "./components/ShipMap";
 import ShipList from "./components/ShipList";
 import NotificationPanel from "./components/NotificationPanel";
 import StatusBar from "./components/StatusBar";
-import ApiKeyPrompt from "./components/ApiKeyPrompt";
 import { useAISStream } from "./hooks/useAISStream";
 import "leaflet/dist/leaflet.css";
 import "./App.css";
 
-const STORAGE_KEY = "bridgeview-ais-apikey";
-
 function App() {
-  const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem(STORAGE_KEY) ?? "";
-  });
-
   const {
     ships,
     notifications,
     connectionStatus,
     dismissNotification,
     clearNotifications,
-  } = useAISStream(apiKey);
+  } = useAISStream();
 
-  useEffect(() => {
-    if (globalThis.Notification && globalThis.Notification.permission === "default") {
-      globalThis.Notification.requestPermission();
-    }
+  const [notifPermission, setNotifPermission] = useState(
+    () => globalThis.Notification?.permission ?? "denied"
+  );
+
+  const requestNotifications = useCallback(() => {
+    globalThis.Notification?.requestPermission().then((perm) => {
+      setNotifPermission(perm);
+    });
   }, []);
-
-  const handleApiKey = useCallback((key: string) => {
-    localStorage.setItem(STORAGE_KEY, key);
-    setApiKey(key);
-  }, []);
-
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
-    setApiKey("");
-  }, []);
-
-  if (!apiKey) {
-    return <ApiKeyPrompt onSubmit={handleApiKey} />;
-  }
 
   return (
     <div className="app">
@@ -50,11 +33,13 @@ function App() {
           <h1>BridgeView AIS</h1>
           <span className="subtitle">Blue Water Bridge Ship Tracker</span>
         </div>
-        <div className="header-right">
-          <button className="logout-btn" onClick={handleLogout} title="Change API key">
-            Change API Key
-          </button>
-        </div>
+        {notifPermission === "default" && (
+          <div className="header-right">
+            <button className="notify-btn" onClick={requestNotifications}>
+              Enable Notifications
+            </button>
+          </div>
+        )}
       </header>
 
       <StatusBar connectionStatus={connectionStatus} shipCount={ships.size} />

@@ -7,8 +7,27 @@ import {
 } from "../constants/bridge";
 import { distanceToBridge, isApproaching } from "../utils/geo";
 
-const WS_URL = "wss://stream.aisstream.io/v0/stream";
+const WS_URL = import.meta.env.VITE_WS_PROXY_URL || "ws://localhost:3001";
 const STALE_TIMEOUT_MS = 10 * 60 * 1000; // Remove ships not seen for 10 minutes
+
+/** Parse aisstream.io time_utc into an ISO string that Date can handle.
+ *  Formats seen: "20240115123456", "2024-01-15 12:34:56", ISO 8601 */
+function parseTimeUtc(raw: string): string {
+  // Already valid ISO
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) return d.toISOString();
+
+  // Compact: "20240115123456" → "2024-01-15T12:34:56Z"
+  const compact = raw.replace(/[^0-9]/g, "");
+  if (compact.length >= 14) {
+    const iso = `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}T${compact.slice(8, 10)}:${compact.slice(10, 12)}:${compact.slice(12, 14)}Z`;
+    return iso;
+  }
+
+  // Fallback: return current time
+  console.warn("[AIS] unparseable time_utc:", raw);
+  return new Date().toISOString();
+}
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -30,7 +49,7 @@ export interface Notification {
   dismissed: boolean;
 }
 
-export function useAISStream(apiKey: string): UseAISStreamReturn {
+export function useAISStream(): UseAISStreamReturn {
   const [ships, setShips] = useState<Map<number, TrackedShip>>(new Map());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
@@ -104,7 +123,7 @@ export function useAISStream(apiKey: string): UseAISStreamReturn {
           sog: pos.Sog,
           trueHeading: pos.TrueHeading,
           navStatus: pos.NavigationalStatus,
-          lastUpdate: MetaData.time_utc,
+          lastUpdate: parseTimeUtc(MetaData.time_utc),
           distanceToBridge: dist,
           approaching,
           notified: existing?.notified ?? false,
@@ -173,61 +192,75 @@ export function useAISStream(apiKey: string): UseAISStreamReturn {
     [addNotification]
   );
 
-  useEffect(() => {
-    if (!apiKey) {
-      setConnectionStatus("disconnected");
-      return;
-    }
+  // Use a ref for processMessage so the WebSocket effect doesn't re-run on callback changes
+  const processMessageRef = useRef(processMessage);
+  processMessageRef.current = processMessage;
 
+  useEffect(() => {
     let isCleanedUp = false;
+    let connectTimeout: ReturnType<typeof setTimeout>;
 
     function connect() {
-      if (isCleanedUp) return;
+      if (isCleanedUp) {
+        console.log("[AIS] connect() skipped — already cleaned up");
+        return;
+      }
 
+      console.log("[AIS] connecting to", WS_URL);
       setConnectionStatus("connecting");
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        console.log("[AIS] WebSocket opened");
         if (isCleanedUp) {
+          console.log("[AIS] opened but already cleaned up, closing");
           ws.close();
           return;
         }
         setConnectionStatus("connected");
 
         const subscription = {
-          APIKey: apiKey,
           BoundingBoxes: [AIS_BOUNDING_BOX],
           FilterMessageTypes: ["PositionReport", "ShipStaticData"],
         };
+        console.log("[AIS] sending subscription:", JSON.stringify(subscription));
         ws.send(JSON.stringify(subscription));
       };
 
       ws.onmessage = (event) => {
         try {
           const data: AISMessage = JSON.parse(event.data);
-          processMessage(data);
-        } catch {
-          // Ignore malformed messages
+          if (!shipsRef.current.has(data.MetaData.MMSI)) {
+            console.log("[AIS] new ship:", data.MetaData.ShipName, "MMSI:", data.MetaData.MMSI);
+          }
+          processMessageRef.current(data);
+        } catch (err) {
+          console.warn("[AIS] failed to parse message:", err, event.data);
         }
       };
 
-      ws.onerror = () => {
+      ws.onerror = (event) => {
+        console.error("[AIS] WebSocket error:", event);
+        if (isCleanedUp) return;
         setConnectionStatus("error");
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        console.log("[AIS] WebSocket closed — code:", event.code, "reason:", event.reason, "clean:", event.wasClean);
         if (isCleanedUp) return;
         setConnectionStatus("disconnected");
-        // Reconnect after 5 seconds
-        reconnectTimeoutRef.current = setTimeout(connect, 5000);
+        console.log("[AIS] reconnecting in 2s...");
+        reconnectTimeoutRef.current = setTimeout(connect, 2000);
       };
     }
 
-    connect();
+    // Delay to survive React StrictMode's unmount/remount cycle in development
+    connectTimeout = setTimeout(connect, 100);
 
     return () => {
       isCleanedUp = true;
+      clearTimeout(connectTimeout);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -235,7 +268,7 @@ export function useAISStream(apiKey: string): UseAISStreamReturn {
         wsRef.current.close();
       }
     };
-  }, [apiKey, processMessage]);
+  }, []);
 
   return {
     ships,
