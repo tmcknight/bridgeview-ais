@@ -7,28 +7,40 @@ interface StatusBarProps {
 
 const STATUS_CONFIG: Record<
   ConnectionStatus,
-  { label: string; className: string }
+  { label: string; dotClass: string }
 > = {
-  connected: { label: "Connected", className: "status-connected" },
-  connecting: { label: "Connecting...", className: "status-connecting" },
-  disconnected: { label: "Disconnected", className: "status-disconnected" },
-  error: { label: "Connection Error", className: "status-error" },
+  connected: {
+    label: "Connected",
+    dotClass: "bg-green-500 shadow-[0_0_6px_theme(--color-green-500)]",
+  },
+  connecting: {
+    label: "Connecting...",
+    dotClass: "bg-amber-500 animate-pulse",
+  },
+  disconnected: {
+    label: "Disconnected",
+    dotClass: "bg-slate-400",
+  },
+  error: {
+    label: "Connection Error",
+    dotClass: "bg-red-500",
+  },
 };
 
 export default function StatusBar({ connectionStatus, shipCount }: StatusBarProps) {
   const config = STATUS_CONFIG[connectionStatus];
 
   return (
-    <div className="status-bar">
-      <div className="status-left">
-        <div className={`status-indicator ${config.className}`}>
-          <span className="status-dot" />
+    <div className="flex items-center justify-between px-5 py-1.5 bg-slate-700 border-b border-slate-600 text-xs shrink-0">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5">
+          <span className={`inline-block w-2 h-2 rounded-full ${config.dotClass}`} />
           <span>{config.label}</span>
         </div>
-        <span className="ship-count">{shipCount} vessel{shipCount !== 1 ? "s" : ""} tracked</span>
+        <span className="text-slate-400">{shipCount} vessel{shipCount !== 1 ? "s" : ""} tracked</span>
       </div>
-      <div className="status-right">
-        <span className="data-source">AIS Data via aisstream.io</span>
+      <div>
+        <span className="text-slate-400">AIS Data via aisstream.io</span>
       </div>
     </div>
   );

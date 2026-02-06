@@ -144,7 +144,7 @@ function RecenterButton() {
   const map = useMap();
   return (
     <button
-      className="recenter-btn"
+      className="absolute top-2.5 right-2.5 z-[1000] w-9 h-9 bg-white border-2 border-black/20 rounded text-lg text-gray-700 flex items-center justify-center cursor-pointer hover:bg-gray-100"
       onClick={() => map.setView([BRIDGE_CENTER.lat, BRIDGE_CENTER.lng], DEFAULT_ZOOM)}
       title="Re-center on bridge"
     >
@@ -159,13 +159,13 @@ interface ShipMapProps {
 
 export default function ShipMap({ ships }: ShipMapProps) {
   return (
-    <div className="map-container">
+    <div className="w-full h-full">
       <MapContainer
         center={[BRIDGE_CENTER.lat, BRIDGE_CENTER.lng]}
         zoom={DEFAULT_ZOOM}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
-        className="map"
+        className="w-full h-full"
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

@@ -11,11 +11,14 @@
     "server": "node --env-file=.env server.js"
   },
   "dependencies": {
-    "ws": "^8.18.0",
+    "@headlessui/react": "^2.2.9",
+    "@tailwindcss/vite": "^4.1.18",
     "leaflet": "^1.9.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-leaflet": "^5.0.0"
+    "react-leaflet": "^5.0.0",
+    "tailwindcss": "^4.1.18",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

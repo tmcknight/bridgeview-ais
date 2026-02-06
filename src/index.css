@@ -1,61 +1,78 @@
-:root {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: #e2e8f0;
-  background-color: #0f172a;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@import "tailwindcss";
 
-  --color-bg: #0f172a;
-  --color-bg-secondary: #1e293b;
-  --color-bg-tertiary: #334155;
-  --color-border: #475569;
-  --color-text: #e2e8f0;
-  --color-text-muted: #94a3b8;
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
-  --color-success: #22c55e;
+/* ===== Global base styles ===== */
+@layer base {
+  :root {
+    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply m-0 min-w-80 min-h-screen flex flex-col bg-slate-900 text-slate-200 leading-normal;
+  }
+
+  #root {
+    @apply w-full h-screen flex flex-col;
+  }
+
+  a {
+    @apply text-blue-500 no-underline hover:underline;
+  }
+
+  button {
+    @apply font-[inherit] cursor-pointer;
+  }
+
+  h1, h2, h3 {
+    @apply leading-tight;
+  }
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ===== Leaflet overrides (rendered outside React) ===== */
+.ship-marker {
+  background: none !important;
+  border: none !important;
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+.bridge-marker {
+  background: none !important;
+  border: none !important;
 }
 
-#root {
+.bridge-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.ship-popup h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+.ship-popup table {
   width: 100%;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+  font-size: 0.8rem;
+  border-collapse: collapse;
 }
-
-a {
-  color: var(--color-primary);
-  text-decoration: none;
+.ship-popup td {
+  padding: 0.15rem 0.5rem 0.15rem 0;
+  color: #475569;
 }
-a:hover {
-  text-decoration: underline;
+.ship-popup td:first-child {
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
 }
-
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-
-h1, h2, h3 {
-  line-height: 1.2;
+.approaching-badge {
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.5rem;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 4px;
 }
