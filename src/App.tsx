@@ -4,6 +4,7 @@ import ShipMap from "./components/ShipMap";
 import ShipList from "./components/ShipList";
 import NotificationPanel from "./components/NotificationPanel";
 import StatusBar from "./components/StatusBar";
+import ComponentErrorBoundary from "./components/ComponentErrorBoundary";
 import { useAISStream } from "./hooks/useAISStream";
 import "leaflet/dist/leaflet.css";
 
@@ -49,7 +50,9 @@ function App() {
 
       <main className="flex flex-1 overflow-hidden max-md:flex-col">
         <div className="flex-1 relative min-w-0 max-md:h-[50vh]">
-          <ShipMap ships={ships} />
+          <ComponentErrorBoundary componentName="Map">
+            <ShipMap ships={ships} />
+          </ComponentErrorBoundary>
           <NotificationPanel
             notifications={notifications}
             onDismiss={dismissNotification}
@@ -57,7 +60,9 @@ function App() {
           />
         </div>
         <aside className="w-95 shrink-0 overflow-y-auto bg-slate-800 border-l border-slate-600 max-md:w-full max-md:border-l-0 max-md:border-t max-md:border-slate-600 max-md:h-[50vh]">
-          <ShipList ships={ships} />
+          <ComponentErrorBoundary componentName="Ship List">
+            <ShipList ships={ships} />
+          </ComponentErrorBoundary>
         </aside>
       </main>
     </div>
