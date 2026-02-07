@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { TrackedShip } from "../types/ais";
 import { NAV_STATUS_LABELS } from "../types/ais";
 import {
@@ -23,8 +24,11 @@ interface ShipListProps {
 }
 
 export default function ShipList({ ships, selectedShip, onSelectShip }: ShipListProps) {
-  const sorted = Array.from(ships.values()).sort(
-    (a, b) => a.distanceToBridge - b.distanceToBridge
+  const sorted = useMemo(
+    () => Array.from(ships.values()).sort(
+      (a, b) => a.distanceToBridge - b.distanceToBridge
+    ),
+    [ships]
   );
 
   if (sorted.length === 0) {
