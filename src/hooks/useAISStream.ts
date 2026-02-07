@@ -8,6 +8,7 @@ import {
 import { distanceToBridge, isApproaching } from "../utils/geo";
 
 const WS_URL = import.meta.env.VITE_WS_PROXY_URL || "ws://localhost:3001";
+const WS_AUTH_TOKEN = import.meta.env.VITE_WS_AUTH_TOKEN; // Optional authentication token
 const STALE_TIMEOUT_MS = 10 * 60 * 1000; // Remove ships not seen for 10 minutes
 
 /** Parse aisstream.io time_utc into an ISO string that Date can handle.
@@ -220,6 +221,12 @@ export function useAISStream(): UseAISStreamReturn {
         }
         setConnectionStatus("connected");
 
+        // Send authentication if token is configured
+        if (WS_AUTH_TOKEN) {
+          console.log("[AIS] sending authentication");
+          ws.send(JSON.stringify({ authToken: WS_AUTH_TOKEN }));
+        }
+
         const subscription = {
           BoundingBoxes: [AIS_BOUNDING_BOX],
           FilterMessageTypes: ["PositionReport", "ShipStaticData"],
@@ -230,11 +237,20 @@ export function useAISStream(): UseAISStreamReturn {
 
       ws.onmessage = (event) => {
         try {
-          const data: AISMessage = JSON.parse(event.data);
-          if (!shipsRef.current.has(data.MetaData.MMSI)) {
-            console.log("[AIS] new ship:", data.MetaData.ShipName, "MMSI:", data.MetaData.MMSI);
+          const data = JSON.parse(event.data);
+
+          // Handle authentication confirmation
+          if (data.type === "authenticated") {
+            console.log("[AIS] authenticated successfully");
+            return;
           }
-          processMessageRef.current(data);
+
+          // Handle AIS messages
+          const aisMessage = data as AISMessage;
+          if (!shipsRef.current.has(aisMessage.MetaData.MMSI)) {
+            console.log("[AIS] new ship:", aisMessage.MetaData.ShipName, "MMSI:", aisMessage.MetaData.MMSI);
+          }
+          processMessageRef.current(aisMessage);
         } catch (err) {
           console.warn("[AIS] failed to parse message:", err, event.data);
         }
