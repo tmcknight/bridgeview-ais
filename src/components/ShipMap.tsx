@@ -149,20 +149,27 @@ const ShipMarker = memo(
     ship,
     isPopupOpen,
     onTogglePopup,
+    onSelectShip,
     isSelected,
   }: {
     ship: TrackedShip;
     isPopupOpen: boolean;
     onTogglePopup: () => void;
+    onSelectShip?: (ship: TrackedShip) => void;
     isSelected: boolean;
   }) => {
+    const handleClick = useCallback(() => {
+      onTogglePopup();
+      onSelectShip?.(ship);
+    }, [onTogglePopup, onSelectShip, ship]);
+
     return (
       <>
         <Marker
           longitude={ship.longitude}
           latitude={ship.latitude}
           anchor="center"
-          onClick={onTogglePopup}
+          onClick={handleClick}
           className={isSelected ? "selected-ship-marker" : ""}
         >
           {createShipIconElement(ship)}
@@ -373,7 +380,7 @@ function MapController({ selectedShip }: { selectedShip?: TrackedShip | null }) 
   return null;
 }
 
-export default function ShipMap({ ships, selectedShip }: ShipMapProps) {
+export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapProps) {
   const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS.primary.style);
   const [errorCount, setErrorCount] = useState(0);
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
@@ -435,6 +442,7 @@ export default function ShipMap({ ships, selectedShip }: ShipMapProps) {
             onTogglePopup={() =>
               setOpenPopupId(openPopupId === ship.mmsi ? null : ship.mmsi)
             }
+            onSelectShip={onSelectShip}
           />
         ))}
         <MapController selectedShip={selectedShip} />
