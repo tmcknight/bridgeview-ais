@@ -59,6 +59,14 @@ function App() {
             onDismiss={dismissNotification}
             onClear={clearNotifications}
           />
+          {connectionStatus === 'connecting' && ships.size === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm z-50">
+              <div className="flex flex-col items-center gap-3 px-6 py-4 bg-slate-800 rounded-lg border border-slate-600 shadow-xl">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <p className="text-slate-200 font-medium">Connecting to AIS stream...</p>
+              </div>
+            </div>
+          )}
         </div>
         <aside className="w-95 shrink-0 overflow-y-auto bg-slate-800 border-l border-slate-600 max-md:w-full max-md:border-l-0 max-md:border-t max-md:border-slate-600 max-md:h-[50vh]">
           <ComponentErrorBoundary componentName="Ship List">
