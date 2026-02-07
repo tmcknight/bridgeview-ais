@@ -60,11 +60,11 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               tabIndex={0}
               aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
               aria-pressed={isSelected}
-              className={`bg-slate-900 border rounded-lg p-3 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`bg-slate-900 border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 isSelected
-                  ? "border-blue-500 border-2 bg-blue-900/20"
+                  ? "border-blue-500 bg-blue-900/20"
                   : ship.approaching
-                  ? "border-red-500 border-2"
+                  ? "border-red-500"
                   : "border-slate-700 hover:border-blue-500"
               }`}
               onClick={() => onSelectShip?.(ship)}
