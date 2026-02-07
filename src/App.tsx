@@ -17,9 +17,10 @@ function App() {
     clearNotifications,
   } = useAISStream();
 
-  const [notifPermission, setNotifPermission] = useState(
-    () => globalThis.Notification?.permission ?? "denied"
-  );
+  const [notifPermission, setNotifPermission] = useState(() => {
+    if (!('Notification' in window)) return 'unsupported';
+    return Notification.permission;
+  });
 
   const requestNotifications = useCallback(() => {
     globalThis.Notification?.requestPermission().then((perm) => {
