@@ -37,16 +37,24 @@ export function distanceToBridge(lat: number, lon: number): number {
  * Ships coming from north (Lake Huron) have COG ~180° (southbound).
  * Ships coming from south (Lake St. Clair) have COG ~0°/360° (northbound).
  * The bridge runs roughly east-west, so ships traveling roughly N or S are approaching.
+ *
+ * @param lat - Ship's latitude
+ * @param lon - Ship's longitude
+ * @param cog - Course over ground in degrees
+ * @param sog - Speed over ground in knots
+ * @param distanceToBridgeNM - Pre-calculated distance to bridge in nautical miles (optional, will calculate if not provided)
  */
 export function isApproaching(
   lat: number,
   lon: number,
   cog: number,
-  sog: number
+  sog: number,
+  distanceToBridgeNM?: number
 ): boolean {
   if (sog < 0.5) return false; // Ship is essentially stationary
 
-  const dist = haversineDistanceNM(lat, lon, BRIDGE_CENTER.lat, BRIDGE_CENTER.lng);
+  // Use pre-calculated distance if provided, otherwise calculate
+  const dist = distanceToBridgeNM ?? haversineDistanceNM(lat, lon, BRIDGE_CENTER.lat, BRIDGE_CENTER.lng);
   const isNorthOfBridge = lat > BRIDGE_CENTER.lat;
   const isSouthOfBridge = lat < BRIDGE_CENTER.lat;
 

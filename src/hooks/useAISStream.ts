@@ -157,7 +157,8 @@ export function useAISStream(): UseAISStreamReturn {
           MetaData.latitude,
           MetaData.longitude,
           pos.Cog,
-          pos.Sog
+          pos.Sog,
+          dist // Pass pre-calculated distance to avoid duplicate calculation
         );
 
         const ship: TrackedShip = {
