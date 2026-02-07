@@ -40,7 +40,7 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/tmcknight/bridgeview-ais.git
 cd bridgeview-ais
 ```
 
