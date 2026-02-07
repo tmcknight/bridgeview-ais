@@ -27,7 +27,7 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 - **Styling**: Tailwind CSS
 - **UI Components**: Headless UI
 - **Icons**: Heroicons
-- **Data Source**: AIS data stream via WebSocket proxy
+- **Data Source**: Real-time AIS data from [AISStream.io](https://aisstream.io) via WebSocket proxy
 
 ## Getting Started
 
@@ -81,6 +81,12 @@ The application consists of:
 - **WebSocket proxy server**: Manages AIS data stream connections
 - **MapLibre GL**: Provides interactive map visualization
 - **Component architecture**: Modular design with ShipMap, ShipList, and NotificationPanel components
+
+## Data Source
+
+This application is made possible by [AISStream.io](https://aisstream.io), a free service that provides real-time AIS (Automatic Identification System) data via WebSocket connections. AISStream.io aggregates data from a global network of AIS receivers and makes it accessible to developers building maritime tracking applications.
+
+Special thanks to AISStream.io for providing free access to live vessel tracking data.
 
 ## About
 
