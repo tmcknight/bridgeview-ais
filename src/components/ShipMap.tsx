@@ -1,8 +1,12 @@
-import { MapContainer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
+import Map, {
+  Marker,
+  Popup,
+  NavigationControl,
+  useMap,
+} from "react-map-gl/maplibre";
+import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import "@maplibre/maplibre-gl-leaflet";
-import { useEffect, memo, useState, useCallback } from "react";
+import React, { useEffect, memo, useState, useCallback } from "react";
 import type { TrackedShip } from "../types/ais";
 import { NAV_STATUS_LABELS } from "../types/ais";
 import {
@@ -27,122 +31,217 @@ import {
   ArrowsPointingOutIcon,
   GlobeAmericasIcon,
   ArrowsUpDownIcon,
+  HomeIcon,
 } from "@heroicons/react/20/solid";
 
-function createShipIcon(ship: TrackedShip): L.DivIcon {
+// Create ship icon as React element
+function createShipIconElement(ship: TrackedShip): React.JSX.Element {
   const rotation = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
   const color = ship.approaching ? "#ef4444" : "#3b82f6";
   const size = 24;
 
-  return L.divIcon({
-    className: "ship-marker",
-    html: `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="transform: rotate(${rotation}deg);">
-      <path d="M12 2 L18 20 L12 16 L6 20 Z" fill="${color}" stroke="#fff" stroke-width="1.5"/>
-    </svg>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -size / 2],
-  });
+  return (
+    <div className="ship-marker">
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        style={{ transform: `rotate(${rotation}deg)` }}
+      >
+        <path
+          d="M12 2 L18 20 L12 16 L6 20 Z"
+          fill={color}
+          stroke="#fff"
+          strokeWidth="1.5"
+        />
+      </svg>
+    </div>
+  );
+}
+
+// Extracted popup content component
+function ShipPopupContent({ ship }: { ship: TrackedShip }) {
+  const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
+  const headingDeg = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
+
+  return (
+    <div className="ship-popup">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">
+          {ship.name}
+        </h3>
+        {ship.approaching && (
+          <span className="shrink-0 text-[0.6rem] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded tracking-wide">
+            APPROACHING
+          </span>
+        )}
+      </div>
+
+      {/* Primary stats */}
+      <div className="flex gap-3 mb-2">
+        <div
+          className="flex items-center gap-1 text-slate-700"
+          title="Speed over ground"
+        >
+          <BoltIcon className="w-3.5 h-3.5 text-blue-500" />
+          <span className="text-sm font-semibold">{formatSpeed(ship.sog)}</span>
+        </div>
+        <div
+          className="flex items-center gap-1 text-slate-700"
+          title="Distance to bridge"
+        >
+          <MapPinIcon className="w-3.5 h-3.5 text-amber-500" />
+          <span className="text-sm font-semibold">
+            {formatDistance(ship.distanceToBridge)}
+          </span>
+        </div>
+        <div
+          className="flex items-center gap-1 text-slate-700"
+          title="Estimated time to bridge"
+        >
+          <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
+          <span className="text-sm font-semibold">{formatETA(eta)}</span>
+        </div>
+      </div>
+
+      {/* Secondary details */}
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 mb-1.5">
+        <div className="flex items-center gap-1" title="Heading">
+          <ArrowUpIcon
+            className="w-3 h-3 text-slate-400"
+            style={{ transform: `rotate(${headingDeg}deg)` }}
+          />
+          <span>{formatHeading(headingDeg)}</span>
+        </div>
+        <span title="Navigation status">
+          {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
+        </span>
+        {ship.destination && (
+          <div className="flex items-center gap-1" title="Destination">
+            <FlagIcon className="w-3 h-3 text-slate-400" />
+            <span>{ship.destination}</span>
+          </div>
+        )}
+        {ship.length && ship.length > 0 && (
+          <div className="flex items-center gap-1" title="Vessel dimensions">
+            <ArrowsPointingOutIcon className="w-3 h-3 text-slate-400" />
+            <span>
+              {ship.length}m × {ship.width}m
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200 flex justify-between">
+        <span title="MMSI identifier">{ship.mmsi}</span>
+        <span title="Last update">
+          {new Date(ship.lastUpdate).toLocaleTimeString()}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 // Memoize ShipMarker to prevent re-renders when ship data hasn't changed
 const ShipMarker = memo(
-  ({ ship }: { ship: TrackedShip }) => {
-    const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
-    const headingDeg = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
-
+  ({
+    ship,
+    isPopupOpen,
+    onTogglePopup,
+    isSelected,
+  }: {
+    ship: TrackedShip;
+    isPopupOpen: boolean;
+    onTogglePopup: () => void;
+    isSelected: boolean;
+  }) => {
     return (
-      <Marker
-        position={[ship.latitude, ship.longitude]}
-        icon={createShipIcon(ship)}
-      >
-        <Popup>
-          <div className="ship-popup">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">{ship.name}</h3>
-              {ship.approaching && (
-                <span className="shrink-0 text-[0.6rem] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded tracking-wide">
-                  APPROACHING
-                </span>
-              )}
-            </div>
-
-            {/* Primary stats */}
-            <div className="flex gap-3 mb-2">
-              <div className="flex items-center gap-1 text-slate-700" title="Speed over ground">
-                <BoltIcon className="w-3.5 h-3.5 text-blue-500" />
-                <span className="text-sm font-semibold">{formatSpeed(ship.sog)}</span>
-              </div>
-              <div className="flex items-center gap-1 text-slate-700" title="Distance to bridge">
-                <MapPinIcon className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-sm font-semibold">{formatDistance(ship.distanceToBridge)}</span>
-              </div>
-              <div className="flex items-center gap-1 text-slate-700" title="Estimated time to bridge">
-                <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-sm font-semibold">{formatETA(eta)}</span>
-              </div>
-            </div>
-
-            {/* Secondary details */}
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 mb-1.5">
-              <div className="flex items-center gap-1" title="Heading">
-                <ArrowUpIcon className="w-3 h-3 text-slate-400" style={{ transform: `rotate(${headingDeg}deg)` }} />
-                <span>{formatHeading(headingDeg)}</span>
-              </div>
-              <span title="Navigation status">{NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}</span>
-              {ship.destination && (
-                <div className="flex items-center gap-1" title="Destination">
-                  <FlagIcon className="w-3 h-3 text-slate-400" />
-                  <span>{ship.destination}</span>
-                </div>
-              )}
-              {ship.length && ship.length > 0 && (
-                <div className="flex items-center gap-1" title="Vessel dimensions">
-                  <ArrowsPointingOutIcon className="w-3 h-3 text-slate-400" />
-                  <span>{ship.length}m × {ship.width}m</span>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200 flex justify-between">
-              <span title="MMSI identifier">{ship.mmsi}</span>
-              <span title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
-            </div>
-          </div>
-        </Popup>
-      </Marker>
+      <>
+        <Marker
+          longitude={ship.longitude}
+          latitude={ship.latitude}
+          anchor="center"
+          onClick={onTogglePopup}
+          className={isSelected ? "selected-ship-marker" : ""}
+        >
+          {createShipIconElement(ship)}
+        </Marker>
+        {isPopupOpen && (
+          <Popup
+            longitude={ship.longitude}
+            latitude={ship.latitude}
+            anchor="bottom"
+            offset={12}
+            onClose={onTogglePopup}
+            closeButton={true}
+            closeOnClick={false}
+          >
+            <ShipPopupContent ship={ship} />
+          </Popup>
+        )}
+      </>
     );
   },
-  // Custom comparison: only re-render if ship data has actually changed
+  // Custom comparison: only re-render if ship data or popup state has changed
   (prevProps, nextProps) => {
-    return prevProps.ship.lastUpdate === nextProps.ship.lastUpdate;
+    return (
+      prevProps.ship.lastUpdate === nextProps.ship.lastUpdate &&
+      prevProps.isPopupOpen === nextProps.isPopupOpen &&
+      prevProps.isSelected === nextProps.isSelected
+    );
   }
 );
 
-function BridgeMarker() {
-  const bridgeIcon = L.divIcon({
-    className: "bridge-marker",
-    html: `<div class="bridge-icon">🌉</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-  });
-
+// Bridge marker as DOM marker with emoji
+function BridgeMarker({
+  isPopupOpen,
+  onTogglePopup,
+}: {
+  isPopupOpen: boolean;
+  onTogglePopup: () => void;
+}) {
   return (
     <>
-      <Marker position={[BRIDGE_CENTER.lat, BRIDGE_CENTER.lng]} icon={bridgeIcon}>
-        <Popup>
+      <Marker
+        longitude={BRIDGE_CENTER.lng}
+        latitude={BRIDGE_CENTER.lat}
+        anchor="center"
+        onClick={onTogglePopup}
+      >
+        <div className="bridge-marker">
+          <div className="bridge-icon">🌉</div>
+        </div>
+      </Marker>
+      {isPopupOpen && (
+        <Popup
+          longitude={BRIDGE_CENTER.lng}
+          latitude={BRIDGE_CENTER.lat}
+          anchor="bottom"
+          offset={16}
+          onClose={onTogglePopup}
+          closeButton={true}
+          closeOnClick={false}
+        >
           <div className="ship-popup">
             <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">Blue Water Bridge</h3>
+              <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">
+                Blue Water Bridge
+              </h3>
             </div>
 
             <div className="flex gap-3 mb-2">
-              <div className="flex items-center gap-1 text-slate-700" title="Connects Sarnia, ON and Port Huron, MI">
+              <div
+                className="flex items-center gap-1 text-slate-700"
+                title="Connects Sarnia, ON and Port Huron, MI"
+              >
                 <GlobeAmericasIcon className="w-3.5 h-3.5 text-blue-500" />
                 <span className="text-sm font-semibold">Sarnia ↔ Port Huron</span>
               </div>
-              <div className="flex items-center gap-1 text-slate-700" title="Air draft clearance">
+              <div
+                className="flex items-center gap-1 text-slate-700"
+                title="Air draft clearance"
+              >
                 <ArrowsUpDownIcon className="w-3.5 h-3.5 text-amber-500" />
                 <span className="text-sm font-semibold">~46 m (152 ft)</span>
               </div>
@@ -153,12 +252,12 @@ function BridgeMarker() {
             </div>
           </div>
         </Popup>
-      </Marker>
+      )}
     </>
   );
 }
 
-// Tile providers configuration
+// Tile providers configuration (unchanged)
 const TILE_PROVIDERS = {
   primary: {
     name: "OpenFreeMap Fiord",
@@ -173,7 +272,8 @@ const TILE_PROVIDERS = {
           type: "raster",
           tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
           tileSize: 256,
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
           maxzoom: 19,
         },
       },
@@ -188,80 +288,55 @@ const TILE_PROVIDERS = {
   },
 };
 
-function FiordBaseLayer() {
-  const map = useMap();
-  const [useFallback, setUseFallback] = useState(false);
-  const [errorCount, setErrorCount] = useState(0);
+// Custom attribution control component
+function AttributionToggle() {
+  const [showAttribution, setShowAttribution] = useState(false);
 
-  const handleTileError = useCallback(() => {
-    setErrorCount((prev) => {
-      const newCount = prev + 1;
-      // Switch to fallback after 3 consecutive errors
-      if (newCount >= 3 && !useFallback) {
-        console.warn(
-          `Failed to load tiles from ${TILE_PROVIDERS.primary.name} after ${newCount} attempts. Switching to ${TILE_PROVIDERS.fallback.name}.`
-        );
-        setUseFallback(true);
-      }
-      return newCount;
-    });
-  }, [useFallback]);
-
-  useEffect(() => {
-    const tileProvider = useFallback ? TILE_PROVIDERS.fallback : TILE_PROVIDERS.primary;
-
-    try {
-      const gl = L.maplibreGL({
-        style: tileProvider.style,
-      }).addTo(map);
-
-      // Add error event listener to the map
-      const mapInstance = gl.getMaplibreMap();
-      if (mapInstance) {
-        mapInstance.on("error", (e) => {
-          console.error(`Map tile error from ${tileProvider.name}:`, e.error);
-          handleTileError();
-        });
-
-        // Listen for tile load errors
-        mapInstance.on("sourcedataabort", () => {
-          console.warn(`Tile source data aborted for ${tileProvider.name}`);
-          handleTileError();
-        });
-      }
-
-      // Reset error count on successful layer addition
-      setErrorCount(0);
-
-      return () => {
-        try {
-          map.removeLayer(gl);
-        } catch (err) {
-          console.error("Error removing map layer:", err);
-        }
-      };
-    } catch (err) {
-      console.error(`Failed to initialize map layer with ${tileProvider.name}:`, err);
-      handleTileError();
-      return undefined;
-    }
-  }, [map, useFallback, handleTileError]);
-
-  return null;
+  return (
+    <div className="absolute bottom-0 right-0 z-40 m-2.5">
+      <button
+        className="w-7 h-7 bg-slate-800/90 border-2 border-slate-500 rounded text-xs text-slate-100 flex items-center justify-center cursor-pointer hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onClick={() => setShowAttribution(!showAttribution)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setShowAttribution(!showAttribution);
+          }
+        }}
+        aria-label="Toggle map attribution"
+        title="Map attribution"
+      >
+        ⓘ
+      </button>
+      {showAttribution && (
+        <div className="absolute bottom-full right-0 mb-1 px-2 py-1.5 bg-slate-800/95 border border-slate-600/40 rounded text-[0.65rem] text-slate-400 max-w-xs">
+          <div>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-200 underline">OpenStreetMap</a> contributors</div>
+          <div className="mt-0.5">Tiles: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-200 underline">OpenFreeMap</a></div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function RecenterButton() {
-  const map = useMap();
+  const { current: map } = useMap();
+
   const handleRecenter = () => {
-    map.setView([BRIDGE_CENTER.lat, BRIDGE_CENTER.lng], DEFAULT_ZOOM);
+    if (map) {
+      map.flyTo({
+        center: [BRIDGE_CENTER.lng, BRIDGE_CENTER.lat],
+        zoom: DEFAULT_ZOOM,
+        duration: 500,
+      });
+    }
   };
 
   return (
     <button
-      className="absolute top-2.5 right-2.5 z-40 w-9 h-9 bg-slate-800 border-2 border-slate-600/40 rounded text-lg text-slate-700 flex items-center justify-center cursor-pointer hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="maplibregl-ctrl-icon maplibregl-ctrl-recenter absolute top-[87px] right-2.5 z-40 w-7.75 h-7.75 p-0 bg-slate-600 border border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-500 focus:outline-none"
       onClick={handleRecenter}
       onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           handleRecenter();
         }
@@ -269,7 +344,7 @@ function RecenterButton() {
       aria-label="Re-center map on Blue Water Bridge"
       title="Re-center on bridge"
     >
-      ⌖
+      <HomeIcon className="w-4 h-4 text-white" />
     </button>
   );
 }
@@ -281,13 +356,16 @@ interface ShipMapProps {
 }
 
 function MapController({ selectedShip }: { selectedShip?: TrackedShip | null }) {
-  const map = useMap();
+  const { current: map } = useMap();
 
   useEffect(() => {
-    if (selectedShip) {
-      // Center map on selected ship with a smooth animation
-      map.flyTo([selectedShip.latitude, selectedShip.longitude], Math.max(map.getZoom(), 13), {
-        duration: 0.8,
+    if (selectedShip && map) {
+      const currentZoom = map.getZoom();
+      map.flyTo({
+        center: [selectedShip.longitude, selectedShip.latitude],
+        zoom: Math.max(currentZoom, 13),
+        duration: 800,
+        essential: true,
       });
     }
   }, [map, selectedShip]);
@@ -296,23 +374,73 @@ function MapController({ selectedShip }: { selectedShip?: TrackedShip | null }) 
 }
 
 export default function ShipMap({ ships, selectedShip }: ShipMapProps) {
+  const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS.primary.style);
+  const [errorCount, setErrorCount] = useState(0);
+  const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
+
+  const handleMapError = useCallback((e: any) => {
+    const errorMsg = e.error?.message || "";
+    if (
+      errorMsg.includes("tile") ||
+      errorMsg.includes("source") ||
+      errorMsg.includes("load")
+    ) {
+      setErrorCount((prev) => {
+        const newCount = prev + 1;
+        if (newCount >= 3) {
+          console.warn(
+            `Failed to load tiles from ${TILE_PROVIDERS.primary.name} after ${newCount} attempts. Switching to ${TILE_PROVIDERS.fallback.name}.`
+          );
+          setMapStyle(TILE_PROVIDERS.fallback.style);
+        }
+        return newCount;
+      });
+    }
+  }, []);
+
+  const handleStyleLoad = useCallback(() => {
+    setErrorCount(0);
+  }, []);
+
   return (
     <div className="w-full h-full">
-      <MapContainer
-        center={[BRIDGE_CENTER.lat, BRIDGE_CENTER.lng]}
-        zoom={DEFAULT_ZOOM}
+      <Map
+        mapLib={maplibregl}
+        initialViewState={{
+          longitude: BRIDGE_CENTER.lng,
+          latitude: BRIDGE_CENTER.lat,
+          zoom: DEFAULT_ZOOM,
+        }}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
-        className="w-full h-full"
+        mapStyle={mapStyle}
+        onError={handleMapError}
+        onLoad={handleStyleLoad}
+        style={{ width: "100%", height: "100%" }}
+        attributionControl={false}
       >
-        <FiordBaseLayer />
-        <BridgeMarker />
+        <NavigationControl position="top-right" showCompass={false} />
+        <BridgeMarker
+          isPopupOpen={openPopupId === "bridge"}
+          onTogglePopup={() =>
+            setOpenPopupId(openPopupId === "bridge" ? null : "bridge")
+          }
+        />
         {Array.from(ships.values()).map((ship) => (
-          <ShipMarker key={ship.mmsi} ship={ship} />
+          <ShipMarker
+            key={ship.mmsi}
+            ship={ship}
+            isPopupOpen={openPopupId === ship.mmsi}
+            isSelected={selectedShip?.mmsi === ship.mmsi}
+            onTogglePopup={() =>
+              setOpenPopupId(openPopupId === ship.mmsi ? null : ship.mmsi)
+            }
+          />
         ))}
         <MapController selectedShip={selectedShip} />
         <RecenterButton />
-      </MapContainer>
+      </Map>
+      <AttributionToggle />
     </div>
   );
 }

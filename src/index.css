@@ -3,7 +3,11 @@
 /* ===== Global base styles ===== */
 @layer base {
   :root {
-    font-family: "Inter", system-ui, -apple-system, sans-serif;
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -26,59 +30,134 @@
     @apply font-[inherit] cursor-pointer;
   }
 
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     @apply leading-tight;
   }
 }
 
-/* ===== Leaflet overrides (rendered outside React) ===== */
+/* ===== MapLibre overrides (rendered outside React) ===== */
 
+/* Marker styles */
 .ship-marker {
+  @apply cursor-pointer;
   background: none !important;
   border: none !important;
 }
 
 .bridge-marker {
+  @apply cursor-pointer;
   background: none !important;
   border: none !important;
 }
 
+/* Selected ship pulsing animation */
+.selected-ship-marker .ship-marker {
+  animation: pulse-selected 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-selected {
+  0%,
+  100% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.8))
+      drop-shadow(0 0 24px rgba(59, 130, 246, 0.4));
+  }
+  50% {
+    transform: scale(1.4);
+    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 1))
+      drop-shadow(0 0 40px rgba(59, 130, 246, 0.6))
+      drop-shadow(0 0 60px rgba(59, 130, 246, 0.3));
+  }
+}
+
 .bridge-icon {
-  font-size: 1.5rem; /* 24px - matches Tailwind text-2xl */
+  @apply text-2xl;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
 
+/* Popup styles */
 .ship-popup h3 {
-  margin: 0 0 0.5rem 0; /* Matches Tailwind spacing scale */
-  font-size: 0.875rem; /* Matches Tailwind text-sm */
-  color: #1e293b; /* Tailwind slate-800 */
+  @apply mb-2 text-sm text-slate-800;
+  margin-top: 0;
 }
 
 .ship-popup {
-  min-width: 14rem; /* 224px - matches Tailwind w-56 */
+  @apply min-w-56;
 }
 
-.leaflet-popup-content {
-  margin: 0.625rem 0.75rem; /* 10px 12px - matches Tailwind spacing-2.5 and spacing-3 */
+.maplibregl-popup-content {
+  @apply px-3 py-2.5 bg-white rounded-md;
 }
 
-/* Dark mode zoom controls */
-.leaflet-control-zoom a {
-  background-color: #1e293b !important;
-  color: #cbd5e1 !important;
-  border-color: #334155 !important;
+.maplibregl-popup-close-button {
+  @apply text-slate-500 text-xl px-2 py-1;
 }
 
-.leaflet-control-zoom a:hover {
-  background-color: #334155 !important;
+.maplibregl-popup-close-button:hover {
+  @apply bg-slate-100 text-slate-800;
 }
 
-/* Dark mode attribution */
-.leaflet-control-attribution {
-  background-color: rgba(15, 23, 42, 0.7) !important;
-  color: #64748b !important;
+/* Zoom control group */
+.maplibregl-ctrl-group {
+  @apply !rounded;
+  border: 1px solid #94a3b8 !important;
 }
 
-.leaflet-control-attribution a {
-  color: #64748b !important;
+.maplibregl-ctrl-group:not(:empty) {
+  @apply !shadow-lg;
+  background: none !important;
+}
+
+/* Zoom controls */
+.maplibregl-ctrl-zoom-in,
+.maplibregl-ctrl-zoom-out {
+  @apply !bg-slate-600;
+  border: none !important;
+}
+
+.maplibregl-ctrl-zoom-in {
+  @apply !rounded-t;
+}
+
+.maplibregl-ctrl-zoom-out {
+  @apply !rounded-b;
+}
+
+/* Override MapLibre's default icons with Heroicon-style SVGs */
+.maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4.5v15m7.5-7.5h-15'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 70% !important;
+}
+
+.maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19.5 12h-15'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 70% !important;
+}
+
+.maplibregl-ctrl-zoom-in:hover,
+.maplibregl-ctrl-zoom-out:hover {
+  @apply !bg-slate-500;
+}
+
+/* Attribution controls */
+.maplibregl-ctrl-attrib {
+  @apply !bg-slate-900/70;
+}
+
+.maplibregl-ctrl-attrib a {
+  @apply !text-slate-500;
+}
+
+.maplibregl-ctrl-attrib-button {
+  @apply !bg-slate-900/70 !text-slate-300 !border-slate-700;
+}
+
+.maplibregl-ctrl-attrib-button:hover {
+  @apply !bg-slate-700;
 }

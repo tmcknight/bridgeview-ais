@@ -7,7 +7,6 @@ import StatusBar from "./components/StatusBar";
 import ComponentErrorBoundary from "./components/ComponentErrorBoundary";
 import { useAISStream } from "./hooks/useAISStream";
 import type { TrackedShip } from "./types/ais";
-import "leaflet/dist/leaflet.css";
 
 function App() {
   const {
