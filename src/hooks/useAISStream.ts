@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { AISMessage, TrackedShip } from "../types/ais";
 import { AIS_BOUNDING_BOX } from "../constants/bridge";
 import {
@@ -40,6 +40,45 @@ interface UseAISStreamReturn {
   clearNotifications: () => void;
 }
 
+type ShipsAction =
+  | { type: "UPDATE_SHIP"; mmsi: number; ship: TrackedShip }
+  | { type: "UPDATE_STATIC_DATA"; mmsi: number; updates: Partial<TrackedShip> }
+  | { type: "PURGE_STALE"; staleTimeout: number };
+
+function shipsReducer(state: Map<number, TrackedShip>, action: ShipsAction): Map<number, TrackedShip> {
+  switch (action.type) {
+    case "UPDATE_SHIP": {
+      const newState = new Map(state);
+      newState.set(action.mmsi, action.ship);
+      return newState;
+    }
+    case "UPDATE_STATIC_DATA": {
+      const existing = state.get(action.mmsi);
+      if (!existing) return state;
+      const newState = new Map(state);
+      newState.set(action.mmsi, { ...existing, ...action.updates });
+      return newState;
+    }
+    case "PURGE_STALE": {
+      const now = Date.now();
+      let hasStale = false;
+      const newState = new Map<number, TrackedShip>();
+
+      for (const [mmsi, ship] of state) {
+        if (now - new Date(ship.lastUpdate).getTime() <= action.staleTimeout) {
+          newState.set(mmsi, ship);
+        } else {
+          hasStale = true;
+        }
+      }
+
+      return hasStale ? newState : state;
+    }
+    default:
+      return state;
+  }
+}
+
 export interface Notification {
   id: string;
   shipName: string;
@@ -51,12 +90,17 @@ export interface Notification {
 }
 
 export function useAISStream(): UseAISStreamReturn {
-  const [ships, setShips] = useState<Map<number, TrackedShip>>(new Map());
+  const [ships, dispatchShips] = useReducer(shipsReducer, new Map());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const shipsRef = useRef<Map<number, TrackedShip>>(new Map());
+
+  // Keep ref in sync with reducer state
+  useEffect(() => {
+    shipsRef.current = ships;
+  }, [ships]);
 
   const addNotification = useCallback(
     (
@@ -99,10 +143,9 @@ export function useAISStream(): UseAISStreamReturn {
   }, []);
 
   const processMessage = useCallback(
-    (msg: AISMessage) => {
+    (msg: AISMessage, currentShips: Map<number, TrackedShip>) => {
       const { MetaData, MessageType, Message } = msg;
       const mmsi = MetaData.MMSI;
-      const currentShips = shipsRef.current;
       const existing = currentShips.get(mmsi);
 
       if (MessageType === "PositionReport" && Message.PositionReport) {
@@ -164,31 +207,21 @@ export function useAISStream(): UseAISStreamReturn {
           ship.notified = false;
         }
 
-        currentShips.set(mmsi, ship);
+        dispatchShips({ type: "UPDATE_SHIP", mmsi, ship });
       } else if (MessageType === "ShipStaticData" && Message.ShipStaticData) {
         const staticData = Message.ShipStaticData;
-        if (existing) {
-          existing.destination = staticData.Destination?.trim();
-          existing.shipType = staticData.Type;
-          existing.length =
-            (staticData.Dimension?.A ?? 0) + (staticData.Dimension?.B ?? 0);
-          existing.width =
-            (staticData.Dimension?.C ?? 0) + (staticData.Dimension?.D ?? 0);
-          existing.name = staticData.Name?.trim() || existing.name;
-          currentShips.set(mmsi, { ...existing });
-        }
+        const updates: Partial<TrackedShip> = {
+          destination: staticData.Destination?.trim(),
+          shipType: staticData.Type,
+          length: (staticData.Dimension?.A ?? 0) + (staticData.Dimension?.B ?? 0),
+          width: (staticData.Dimension?.C ?? 0) + (staticData.Dimension?.D ?? 0),
+          name: staticData.Name?.trim() || existing?.name,
+        };
+        dispatchShips({ type: "UPDATE_STATIC_DATA", mmsi, updates });
       }
 
       // Purge stale ships
-      const now = Date.now();
-      for (const [key, s] of currentShips) {
-        if (now - new Date(s.lastUpdate).getTime() > STALE_TIMEOUT_MS) {
-          currentShips.delete(key);
-        }
-      }
-
-      shipsRef.current = new Map(currentShips);
-      setShips(new Map(currentShips));
+      dispatchShips({ type: "PURGE_STALE", staleTimeout: STALE_TIMEOUT_MS });
     },
     [addNotification]
   );
@@ -250,7 +283,7 @@ export function useAISStream(): UseAISStreamReturn {
           if (!shipsRef.current.has(aisMessage.MetaData.MMSI)) {
             console.log("[AIS] new ship:", aisMessage.MetaData.ShipName, "MMSI:", aisMessage.MetaData.MMSI);
           }
-          processMessageRef.current(aisMessage);
+          processMessageRef.current(aisMessage, shipsRef.current);
         } catch (err) {
           console.warn("[AIS] failed to parse message:", err, event.data);
         }
