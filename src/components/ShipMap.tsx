@@ -1,4 +1,4 @@
-import { MapContainer, Marker, Popup, Polyline, useMap } from "react-leaflet";
+import { MapContainer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@maplibre/maplibre-gl-leaflet";
@@ -163,8 +163,6 @@ function FiordBaseLayer() {
   useEffect(() => {
     const gl = L.maplibreGL({
       style: "https://tiles.openfreemap.org/styles/fiord",
-      attribution:
-        '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Style: <a href="https://github.com/openmaptiles/fiord-color-gl-style">Fiord Color</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC-BY 4.0</a>) | Tiles by <a href="https://openfreemap.org/">OpenFreeMap</a>',
     }).addTo(map);
     return () => {
       map.removeLayer(gl);
@@ -218,7 +216,7 @@ function MapController({ selectedShip }: { selectedShip?: TrackedShip | null }) 
   return null;
 }
 
-export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapProps) {
+export default function ShipMap({ ships, selectedShip }: ShipMapProps) {
   return (
     <div className="w-full h-full">
       <MapContainer
