@@ -1,4 +1,4 @@
-import { BRIDGE_CENTER } from "../constants/bridge";
+import { BRIDGE_CENTER, MAX_TRACKING_DISTANCE_NM } from "../constants/bridge";
 
 const DEG_TO_RAD = Math.PI / 180;
 const EARTH_RADIUS_NM = 3440.065; // Earth radius in nautical miles
@@ -54,7 +54,7 @@ export function isApproaching(
   const heading = ((cog % 360) + 360) % 360;
 
   // Only consider ships within reasonable range
-  if (dist > 10) return false;
+  if (dist > MAX_TRACKING_DISTANCE_NM) return false;
 
   // Ship is north of bridge and heading south (roughly 135-225°)
   if (isNorthOfBridge && heading > 135 && heading < 225) return true;

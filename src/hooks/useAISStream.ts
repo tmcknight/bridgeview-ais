@@ -4,12 +4,13 @@ import { AIS_BOUNDING_BOX } from "../constants/bridge";
 import {
   APPROACH_NOTIFICATION_DISTANCE_NM,
   CLOSE_APPROACH_DISTANCE_NM,
+  MAX_NOTIFICATIONS,
+  STALE_SHIP_TIMEOUT_MS,
 } from "../constants/bridge";
 import { distanceToBridge, isApproaching } from "../utils/geo";
 
 const WS_URL = import.meta.env.VITE_WS_PROXY_URL || "ws://localhost:3001";
 const WS_AUTH_TOKEN = import.meta.env.VITE_WS_AUTH_TOKEN; // Optional authentication token
-const STALE_TIMEOUT_MS = 10 * 60 * 1000; // Remove ships not seen for 10 minutes
 
 /** Parse aisstream.io time_utc into an ISO string that Date can handle.
  *  Formats seen: "20240115123456", "2024-01-15 12:34:56", ISO 8601 */
@@ -118,7 +119,7 @@ export function useAISStream(): UseAISStreamReturn {
         type,
         dismissed: false,
       };
-      setNotifications((prev) => [notification, ...prev].slice(0, 50));
+      setNotifications((prev) => [notification, ...prev].slice(0, MAX_NOTIFICATIONS));
 
       // Browser notification if permission granted
       if (globalThis.Notification?.permission === "granted") {
@@ -221,7 +222,7 @@ export function useAISStream(): UseAISStreamReturn {
       }
 
       // Purge stale ships
-      dispatchShips({ type: "PURGE_STALE", staleTimeout: STALE_TIMEOUT_MS });
+      dispatchShips({ type: "PURGE_STALE", staleTimeout: STALE_SHIP_TIMEOUT_MS });
     },
     [addNotification]
   );

@@ -24,6 +24,7 @@ export const AIS_BOUNDING_BOX: [[number, number], [number, number]] = [
 // Distance thresholds in nautical miles
 export const APPROACH_NOTIFICATION_DISTANCE_NM = 2.0; // Notify when within 2 NM
 export const CLOSE_APPROACH_DISTANCE_NM = 0.5; // "Passing under" threshold
+export const MAX_TRACKING_DISTANCE_NM = 10; // Maximum distance to consider ships as approaching
 
 // Bridge clearance (approximate) in meters
 export const BRIDGE_AIR_DRAFT_M = 46; // ~152 ft air draft
@@ -32,3 +33,7 @@ export const BRIDGE_AIR_DRAFT_M = 46; // ~152 ft air draft
 export const DEFAULT_ZOOM = 13;
 export const MIN_ZOOM = 10;
 export const MAX_ZOOM = 18;
+
+// Data management
+export const STALE_SHIP_TIMEOUT_MS = 10 * 60 * 1000; // Remove ships not seen for 10 minutes
+export const MAX_NOTIFICATIONS = 50; // Maximum number of notifications to keep in memory
