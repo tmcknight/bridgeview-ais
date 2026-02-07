@@ -25,9 +25,9 @@ function parseTimeUtc(raw: string): string {
     return iso;
   }
 
-  // Fallback: return current time
-  console.warn("[AIS] unparseable time_utc:", raw);
-  return new Date().toISOString();
+  // Fallback: return Unix epoch to signal error
+  console.error("[AIS] unparseable time_utc:", raw);
+  return new Date(0).toISOString(); // Unix epoch (1970-01-01) signals invalid data
 }
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";

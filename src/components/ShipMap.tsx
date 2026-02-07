@@ -181,7 +181,7 @@ function RecenterButton() {
 
   return (
     <button
-      className="absolute top-2.5 right-2.5 z-1000 w-9 h-9 bg-slate-800 border-2 border-slate-600/40 rounded text-lg text-slate-700 flex items-center justify-center cursor-pointer hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      className="absolute top-2.5 right-2.5 z-40 w-9 h-9 bg-slate-800 border-2 border-slate-600/40 rounded text-lg text-slate-700 flex items-center justify-center cursor-pointer hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
       onClick={handleRecenter}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
