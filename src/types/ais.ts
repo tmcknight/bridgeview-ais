@@ -1,7 +1,7 @@
 // AIS Stream API types
 
 export interface AISSubscription {
-  APIKey: string;
+  Apikey: string;
   BoundingBoxes: [number, number][][];
   FilterMessageTypes?: string[];
   FiltersShipMMSI?: string[];
