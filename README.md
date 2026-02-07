@@ -2,11 +2,11 @@
 
 A real-time ship tracking application that displays vessel traffic near the Blue Water Bridge using Automatic Identification System (AIS) data.
 
-## Overview
+## 🔍 Overview
 
 BridgeView AIS is a web-based maritime tracking tool that provides live visualization of ship movements and detailed vessel information. Built with modern web technologies, it offers an intuitive interface for monitoring shipping activity in the Blue Water Bridge area.
 
-## Features
+## ✨ Features
 
 - **Real-time Ship Tracking**: Live AIS data streaming via WebSocket for up-to-the-second vessel positions
 - **Interactive Map**: MapLibre GL-powered map with smooth rendering
@@ -19,7 +19,7 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 - **Modern UI**: Built with Tailwind CSS and Headless UI for a clean, responsive interface
 - **Notification System**: Real-time updates and alerts
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 - **Frontend**: [React](https://github.com/facebook/react) 19 + [TypeScript](https://github.com/microsoft/TypeScript)
 - **Build Tool**: [Vite](https://github.com/vitejs/vite)
@@ -30,7 +30,7 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 - **WebSocket**: [ws](https://github.com/websockets/ws)
 - **Data Source**: Real-time AIS data from [AISStream.io](https://aisstream.io)
 
-## Getting Started
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -63,7 +63,7 @@ npm run dev
 
 This command starts both the WebSocket proxy server and the Vite development server. The application will be available at `http://localhost:5173`
 
-## Development
+## 👨‍💻 Development
 
 This project was built using React, TypeScript, and Vite, with hot module replacement (HMR) for a smooth development experience.
 
@@ -75,7 +75,7 @@ This project was built using React, TypeScript, and Vite, with hot module replac
 - `npm run preview` - Preview the production build
 - `npm run lint` - Run ESLint
 
-## Architecture
+## 🏗️ Architecture
 
 The application consists of:
 - **React frontend**: Handles UI rendering and user interactions
@@ -83,20 +83,20 @@ The application consists of:
 - **MapLibre GL**: Provides interactive map visualization
 - **Component architecture**: Modular design with ShipMap, ShipList, and NotificationPanel components
 
-## Data Source
+## 📡 Data Source
 
 This application is made possible by [AISStream.io](https://aisstream.io), a free service that provides real-time AIS (Automatic Identification System) data via WebSocket connections. AISStream.io aggregates data from a global network of AIS receivers and makes it accessible to developers building maritime tracking applications.
 
 Special thanks to AISStream.io for providing free access to live vessel tracking data.
 
-## About
+## ℹ️ About
 
 This project was mostly vibe coded with [Claude](https://claude.ai) - an AI assistant by Anthropic. The development process leveraged AI-assisted coding to rapidly prototype and build features, resulting in a functional maritime tracking application.
 
-## License
+## 📜 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute to this project.
