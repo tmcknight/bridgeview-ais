@@ -9,25 +9,26 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 ## Features
 
 - **Real-time Ship Tracking**: Live AIS data streaming via WebSocket for up-to-the-second vessel positions
-- **Interactive Map**: MapLibre GL-powered map with smooth rendering and dark/light mode support
+- **Interactive Map**: MapLibre GL-powered map with smooth rendering
 - **Vessel Details**: Comprehensive ship information including:
-  - Vessel name, type, and flag
+  - Vessel name and navigation status
   - Current speed, course, and heading
-  - Destination and ETA
-  - Dimensions (length, width, draft)
-  - MMSI and IMO identification
+  - Destination and estimated time to bridge
+  - Dimensions (length and width)
+  - MMSI identification
 - **Modern UI**: Built with Tailwind CSS and Headless UI for a clean, responsive interface
 - **Notification System**: Real-time updates and alerts
 
 ## Tech Stack
 
-- **Frontend**: React 18 + TypeScript
-- **Build Tool**: Vite
-- **Mapping**: MapLibre GL JS
-- **Styling**: Tailwind CSS
-- **UI Components**: Headless UI
-- **Icons**: Heroicons
-- **Data Source**: Real-time AIS data from [AISStream.io](https://aisstream.io) via WebSocket proxy
+- **Frontend**: [React](https://github.com/facebook/react) 19 + [TypeScript](https://github.com/microsoft/TypeScript)
+- **Build Tool**: [Vite](https://github.com/vitejs/vite)
+- **Mapping**: [Leaflet](https://github.com/Leaflet/Leaflet) + [MapLibre GL JS](https://github.com/maplibre/maplibre-gl-js)
+- **Styling**: [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss)
+- **UI Components**: [Headless UI](https://github.com/tailwindlabs/headlessui)
+- **Icons**: [Heroicons](https://github.com/tailwindlabs/heroicons)
+- **WebSocket**: [ws](https://github.com/websockets/ws)
+- **Data Source**: Real-time AIS data from [AISStream.io](https://aisstream.io)
 
 ## Getting Started
 
