@@ -2,7 +2,7 @@ import { MapContainer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@maplibre/maplibre-gl-leaflet";
-import { useEffect, memo } from "react";
+import { useEffect, memo, useState, useCallback } from "react";
 import type { TrackedShip } from "../types/ais";
 import { NAV_STATUS_LABELS } from "../types/ais";
 import {
@@ -158,16 +158,95 @@ function BridgeMarker() {
   );
 }
 
+// Tile providers configuration
+const TILE_PROVIDERS = {
+  primary: {
+    name: "OpenFreeMap Fiord",
+    style: "https://tiles.openfreemap.org/styles/fiord",
+  },
+  fallback: {
+    name: "OpenStreetMap",
+    style: {
+      version: 8,
+      sources: {
+        osm: {
+          type: "raster",
+          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+          tileSize: 256,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+          maxzoom: 19,
+        },
+      },
+      layers: [
+        {
+          id: "osm",
+          type: "raster",
+          source: "osm",
+        },
+      ],
+    } as any, // Type assertion for MapLibre GL style specification
+  },
+};
+
 function FiordBaseLayer() {
   const map = useMap();
+  const [useFallback, setUseFallback] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
+
+  const handleTileError = useCallback(() => {
+    setErrorCount((prev) => {
+      const newCount = prev + 1;
+      // Switch to fallback after 3 consecutive errors
+      if (newCount >= 3 && !useFallback) {
+        console.warn(
+          `Failed to load tiles from ${TILE_PROVIDERS.primary.name} after ${newCount} attempts. Switching to ${TILE_PROVIDERS.fallback.name}.`
+        );
+        setUseFallback(true);
+      }
+      return newCount;
+    });
+  }, [useFallback]);
+
   useEffect(() => {
-    const gl = L.maplibreGL({
-      style: "https://tiles.openfreemap.org/styles/fiord",
-    }).addTo(map);
-    return () => {
-      map.removeLayer(gl);
-    };
-  }, [map]);
+    const tileProvider = useFallback ? TILE_PROVIDERS.fallback : TILE_PROVIDERS.primary;
+
+    try {
+      const gl = L.maplibreGL({
+        style: tileProvider.style,
+      }).addTo(map);
+
+      // Add error event listener to the map
+      const mapInstance = gl.getMaplibreMap();
+      if (mapInstance) {
+        mapInstance.on("error", (e) => {
+          console.error(`Map tile error from ${tileProvider.name}:`, e.error);
+          handleTileError();
+        });
+
+        // Listen for tile load errors
+        mapInstance.on("sourcedataabort", () => {
+          console.warn(`Tile source data aborted for ${tileProvider.name}`);
+          handleTileError();
+        });
+      }
+
+      // Reset error count on successful layer addition
+      setErrorCount(0);
+
+      return () => {
+        try {
+          map.removeLayer(gl);
+        } catch (err) {
+          console.error("Error removing map layer:", err);
+        }
+      };
+    } catch (err) {
+      console.error(`Failed to initialize map layer with ${tileProvider.name}:`, err);
+      handleTileError();
+      return undefined;
+    }
+  }, [map, useFallback, handleTileError]);
+
   return null;
 }
 
