@@ -1,5 +1,7 @@
 # BridgeView AIS
 
+![Test & Build](https://github.com/tmcknight/bridgeview-ais/actions/workflows/test.yml/badge.svg)
+
 A real-time ship tracking application that displays vessel traffic near the Blue Water Bridge using Automatic Identification System (AIS) data.
 
 ## 🔍 Overview
@@ -74,6 +76,10 @@ This project was built using React, TypeScript, and Vite, with hot module replac
 - `npm run build` - Build for production
 - `npm run preview` - Preview the production build
 - `npm run lint` - Run ESLint
+- `npm test` - Run tests in watch mode
+- `npm run test:run` - Run tests once
+- `npm run test:coverage` - Run tests with coverage report
+- `npm run test:ui` - Run tests with interactive UI
 
 ## 🏗️ Architecture
 

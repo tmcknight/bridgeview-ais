@@ -15,6 +15,11 @@ dist-ssr
 .env.*
 !.env.example.env
 
+# Test coverage
+coverage
+*.lcov
+.vitest
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

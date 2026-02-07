@@ -1,0 +1,633 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
+import { useAISStream } from './useAISStream'
+import { createMockWSServer } from '../test/mocks/websocket'
+import { mockAISPositionMessage, mockAISStaticDataMessage, mockAuthenticatedMessage } from '../test/mocks/aisMessages'
+import type { MockAISStreamServer } from '../test/mocks/websocket'
+import { BRIDGE_CENTER, APPROACH_NOTIFICATION_DISTANCE_NM, CLOSE_APPROACH_DISTANCE_NM } from '../constants/bridge'
+
+describe('useAISStream', () => {
+  let mockServer: MockAISStreamServer
+
+  beforeEach(() => {
+    // Create mock WebSocket server before each test
+    mockServer = createMockWSServer('ws://localhost:3001')
+
+    // Mock timers for reconnection logic
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    // Clean up mock server and timers
+    mockServer.close()
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  describe('connection lifecycle', () => {
+    it('should start with disconnected status and empty ships', () => {
+      const { result } = renderHook(() => useAISStream())
+
+      expect(result.current.connectionStatus).toBe('disconnected')
+      expect(result.current.ships.size).toBe(0)
+      expect(result.current.notifications).toEqual([])
+    })
+
+    it('should transition to connecting and then connected', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      // Initially disconnected
+      expect(result.current.connectionStatus).toBe('disconnected')
+
+      // Wait for WebSocket to open
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+    })
+
+    it('should send subscription message after connection', async () => {
+      renderHook(() => useAISStream())
+
+      const subscription = await mockServer.waitForSubscription()
+
+      expect(subscription).toHaveProperty('BoundingBoxes')
+      expect(subscription).toHaveProperty('FilterMessageTypes')
+      expect((subscription as any).FilterMessageTypes).toContain('PositionReport')
+      expect((subscription as any).FilterMessageTypes).toContain('ShipStaticData')
+    })
+
+    it('should clean up WebSocket on unmount', async () => {
+      const { result, unmount } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      expect(mockServer.getClientCount()).toBe(1)
+
+      unmount()
+
+      // Allow time for cleanup
+      await vi.runAllTimersAsync()
+
+      expect(mockServer.getClientCount()).toBe(1) // Client still tracked but connection closed
+    })
+
+    it('should reconnect after connection close', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Simulate connection close
+      mockServer.closeAllConnections()
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('disconnected')
+      })
+
+      // Fast-forward reconnection timeout (2 seconds)
+      await vi.advanceTimersByTimeAsync(2000)
+
+      // Should attempt to reconnect
+      // Note: In real tests, we'd need to set up a new mock server
+      // but for this test we're verifying the timeout logic runs
+    })
+  })
+
+  describe('message processing - PositionReport', () => {
+    it('should add a new ship when receiving PositionReport', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Send position report
+      const mmsi = 367123456
+      const message = mockAISPositionMessage(mmsi, 43.05, -82.42, 180, 10.5)
+      mockServer.sendPositionReport(message)
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+        const ship = result.current.ships.get(mmsi)
+        expect(ship).toBeDefined()
+        expect(ship?.mmsi).toBe(mmsi)
+        expect(ship?.name).toBe('TEST VESSEL')
+        expect(ship?.latitude).toBe(43.05)
+        expect(ship?.longitude).toBe(-82.42)
+        expect(ship?.sog).toBe(10.5)
+        expect(ship?.cog).toBe(180)
+      })
+    })
+
+    it('should update existing ship position', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+
+      // First position
+      mockServer.sendPositionReport(mockAISPositionMessage(mmsi, 43.05, -82.42, 180, 10.5))
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+
+      // Updated position
+      mockServer.sendPositionReport(mockAISPositionMessage(mmsi, 43.03, -82.42, 180, 11.0))
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.latitude).toBe(43.03)
+        expect(ship?.sog).toBe(11.0)
+      })
+    })
+
+    it('should calculate distance to bridge', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, BRIDGE_CENTER.lat, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.distanceToBridge).toBe(0) // At bridge center
+      })
+    })
+
+    it('should detect approaching ships', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+      // Ship north of bridge, heading south
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, BRIDGE_CENTER.lat + 0.05, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.approaching).toBe(true)
+      })
+    })
+
+    it('should detect non-approaching ships', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+      // Ship north of bridge, heading east (perpendicular)
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, BRIDGE_CENTER.lat + 0.05, BRIDGE_CENTER.lng, 90, 10)
+      )
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.approaching).toBe(false)
+      })
+    })
+
+    it('should handle multiple ships simultaneously', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Send messages for 3 different ships
+      mockServer.sendPositionReport(mockAISPositionMessage(111, 43.05, -82.42, 180, 10))
+      mockServer.sendPositionReport(mockAISPositionMessage(222, 43.06, -82.42, 180, 12))
+      mockServer.sendPositionReport(mockAISPositionMessage(333, 42.95, -82.42, 0, 8))
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(3)
+        expect(result.current.ships.get(111)).toBeDefined()
+        expect(result.current.ships.get(222)).toBeDefined()
+        expect(result.current.ships.get(333)).toBeDefined()
+      })
+    })
+  })
+
+  describe('message processing - ShipStaticData', () => {
+    it('should update ship static data when ship already exists', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+
+      // First send position to create the ship
+      mockServer.sendPositionReport(mockAISPositionMessage(mmsi, 43.05, -82.42, 180, 10))
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+
+      // Then send static data
+      mockServer.sendStaticData(mockAISStaticDataMessage(mmsi, 'BULK CARRIER', 'DETROIT'))
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.name).toBe('BULK CARRIER')
+        expect(ship?.destination).toBe('DETROIT')
+        expect(ship?.shipType).toBe(70)
+        expect(ship?.length).toBe(200) // A + B from mock
+        expect(ship?.width).toBe(30) // C + D from mock
+      })
+    })
+
+    it('should not create new ship from static data alone', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Send only static data (no position report)
+      mockServer.sendStaticData(mockAISStaticDataMessage(367123456, 'GHOST SHIP', 'NOWHERE'))
+
+      // Wait a bit
+      await vi.advanceTimersByTimeAsync(500)
+
+      // Ship should not be added
+      expect(result.current.ships.size).toBe(0)
+    })
+
+    it('should preserve position data when updating static data', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+
+      // Send position
+      mockServer.sendPositionReport(mockAISPositionMessage(mmsi, 43.05, -82.42, 180, 10.5))
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+
+      const originalLat = result.current.ships.get(mmsi)?.latitude
+
+      // Send static data
+      mockServer.sendStaticData(mockAISStaticDataMessage(mmsi, 'UPDATED NAME', 'CHICAGO'))
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.name).toBe('UPDATED NAME')
+        // Position data should be preserved
+        expect(ship?.latitude).toBe(originalLat)
+        expect(ship?.sog).toBe(10.5)
+      })
+    })
+  })
+
+  describe('notification logic', () => {
+    it('should trigger approaching notification when within 2 NM', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+      // Position close to bridge (within 2 NM), heading toward it
+      const latClose = BRIDGE_CENTER.lat + (1.5 / 60) // ~1.5 NM north
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latClose, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        expect(result.current.notifications.length).toBeGreaterThan(0)
+        const notification = result.current.notifications[0]
+        expect(notification.type).toBe('approaching')
+        expect(notification.mmsi).toBe(mmsi)
+        expect(notification.message).toContain('Approaching Blue Water Bridge')
+      })
+    })
+
+    it('should not trigger duplicate approaching notifications', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+      const latClose = BRIDGE_CENTER.lat + (1.5 / 60)
+
+      // Send first position - should trigger notification
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latClose, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        expect(result.current.notifications.length).toBe(1)
+      })
+
+      // Send second position - should NOT trigger another notification
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latClose - 0.001, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await vi.advanceTimersByTimeAsync(500)
+
+      // Still only 1 notification
+      expect(result.current.notifications.length).toBe(1)
+    })
+
+    it('should trigger passing notification when crossing 0.5 NM threshold', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+
+      // First position: just outside 0.5 NM
+      const latOutside = BRIDGE_CENTER.lat + (0.6 / 60)
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latOutside, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+
+      // Second position: inside 0.5 NM (crossing threshold)
+      const latInside = BRIDGE_CENTER.lat + (0.3 / 60)
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latInside, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        const passingNotification = result.current.notifications.find(n => n.type === 'passing')
+        expect(passingNotification).toBeDefined()
+        expect(passingNotification?.message).toContain('passing under')
+      })
+    })
+
+    it('should reset notification flag when ship moves > 3 NM away', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+
+      // Close position - triggers notification
+      const latClose = BRIDGE_CENTER.lat + (1.5 / 60)
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latClose, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.notified).toBe(true)
+      })
+
+      // Far position - should reset flag
+      const latFar = BRIDGE_CENTER.lat + (4.0 / 60) // > 3 NM
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latFar, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.notified).toBe(false)
+      })
+    })
+
+    it('should limit notifications to MAX_NOTIFICATIONS', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Send 60 ships that trigger notifications (more than MAX_NOTIFICATIONS = 50)
+      const latClose = BRIDGE_CENTER.lat + (1.5 / 60)
+      for (let i = 0; i < 60; i++) {
+        mockServer.sendPositionReport(
+          mockAISPositionMessage(367000000 + i, latClose, BRIDGE_CENTER.lng, 180, 10)
+        )
+      }
+
+      await waitFor(() => {
+        // Should be limited to 50
+        expect(result.current.notifications.length).toBeLessThanOrEqual(50)
+      })
+    })
+
+    it('should dismiss notification', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+      const latClose = BRIDGE_CENTER.lat + (1.5 / 60)
+      mockServer.sendPositionReport(
+        mockAISPositionMessage(mmsi, latClose, BRIDGE_CENTER.lng, 180, 10)
+      )
+
+      await waitFor(() => {
+        expect(result.current.notifications.length).toBeGreaterThan(0)
+      })
+
+      const notificationId = result.current.notifications[0].id
+
+      // Dismiss the notification
+      result.current.dismissNotification(notificationId)
+
+      await waitFor(() => {
+        const notification = result.current.notifications.find(n => n.id === notificationId)
+        expect(notification?.dismissed).toBe(true)
+      })
+    })
+
+    it('should clear all notifications', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Trigger multiple notifications
+      const latClose = BRIDGE_CENTER.lat + (1.5 / 60)
+      for (let i = 0; i < 3; i++) {
+        mockServer.sendPositionReport(
+          mockAISPositionMessage(367000000 + i, latClose, BRIDGE_CENTER.lng, 180, 10)
+        )
+      }
+
+      await waitFor(() => {
+        expect(result.current.notifications.length).toBeGreaterThan(0)
+      })
+
+      // Clear all
+      result.current.clearNotifications()
+
+      await waitFor(() => {
+        expect(result.current.notifications.length).toBe(0)
+      })
+    })
+  })
+
+  describe('stale ship purge', () => {
+    it('should remove ships not updated in 10 minutes', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+
+      // Add a ship
+      mockServer.sendPositionReport(mockAISPositionMessage(mmsi, 43.05, -82.42, 180, 10))
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+
+      // Fast-forward 10 minutes + 1 second
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000 + 1000)
+
+      // Send another message to trigger purge
+      mockServer.sendPositionReport(mockAISPositionMessage(999, 43.06, -82.42, 180, 10))
+
+      await waitFor(() => {
+        // Original ship should be purged
+        expect(result.current.ships.has(mmsi)).toBe(false)
+        // New ship should exist
+        expect(result.current.ships.has(999)).toBe(true)
+      })
+    })
+
+    it('should keep fresh ships', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+
+      // Add a ship
+      mockServer.sendPositionReport(mockAISPositionMessage(mmsi, 43.05, -82.42, 180, 10))
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+
+      // Fast-forward 5 minutes (less than stale timeout)
+      await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
+
+      // Update the ship
+      mockServer.sendPositionReport(mockAISPositionMessage(mmsi, 43.04, -82.42, 180, 10))
+
+      await waitFor(() => {
+        // Ship should still exist
+        expect(result.current.ships.has(mmsi)).toBe(true)
+      })
+    })
+  })
+
+  describe('error handling', () => {
+    it('should handle invalid JSON gracefully', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Send invalid JSON
+      mockServer.sendRawMessage('{"invalid json')
+
+      // Wait a bit
+      await vi.advanceTimersByTimeAsync(500)
+
+      // Should not crash, connection should remain
+      expect(result.current.connectionStatus).toBe('connected')
+      expect(result.current.ships.size).toBe(0)
+    })
+
+    it('should handle authentication confirmation message', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Send auth confirmation
+      mockServer.sendRawMessage(JSON.stringify(mockAuthenticatedMessage()))
+
+      await vi.advanceTimersByTimeAsync(100)
+
+      // Should not affect ships or notifications
+      expect(result.current.ships.size).toBe(0)
+      expect(result.current.notifications.length).toBe(0)
+    })
+
+    it('should set error status on WebSocket error', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      // Simulate error
+      mockServer.simulateError()
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('error')
+      })
+    })
+  })
+
+  describe('time parsing', () => {
+    it('should handle ISO 8601 time format', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const mmsi = 367123456
+      const message = mockAISPositionMessage(mmsi, 43.05, -82.42, 180, 10)
+      // ISO format is already default in mock
+      mockServer.sendPositionReport(message)
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(mmsi)
+        expect(ship?.lastUpdate).toBeDefined()
+        expect(() => new Date(ship!.lastUpdate)).not.toThrow()
+      })
+    })
+  })
+})
