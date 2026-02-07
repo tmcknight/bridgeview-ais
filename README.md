@@ -60,12 +60,7 @@ Add your configuration to the `.env` file.
 npm run dev
 ```
 
-5. Start the WebSocket proxy server:
-```bash
-node server/websocket-proxy.js
-```
-
-The application will be available at `http://localhost:5173`
+This command starts both the WebSocket proxy server and the Vite development server. The application will be available at `http://localhost:5173`
 
 ## Development
 
@@ -73,7 +68,8 @@ This project was built using React, TypeScript, and Vite, with hot module replac
 
 ### Available Scripts
 
-- `npm run dev` - Start the development server
+- `npm run dev` - Start both the WebSocket proxy server and Vite development server
+- `npm run server` - Start only the WebSocket proxy server
 - `npm run build` - Build for production
 - `npm run preview` - Preview the production build
 - `npm run lint` - Run ESLint
