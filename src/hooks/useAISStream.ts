@@ -232,7 +232,6 @@ export function useAISStream(): UseAISStreamReturn {
 
   useEffect(() => {
     let isCleanedUp = false;
-    let connectTimeout: ReturnType<typeof setTimeout>;
 
     function connect() {
       if (isCleanedUp) {
@@ -304,12 +303,11 @@ export function useAISStream(): UseAISStreamReturn {
       };
     }
 
-    // Delay to survive React StrictMode's unmount/remount cycle in development
-    connectTimeout = setTimeout(connect, 100);
+    // Connect immediately - isCleanedUp flag handles StrictMode double-mounting
+    connect();
 
     return () => {
       isCleanedUp = true;
-      clearTimeout(connectTimeout);
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
