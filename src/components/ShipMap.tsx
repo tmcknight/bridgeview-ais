@@ -2,7 +2,7 @@ import { MapContainer, Marker, Popup, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@maplibre/maplibre-gl-leaflet";
-import { useEffect } from "react";
+import { useEffect, memo } from "react";
 import type { TrackedShip } from "../types/ais";
 import { NAV_STATUS_LABELS } from "../types/ais";
 import {
@@ -45,73 +45,80 @@ function createShipIcon(ship: TrackedShip): L.DivIcon {
   });
 }
 
-function ShipMarker({ ship }: { ship: TrackedShip }) {
-  const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
-  const headingDeg = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
+// Memoize ShipMarker to prevent re-renders when ship data hasn't changed
+const ShipMarker = memo(
+  ({ ship }: { ship: TrackedShip }) => {
+    const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
+    const headingDeg = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
 
-  return (
-    <Marker
-      position={[ship.latitude, ship.longitude]}
-      icon={createShipIcon(ship)}
-    >
-      <Popup>
-        <div className="ship-popup">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="!m-0 text-base font-bold text-slate-800 leading-tight">{ship.name}</h3>
-            {ship.approaching && (
-              <span className="shrink-0 text-[0.6rem] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded tracking-wide">
-                APPROACHING
-              </span>
-            )}
-          </div>
+    return (
+      <Marker
+        position={[ship.latitude, ship.longitude]}
+        icon={createShipIcon(ship)}
+      >
+        <Popup>
+          <div className="ship-popup">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">{ship.name}</h3>
+              {ship.approaching && (
+                <span className="shrink-0 text-[0.6rem] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded tracking-wide">
+                  APPROACHING
+                </span>
+              )}
+            </div>
 
-          {/* Primary stats */}
-          <div className="flex gap-3 mb-2">
-            <div className="flex items-center gap-1 text-slate-700" title="Speed over ground">
-              <BoltIcon className="w-3.5 h-3.5 text-blue-500" />
-              <span className="text-sm font-semibold">{formatSpeed(ship.sog)}</span>
-            </div>
-            <div className="flex items-center gap-1 text-slate-700" title="Distance to bridge">
-              <MapPinIcon className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-sm font-semibold">{formatDistance(ship.distanceToBridge)}</span>
-            </div>
-            <div className="flex items-center gap-1 text-slate-700" title="Estimated time to bridge">
-              <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
-              <span className="text-sm font-semibold">{formatETA(eta)}</span>
-            </div>
-          </div>
-
-          {/* Secondary details */}
-          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 mb-1.5">
-            <div className="flex items-center gap-1" title="Heading">
-              <ArrowUpIcon className="w-3 h-3 text-slate-400" style={{ transform: `rotate(${headingDeg}deg)` }} />
-              <span>{formatHeading(headingDeg)}</span>
-            </div>
-            <span title="Navigation status">{NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}</span>
-            {ship.destination && (
-              <div className="flex items-center gap-1" title="Destination">
-                <FlagIcon className="w-3 h-3 text-slate-400" />
-                <span>{ship.destination}</span>
+            {/* Primary stats */}
+            <div className="flex gap-3 mb-2">
+              <div className="flex items-center gap-1 text-slate-700" title="Speed over ground">
+                <BoltIcon className="w-3.5 h-3.5 text-blue-500" />
+                <span className="text-sm font-semibold">{formatSpeed(ship.sog)}</span>
               </div>
-            )}
-            {ship.length && ship.length > 0 && (
-              <div className="flex items-center gap-1" title="Vessel dimensions">
-                <ArrowsPointingOutIcon className="w-3 h-3 text-slate-400" />
-                <span>{ship.length}m × {ship.width}m</span>
+              <div className="flex items-center gap-1 text-slate-700" title="Distance to bridge">
+                <MapPinIcon className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-sm font-semibold">{formatDistance(ship.distanceToBridge)}</span>
               </div>
-            )}
-          </div>
+              <div className="flex items-center gap-1 text-slate-700" title="Estimated time to bridge">
+                <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-sm font-semibold">{formatETA(eta)}</span>
+              </div>
+            </div>
 
-          {/* Footer */}
-          <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200 flex justify-between">
-            <span title="MMSI identifier">{ship.mmsi}</span>
-            <span title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
+            {/* Secondary details */}
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 mb-1.5">
+              <div className="flex items-center gap-1" title="Heading">
+                <ArrowUpIcon className="w-3 h-3 text-slate-400" style={{ transform: `rotate(${headingDeg}deg)` }} />
+                <span>{formatHeading(headingDeg)}</span>
+              </div>
+              <span title="Navigation status">{NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}</span>
+              {ship.destination && (
+                <div className="flex items-center gap-1" title="Destination">
+                  <FlagIcon className="w-3 h-3 text-slate-400" />
+                  <span>{ship.destination}</span>
+                </div>
+              )}
+              {ship.length && ship.length > 0 && (
+                <div className="flex items-center gap-1" title="Vessel dimensions">
+                  <ArrowsPointingOutIcon className="w-3 h-3 text-slate-400" />
+                  <span>{ship.length}m × {ship.width}m</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200 flex justify-between">
+              <span title="MMSI identifier">{ship.mmsi}</span>
+              <span title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
+            </div>
           </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
-}
+        </Popup>
+      </Marker>
+    );
+  },
+  // Custom comparison: only re-render if ship data has actually changed
+  (prevProps, nextProps) => {
+    return prevProps.ship.lastUpdate === nextProps.ship.lastUpdate;
+  }
+);
 
 function BridgeMarker() {
   const bridgeIcon = L.divIcon({
