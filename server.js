@@ -5,6 +5,15 @@ const API_KEY = process.env.AISSTREAM_API_KEY;
 const UPSTREAM = "wss://stream.aisstream.io/v0/stream";
 const AUTH_TOKEN = process.env.WS_AUTH_TOKEN; // Optional: set for production
 
+// Logger utility - keep errors in production, suppress debug logs
+const isDev = process.env.NODE_ENV !== "production";
+const logger = {
+  log: (...args) => isDev && console.log(...args),
+  warn: (...args) => console.warn(...args), // Keep warnings in production
+  error: (...args) => console.error(...args), // Keep errors in production
+  info: (...args) => isDev && console.info(...args),
+};
+
 // Security configuration
 const RATE_LIMITS = {
   MAX_CONNECTIONS_PER_IP: 5,
@@ -22,7 +31,7 @@ const VALID_BOUNDS = {
 };
 
 if (!API_KEY) {
-  console.error("[proxy] AISSTREAM_API_KEY environment variable is required");
+  logger.error("[proxy] AISSTREAM_API_KEY environment variable is required");
   process.exit(1);
 }
 
@@ -166,11 +175,11 @@ wss.on("connection", (client, req) => {
   const clientIP = getClientIP(req);
   const clientId = Math.random().toString(36).substring(7);
 
-  console.log(`[proxy] client ${clientId} connected from ${clientIP}`);
+  logger.log(`[proxy] client ${clientId} connected from ${clientIP}`);
 
   // Check IP rate limit
   if (!checkIPRateLimit(clientIP)) {
-    console.warn(`[proxy] rate limit exceeded for IP ${clientIP}`);
+    logger.warn(`[proxy] rate limit exceeded for IP ${clientIP}`);
     client.close(1008, "Too many connections from your IP");
     return;
   }
@@ -182,7 +191,7 @@ wss.on("connection", (client, req) => {
   // Set subscription timeout
   subscriptionTimeout = setTimeout(() => {
     if (!upstream) {
-      console.warn(`[proxy] client ${clientId} did not subscribe in time`);
+      logger.warn(`[proxy] client ${clientId} did not subscribe in time`);
       client.close(1008, "Subscription timeout");
       releaseIPConnection(clientIP);
     }
@@ -191,7 +200,7 @@ wss.on("connection", (client, req) => {
   client.on("message", (data) => {
     // Check message rate limit
     if (!checkMessageRateLimit(clientId)) {
-      console.warn(`[proxy] message rate limit exceeded for client ${clientId}`);
+      logger.warn(`[proxy] message rate limit exceeded for client ${clientId}`);
       client.close(1008, "Rate limit exceeded");
       return;
     }
@@ -202,7 +211,7 @@ wss.on("connection", (client, req) => {
       try {
         message = JSON.parse(data.toString());
       } catch {
-        console.error(`[proxy] client ${clientId} sent invalid JSON`);
+        logger.error(`[proxy] client ${clientId} sent invalid JSON`);
         client.close(1007, "Invalid JSON");
         clearTimeout(subscriptionTimeout);
         releaseIPConnection(clientIP);
@@ -212,7 +221,7 @@ wss.on("connection", (client, req) => {
       // Check authentication if required
       if (AUTH_TOKEN && !authenticated) {
         if (message.authToken !== AUTH_TOKEN) {
-          console.warn(`[proxy] client ${clientId} failed authentication`);
+          logger.warn(`[proxy] client ${clientId} failed authentication`);
           client.close(1008, "Authentication failed");
           clearTimeout(subscriptionTimeout);
           releaseIPConnection(clientIP);
@@ -226,7 +235,7 @@ wss.on("connection", (client, req) => {
       // Validate subscription
       const validation = validateSubscription(message);
       if (!validation.valid) {
-        console.error(`[proxy] client ${clientId} invalid subscription: ${validation.error}`);
+        logger.error(`[proxy] client ${clientId} invalid subscription: ${validation.error}`);
         client.close(1007, validation.error);
         clearTimeout(subscriptionTimeout);
         releaseIPConnection(clientIP);
@@ -241,12 +250,12 @@ wss.on("connection", (client, req) => {
       subscription.Apikey = API_KEY;
       const subscriptionStr = JSON.stringify(subscription);
 
-      console.log(`[proxy] client ${clientId} subscription validated, connecting to upstream`);
+      logger.log(`[proxy] client ${clientId} subscription validated, connecting to upstream`);
 
       upstream = new WebSocket(UPSTREAM);
 
       upstream.on("open", () => {
-        console.log(`[proxy] client ${clientId} upstream connected`);
+        logger.log(`[proxy] client ${clientId} upstream connected`);
         upstream.send(subscriptionStr);
       });
 
@@ -257,14 +266,14 @@ wss.on("connection", (client, req) => {
       });
 
       upstream.on("close", (code, reason) => {
-        console.log(`[proxy] client ${clientId} upstream closed — code: ${code}, reason: ${reason.toString()}`);
+        logger.log(`[proxy] client ${clientId} upstream closed — code: ${code}, reason: ${reason.toString()}`);
         if (client.readyState === WebSocket.OPEN) {
           client.close();
         }
       });
 
       upstream.on("error", (err) => {
-        console.error(`[proxy] client ${clientId} upstream error: ${err.message}`);
+        logger.error(`[proxy] client ${clientId} upstream error: ${err.message}`);
         if (client.readyState === WebSocket.OPEN) {
           client.close();
         }
@@ -281,7 +290,7 @@ wss.on("connection", (client, req) => {
   });
 
   client.on("close", () => {
-    console.log(`[proxy] client ${clientId} disconnected`);
+    logger.log(`[proxy] client ${clientId} disconnected`);
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
@@ -291,7 +300,7 @@ wss.on("connection", (client, req) => {
   });
 
   client.on("error", (err) => {
-    console.error(`[proxy] client ${clientId} error: ${err.message}`);
+    logger.error(`[proxy] client ${clientId} error: ${err.message}`);
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
@@ -301,9 +310,9 @@ wss.on("connection", (client, req) => {
   });
 });
 
-console.log(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
+logger.info(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
 if (AUTH_TOKEN) {
-  console.log(`[proxy] Authentication enabled`);
+  logger.info(`[proxy] Authentication enabled`);
 } else {
-  console.log(`[proxy] Warning: No authentication configured (set WS_AUTH_TOKEN for production)`);
+  logger.warn(`[proxy] Warning: No authentication configured (set WS_AUTH_TOKEN for production)`);
 }

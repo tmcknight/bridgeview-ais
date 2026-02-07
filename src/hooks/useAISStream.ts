@@ -8,6 +8,7 @@ import {
   STALE_SHIP_TIMEOUT_MS,
 } from "../constants/bridge";
 import { distanceToBridge, isApproaching } from "../utils/geo";
+import { logger } from "../utils/logger";
 
 const WS_URL = import.meta.env.VITE_WS_PROXY_URL || "ws://localhost:3001";
 const WS_AUTH_TOKEN = import.meta.env.VITE_WS_AUTH_TOKEN; // Optional authentication token
@@ -27,7 +28,7 @@ function parseTimeUtc(raw: string): string {
   }
 
   // Fallback: return Unix epoch to signal error
-  console.error("[AIS] unparseable time_utc:", raw);
+  logger.error("[AIS] unparseable time_utc:", raw);
   return new Date(0).toISOString(); // Unix epoch (1970-01-01) signals invalid data
 }
 
@@ -236,19 +237,19 @@ export function useAISStream(): UseAISStreamReturn {
 
     function connect() {
       if (isCleanedUp) {
-        console.log("[AIS] connect() skipped — already cleaned up");
+        logger.log("[AIS] connect() skipped — already cleaned up");
         return;
       }
 
-      console.log("[AIS] connecting to", WS_URL);
+      logger.log("[AIS] connecting to", WS_URL);
       setConnectionStatus("connecting");
       const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        console.log("[AIS] WebSocket opened");
+        logger.log("[AIS] WebSocket opened");
         if (isCleanedUp) {
-          console.log("[AIS] opened but already cleaned up, closing");
+          logger.log("[AIS] opened but already cleaned up, closing");
           ws.close();
           return;
         }
@@ -256,7 +257,7 @@ export function useAISStream(): UseAISStreamReturn {
 
         // Send authentication if token is configured
         if (WS_AUTH_TOKEN) {
-          console.log("[AIS] sending authentication");
+          logger.log("[AIS] sending authentication");
           ws.send(JSON.stringify({ authToken: WS_AUTH_TOKEN }));
         }
 
@@ -264,7 +265,7 @@ export function useAISStream(): UseAISStreamReturn {
           BoundingBoxes: [AIS_BOUNDING_BOX],
           FilterMessageTypes: ["PositionReport", "ShipStaticData"],
         };
-        console.log("[AIS] sending subscription:", JSON.stringify(subscription));
+        logger.log("[AIS] sending subscription:", JSON.stringify(subscription));
         ws.send(JSON.stringify(subscription));
       };
 
@@ -274,32 +275,32 @@ export function useAISStream(): UseAISStreamReturn {
 
           // Handle authentication confirmation
           if (data.type === "authenticated") {
-            console.log("[AIS] authenticated successfully");
+            logger.log("[AIS] authenticated successfully");
             return;
           }
 
           // Handle AIS messages
           const aisMessage = data as AISMessage;
           if (!shipsRef.current.has(aisMessage.MetaData.MMSI)) {
-            console.log("[AIS] new ship:", aisMessage.MetaData.ShipName, "MMSI:", aisMessage.MetaData.MMSI);
+            logger.log("[AIS] new ship:", aisMessage.MetaData.ShipName, "MMSI:", aisMessage.MetaData.MMSI);
           }
           processMessageRef.current(aisMessage, shipsRef.current);
         } catch (err) {
-          console.warn("[AIS] failed to parse message:", err, event.data);
+          logger.warn("[AIS] failed to parse message:", err, event.data);
         }
       };
 
       ws.onerror = (event) => {
-        console.error("[AIS] WebSocket error:", event);
+        logger.error("[AIS] WebSocket error:", event);
         if (isCleanedUp) return;
         setConnectionStatus("error");
       };
 
       ws.onclose = (event) => {
-        console.log("[AIS] WebSocket closed — code:", event.code, "reason:", event.reason, "clean:", event.wasClean);
+        logger.log("[AIS] WebSocket closed — code:", event.code, "reason:", event.reason, "clean:", event.wasClean);
         if (isCleanedUp) return;
         setConnectionStatus("disconnected");
-        console.log("[AIS] reconnecting in 2s...");
+        logger.log("[AIS] reconnecting in 2s...");
         reconnectTimeoutRef.current = setTimeout(connect, 2000);
       };
     }
