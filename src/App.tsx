@@ -41,19 +41,18 @@ function App() {
           <h1 className="text-xl font-bold text-slate-200">BridgeView AIS</h1>
           <span className="text-xs text-slate-400">Blue Water Bridge Ship Tracker</span>
         </div>
-        {notifPermission === "default" && (
-          <div>
+        <div className="flex items-center gap-4">
+          {notifPermission === "default" && (
             <Button
               className="bg-transparent border border-slate-600 text-slate-400 px-3 py-1.5 rounded-md text-xs transition-all hover:border-blue-500 hover:text-slate-200 cursor-pointer"
               onClick={requestNotifications}
             >
               Enable Notifications
             </Button>
-          </div>
-        )}
+          )}
+          <StatusBar connectionStatus={connectionStatus} />
+        </div>
       </header>
-
-      <StatusBar connectionStatus={connectionStatus} shipCount={ships.size} />
 
       <main className="flex flex-1 overflow-hidden max-md:flex-col">
         <div className="flex-1 relative min-w-0 max-md:h-[50vh]">
