@@ -199,9 +199,26 @@ function RecenterButton() {
 
 interface ShipMapProps {
   ships: Map<number, TrackedShip>;
+  selectedShip?: TrackedShip | null;
+  onSelectShip?: (ship: TrackedShip) => void;
 }
 
-export default function ShipMap({ ships }: ShipMapProps) {
+function MapController({ selectedShip }: { selectedShip?: TrackedShip | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (selectedShip) {
+      // Center map on selected ship with a smooth animation
+      map.flyTo([selectedShip.latitude, selectedShip.longitude], Math.max(map.getZoom(), 13), {
+        duration: 0.8,
+      });
+    }
+  }, [map, selectedShip]);
+
+  return null;
+}
+
+export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapProps) {
   return (
     <div className="w-full h-full">
       <MapContainer
@@ -216,6 +233,7 @@ export default function ShipMap({ ships }: ShipMapProps) {
         {Array.from(ships.values()).map((ship) => (
           <ShipMarker key={ship.mmsi} ship={ship} />
         ))}
+        <MapController selectedShip={selectedShip} />
         <RecenterButton />
       </MapContainer>
     </div>

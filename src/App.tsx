@@ -6,6 +6,7 @@ import NotificationPanel from "./components/NotificationPanel";
 import StatusBar from "./components/StatusBar";
 import ComponentErrorBoundary from "./components/ComponentErrorBoundary";
 import { useAISStream } from "./hooks/useAISStream";
+import type { TrackedShip } from "./types/ais";
 import "leaflet/dist/leaflet.css";
 
 function App() {
@@ -17,6 +18,8 @@ function App() {
     clearNotifications,
   } = useAISStream();
 
+  const [selectedShip, setSelectedShip] = useState<TrackedShip | null>(null);
+
   const [notifPermission, setNotifPermission] = useState(() => {
     if (!('Notification' in window)) return 'unsupported';
     return Notification.permission;
@@ -26,6 +29,10 @@ function App() {
     globalThis.Notification?.requestPermission().then((perm) => {
       setNotifPermission(perm);
     });
+  }, []);
+
+  const handleSelectShip = useCallback((ship: TrackedShip) => {
+    setSelectedShip(ship);
   }, []);
 
   return (
@@ -52,7 +59,7 @@ function App() {
       <main className="flex flex-1 overflow-hidden max-md:flex-col">
         <div className="flex-1 relative min-w-0 max-md:h-[50vh]">
           <ComponentErrorBoundary componentName="Map">
-            <ShipMap ships={ships} />
+            <ShipMap ships={ships} selectedShip={selectedShip} onSelectShip={handleSelectShip} />
           </ComponentErrorBoundary>
           <NotificationPanel
             notifications={notifications}
@@ -70,7 +77,7 @@ function App() {
         </div>
         <aside className="w-95 shrink-0 overflow-y-auto bg-slate-800 border-l border-slate-600 max-md:w-full max-md:border-l-0 max-md:border-t max-md:border-slate-600 max-md:h-[50vh]">
           <ComponentErrorBoundary componentName="Ship List">
-            <ShipList ships={ships} />
+            <ShipList ships={ships} selectedShip={selectedShip} onSelectShip={handleSelectShip} />
           </ComponentErrorBoundary>
         </aside>
       </main>

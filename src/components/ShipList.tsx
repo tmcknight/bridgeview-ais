@@ -18,10 +18,11 @@ import {
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>;
+  selectedShip?: TrackedShip | null;
   onSelectShip?: (ship: TrackedShip) => void;
 }
 
-export default function ShipList({ ships, onSelectShip }: ShipListProps) {
+export default function ShipList({ ships, selectedShip, onSelectShip }: ShipListProps) {
   const sorted = Array.from(ships.values()).sort(
     (a, b) => a.distanceToBridge - b.distanceToBridge
   );
@@ -47,14 +48,18 @@ export default function ShipList({ ships, onSelectShip }: ShipListProps) {
         {sorted.map((ship) => {
           const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
           const headingDeg = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
+          const isSelected = selectedShip?.mmsi === ship.mmsi;
           return (
             <div
               key={ship.mmsi}
               role="button"
               tabIndex={0}
               aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
+              aria-pressed={isSelected}
               className={`bg-slate-900 border rounded-lg p-3 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                ship.approaching
+                isSelected
+                  ? "border-blue-500 border-2 bg-blue-900/20"
+                  : ship.approaching
                   ? "border-red-500 border-2"
                   : "border-slate-700 hover:border-blue-500"
               }`}
