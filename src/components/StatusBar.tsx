@@ -32,9 +32,9 @@ export default function StatusBar({ connectionStatus, shipCount }: StatusBarProp
 
   return (
     <div className="flex items-center justify-between px-5 py-1.5 bg-slate-700 border-b border-slate-600 text-xs shrink-0">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4" aria-live="polite" aria-atomic="true">
         <div className="flex items-center gap-1.5">
-          <span className={`inline-block w-2 h-2 rounded-full ${config.dotClass}`} />
+          <span className={`inline-block w-2 h-2 rounded-full ${config.dotClass}`} aria-hidden="true" />
           <span>{config.label}</span>
         </div>
         <span className="text-slate-400">{shipCount} vessel{shipCount !== 1 ? "s" : ""} tracked</span>

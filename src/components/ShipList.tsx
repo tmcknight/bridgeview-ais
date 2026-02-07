@@ -50,12 +50,21 @@ export default function ShipList({ ships, onSelectShip }: ShipListProps) {
           return (
             <div
               key={ship.mmsi}
-              className={`bg-slate-900 border rounded-lg p-3 cursor-pointer transition-colors ${
+              role="button"
+              tabIndex={0}
+              aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
+              className={`bg-slate-900 border rounded-lg p-3 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                 ship.approaching
                   ? "border-red-500 border-2"
                   : "border-slate-700 hover:border-blue-500"
               }`}
               onClick={() => onSelectShip?.(ship)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectShip?.(ship);
+                }
+              }}
             >
               {/* Header: name + badge */}
               <div className="flex items-center justify-between mb-2">
