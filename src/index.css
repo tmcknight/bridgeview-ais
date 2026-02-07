@@ -101,28 +101,28 @@
 
 /* Zoom control group */
 .maplibregl-ctrl-group {
-  @apply !rounded;
+  @apply rounded!;
   border: 1px solid #94a3b8 !important;
 }
 
 .maplibregl-ctrl-group:not(:empty) {
-  @apply !shadow-lg;
+  @apply shadow-lg!;
   background: none !important;
 }
 
 /* Zoom controls */
 .maplibregl-ctrl-zoom-in,
 .maplibregl-ctrl-zoom-out {
-  @apply !bg-slate-600;
+  @apply bg-slate-600!;
   border: none !important;
 }
 
 .maplibregl-ctrl-zoom-in {
-  @apply !rounded-t;
+  @apply rounded-t!;
 }
 
 .maplibregl-ctrl-zoom-out {
-  @apply !rounded-b;
+  @apply rounded-b!;
 }
 
 /* Override MapLibre's default icons with Heroicon-style SVGs */
@@ -142,22 +142,22 @@
 
 .maplibregl-ctrl-zoom-in:hover,
 .maplibregl-ctrl-zoom-out:hover {
-  @apply !bg-slate-500;
+  @apply bg-slate-500!;
 }
 
 /* Attribution controls */
 .maplibregl-ctrl-attrib {
-  @apply !bg-slate-900/70;
+  @apply bg-slate-900/70!;
 }
 
 .maplibregl-ctrl-attrib a {
-  @apply !text-slate-500;
+  @apply text-slate-500!;
 }
 
 .maplibregl-ctrl-attrib-button {
-  @apply !bg-slate-900/70 !text-slate-300 !border-slate-700;
+  @apply bg-slate-900/70! text-slate-300! border-slate-700!;
 }
 
 .maplibregl-ctrl-attrib-button:hover {
-  @apply !bg-slate-700;
+  @apply bg-slate-700!;
 }
