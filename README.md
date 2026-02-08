@@ -57,9 +57,9 @@ npm install
 
 3. Set up environment variables:
 ```bash
-cp .env.example.env .env
+cp .example.env .env
 ```
-Add your AISStream.io API key to the `.env` file (see `.env.example.env` for all options).
+Add your AISStream.io API key to the `.env` file (see `.example.env` for all options).
 
 4. Start the development server:
 ```bash
