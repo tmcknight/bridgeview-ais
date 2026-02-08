@@ -98,7 +98,7 @@ export default function NotificationPanel({
   notifications,
   onDismiss,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onClear,
+  onClear: _onClear,
   onSelectShip,
 }: NotificationPanelProps) {
   const active = notifications.filter((n) => !n.dismissed);
