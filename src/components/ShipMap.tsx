@@ -22,6 +22,7 @@ import {
   InformationCircleIcon,
   CubeIcon,
   ArrowUpIcon,
+  ListBulletIcon,
 } from "@heroicons/react/20/solid";
 
 // Create ship icon as React element
@@ -196,7 +197,10 @@ function BridgeMarker({
 }
 
 // Padding to offset map center for the ship list panel overlay
-function getMapPadding() {
+function getMapPadding(showShipList: boolean) {
+  if (!showShipList) {
+    return { top: 0, bottom: 0, left: 0, right: 0 };
+  }
   // w-95 = 380px on md+ screens; bottom half on mobile
   if (window.innerWidth >= 768) {
     return { top: 0, bottom: 0, left: 0, right: 460 };
@@ -267,11 +271,11 @@ const TILE_PROVIDERS = {
 };
 
 // Custom attribution control component
-function AttributionToggle({ theme }: { theme: Theme }) {
+function AttributionToggle({ theme, showShipList }: { theme: Theme; showShipList: boolean }) {
   const [showAttribution, setShowAttribution] = useState(false);
 
   return (
-    <div className={`absolute bottom-2.5 right-2.5 md:right-100 z-50 ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`absolute bottom-2.5 right-2.5 z-50 ${theme === 'dark' ? 'dark' : ''} transition-[right] duration-300 ease-in-out ${showShipList ? 'md:right-100' : ''}`}>
       {showAttribution && (
         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 px-2 py-1.5 bg-white/95 dark:bg-slate-800/95 border border-slate-300/40 dark:border-slate-600/40 rounded text-[0.65rem] text-slate-600 dark:text-slate-400 whitespace-nowrap">
           © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenStreetMap</a> contributors · Tiles: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenFreeMap</a>
@@ -303,11 +307,15 @@ function MapControlGroup({
   is3D,
   onToggle3D,
   bearing,
+  showShipList,
+  onToggleShipList,
 }: {
   theme: Theme;
   is3D: boolean;
   onToggle3D: (next: boolean) => void;
   bearing: number;
+  showShipList: boolean;
+  onToggleShipList: () => void;
 }) {
   const { current: map } = useMap();
 
@@ -317,7 +325,7 @@ function MapControlGroup({
         center: [BRIDGE_CENTER.lng, BRIDGE_CENTER.lat],
         zoom: DEFAULT_ZOOM,
         duration: 500,
-        padding: getMapPadding(),
+        padding: getMapPadding(showShipList),
       });
     }
   };
@@ -383,35 +391,48 @@ function MapControlGroup({
   };
 
   return (
-    <div className={`absolute top-[87px] right-2.5 md:right-100 z-50 ${theme === "dark" ? "dark" : ""}`}>
-      <div className="flex flex-col rounded border border-slate-300 dark:border-slate-400 shadow-lg overflow-hidden divide-y divide-slate-300 dark:divide-slate-400">
+    <div className={`absolute top-[87px] right-2.5 z-50 ${theme === "dark" ? "dark" : ""} transition-[right] duration-300 ease-in-out ${showShipList ? "md:right-100" : ""}`}>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col rounded border border-slate-300 dark:border-slate-400 shadow-lg overflow-hidden divide-y divide-slate-300 dark:divide-slate-400">
+          <button
+            className={MAP_BTN}
+            onClick={handleRecenter}
+            aria-label="Re-center map on Blue Water Bridge"
+            title="Re-center on bridge"
+          >
+            <HomeIcon className="w-3.5 h-3.5 text-slate-700 dark:text-white" />
+          </button>
+          <button
+            className={is3D ? MAP_BTN_3D_ACTIVE : MAP_BTN}
+            onClick={handleToggle3D}
+            aria-label="Toggle 3D map view"
+            title={is3D ? "Switch to 2D view" : "Switch to 3D view"}
+          >
+            <CubeIcon
+              className={`w-3.5 h-3.5 ${is3D ? "text-white" : "text-slate-700 dark:text-white"}`}
+            />
+          </button>
+          <button
+            className={MAP_BTN}
+            onClick={handleResetNorth}
+            aria-label="Reset map to face north"
+            title="Reset north"
+          >
+            <ArrowUpIcon
+              className="w-3.5 h-3.5 text-slate-700 dark:text-white transition-transform duration-200"
+              style={{ transform: `rotate(${-bearing}deg)` }}
+            />
+          </button>
+        </div>
         <button
-          className={MAP_BTN}
-          onClick={handleRecenter}
-          aria-label="Re-center map on Blue Water Bridge"
-          title="Re-center on bridge"
+          className={`${MAP_BTN} rounded border border-slate-300 dark:border-slate-400 shadow-lg transition-opacity duration-300 ${showShipList ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+          onClick={onToggleShipList}
+          aria-label="Show vessel list"
+          title="Show vessel list"
+          tabIndex={showShipList ? -1 : undefined}
         >
-          <HomeIcon className="w-3.5 h-3.5 text-slate-700 dark:text-white" />
-        </button>
-        <button
-          className={is3D ? MAP_BTN_3D_ACTIVE : MAP_BTN}
-          onClick={handleToggle3D}
-          aria-label="Toggle 3D map view"
-          title={is3D ? "Switch to 2D view" : "Switch to 3D view"}
-        >
-          <CubeIcon
-            className={`w-3.5 h-3.5 ${is3D ? "text-white" : "text-slate-700 dark:text-white"}`}
-          />
-        </button>
-        <button
-          className={MAP_BTN}
-          onClick={handleResetNorth}
-          aria-label="Reset map to face north"
-          title="Reset north"
-        >
-          <ArrowUpIcon
-            className="w-3.5 h-3.5 text-slate-700 dark:text-white transition-transform duration-200"
-            style={{ transform: `rotate(${-bearing}deg)` }}
+          <ListBulletIcon
+            className="w-3.5 h-3.5 text-slate-700 dark:text-white"
           />
         </button>
       </div>
@@ -424,16 +445,20 @@ interface ShipMapProps {
   selectedShip?: TrackedShip | null;
   onSelectShip?: (ship: TrackedShip) => void;
   theme: Theme;
+  showShipList: boolean;
+  onToggleShipList: () => void;
 }
 
 function MapController({
   selectedShip,
   ships,
   isBridgeSelected,
+  showShipList,
 }: {
   selectedShip?: TrackedShip | null;
   ships: Map<number, TrackedShip>;
   isBridgeSelected: boolean;
+  showShipList: boolean;
 }) {
   const { current: map } = useMap();
   const liveShip = selectedShip ? ships.get(selectedShip.mmsi) : null;
@@ -446,10 +471,10 @@ function MapController({
         zoom: Math.max(currentZoom, 13),
         duration: 500,
         essential: true,
-        padding: getMapPadding(),
+        padding: getMapPadding(showShipList),
       });
     }
-  }, [map, liveShip, liveShip?.latitude, liveShip?.longitude]);
+  }, [map, liveShip, liveShip?.latitude, liveShip?.longitude, showShipList]);
 
   useEffect(() => {
     if (isBridgeSelected && map) {
@@ -458,15 +483,25 @@ function MapController({
         zoom: DEFAULT_ZOOM,
         duration: 800,
         essential: true,
-        padding: getMapPadding(),
+        padding: getMapPadding(showShipList),
       });
     }
-  }, [map, isBridgeSelected]);
+  }, [map, isBridgeSelected, showShipList]);
+
+  // Adjust map padding when ship list visibility changes
+  useEffect(() => {
+    if (map) {
+      map.easeTo({
+        padding: getMapPadding(showShipList),
+        duration: 300,
+      });
+    }
+  }, [map, showShipList]);
 
   return null;
 }
 
-export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: ShipMapProps) {
+export default function ShipMap({ ships, selectedShip, onSelectShip, theme, showShipList, onToggleShipList }: ShipMapProps) {
   const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS[theme].primary.style);
   const [errorCount, setErrorCount] = useState(0);
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
@@ -525,7 +560,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: Sh
   }, [selectedShip]);
 
   return (
-    <div className="w-full h-full">
+    <div className={`w-full h-full ${showShipList ? "ship-list-visible" : ""}`}>
       <Map
         mapLib={maplibregl}
         initialViewState={{
@@ -569,10 +604,11 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: Sh
           selectedShip={selectedShip}
           ships={ships}
           isBridgeSelected={openPopupId === "bridge"}
+          showShipList={showShipList}
         />
-        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} />
+        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} />
       </Map>
-      <AttributionToggle theme={theme} />
+      <AttributionToggle theme={theme} showShipList={showShipList} />
     </div>
   );
 }

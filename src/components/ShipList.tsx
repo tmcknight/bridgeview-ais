@@ -9,17 +9,22 @@ import {
   formatETA,
 } from "../utils/geo"
 import { BoltIcon, MapPinIcon, ClockIcon } from "@heroicons/react/20/solid"
+import { XMarkIcon } from "@heroicons/react/20/solid"
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>
   selectedShip?: TrackedShip | null
   onSelectShip?: (ship: TrackedShip) => void
+  hidden?: boolean
+  onClose?: () => void
 }
 
 export default function ShipList({
   ships,
   selectedShip,
   onSelectShip,
+  hidden = false,
+  onClose,
 }: ShipListProps) {
   const sorted = useMemo(
     () =>
@@ -32,10 +37,18 @@ export default function ShipList({
   if (sorted.length === 0) {
     return (
       <div>
-        <div className="sticky top-0 z-10 px-4 md:pl-20 py-3">
+        <div className="sticky top-0 z-10 px-4 md:pl-20 pt-3 pb-0.5 flex items-center justify-between">
           <h2 className="inline-block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide bg-slate-300/70 dark:bg-slate-700/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-400/30 dark:border-slate-500/30 shadow-sm">
             Tracked Vessels
           </h2>
+          <button
+            className="p-1 rounded hover:bg-slate-300/50 dark:hover:bg-slate-600/50 transition-colors"
+            onClick={onClose}
+            aria-label="Close vessel list"
+            title="Close vessel list"
+          >
+            <XMarkIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+          </button>
         </div>
         <div className="text-center py-8 px-4 md:pl-20 text-slate-500 dark:text-slate-400">
           <p className="mb-2">No vessels detected in the tracking area.</p>
@@ -50,10 +63,18 @@ export default function ShipList({
 
   return (
     <div>
-      <div className="sticky top-0 z-10 px-4 md:pl-20 py-3">
+      <div className="sticky top-0 z-10 px-4 md:pl-20 pt-3 pb-0.5 flex items-center justify-between">
         <h2 className="inline-block text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide bg-slate-300/70 dark:bg-slate-700/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-400/30 dark:border-slate-500/30 shadow-sm">
           {sorted.length} Tracked Vessels
         </h2>
+        <button
+          className="p-1 rounded hover:bg-slate-300/50 dark:hover:bg-slate-600/50 transition-colors"
+          onClick={onClose}
+          aria-label="Close vessel list"
+          title="Close vessel list"
+        >
+          <XMarkIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+        </button>
       </div>
       <div className="flex flex-col gap-2 p-4 md:pl-20">
         {sorted.map((ship) => {
@@ -65,7 +86,7 @@ export default function ShipList({
             <div
               key={ship.mmsi}
               role="button"
-              tabIndex={0}
+              tabIndex={hidden ? -1 : 0}
               aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
               aria-pressed={isSelected}
               className={`group bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none ${
@@ -221,6 +242,7 @@ export default function ShipList({
                   rel="noopener noreferrer"
                   className="whitespace-nowrap hover:text-blue-500 dark:hover:text-blue-400 hover:underline transition-colors"
                   title="View vessel details on VesselFinder"
+                  tabIndex={hidden ? -1 : undefined}
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.preventDefault()}
                 >

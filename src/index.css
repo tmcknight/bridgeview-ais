@@ -108,10 +108,14 @@
 }
 
 /* Offset MapLibre top-right controls for ship list overlay */
+.maplibregl-ctrl-top-right {
+  transition: right 300ms ease-in-out !important;
+  z-index: 50 !important;
+}
+
 @media (min-width: 768px) {
-  .maplibregl-ctrl-top-right {
+  .ship-list-visible .maplibregl-ctrl-top-right {
     right: calc(25rem - 10px) !important;
-    z-index: 50 !important;
   }
 }
 

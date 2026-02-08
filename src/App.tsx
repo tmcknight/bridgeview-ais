@@ -21,6 +21,7 @@ function App() {
 
   const { theme, toggleTheme } = useTheme()
   const [selectedShip, setSelectedShip] = useState<TrackedShip | null>(null)
+  const [showShipList, setShowShipList] = useState(true)
 
   const [notifPermission, setNotifPermission] = useState(() => {
     if (!("Notification" in window)) return "unsupported"
@@ -83,6 +84,8 @@ function App() {
               selectedShip={selectedShip}
               onSelectShip={handleSelectShip}
               theme={theme}
+              showShipList={showShipList}
+              onToggleShipList={() => setShowShipList((v) => !v)}
             />
           </ComponentErrorBoundary>
           <NotificationPanel
@@ -101,12 +104,14 @@ function App() {
             </div>
           )}
         </div>
-        <aside className="ship-list-panel absolute top-0 right-0 bottom-0 w-95 md:w-115 overflow-y-auto bg-slate-200/30 dark:bg-slate-800/30 backdrop-blur-sm z-10 max-md:w-full max-md:top-auto max-md:h-[50vh] max-md:border-t max-md:border-slate-300/50 dark:max-md:border-slate-600/50">
-          <ComponentErrorBoundary componentName="Ship List">
+        <aside className={`ship-list-panel absolute top-0 right-0 bottom-0 w-95 md:w-115 overflow-y-auto bg-slate-200/30 dark:bg-slate-800/30 backdrop-blur-sm z-10 max-md:w-full max-md:top-auto max-md:h-[50vh] max-md:border-t max-md:border-slate-300/50 dark:max-md:border-slate-600/50 transition-transform duration-300 ease-in-out ${showShipList ? "translate-x-0" : "translate-x-full"}`}>
+          <ComponentErrorBoundary componentName="Vessel List">
             <ShipList
               ships={ships}
               selectedShip={selectedShip}
               onSelectShip={handleSelectShip}
+              hidden={!showShipList}
+              onClose={() => setShowShipList(false)}
             />
           </ComponentErrorBoundary>
         </aside>
