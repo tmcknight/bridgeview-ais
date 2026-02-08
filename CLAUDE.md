@@ -8,7 +8,7 @@ BridgeView AIS is a real-time maritime tracking application that visualizes vess
 
 - **Framework**: React 19 + TypeScript
 - **Build Tool**: Vite with HMR
-- **Mapping**: MapLibre GL JS + Leaflet for interactive visualization
+- **Mapping**: MapLibre GL JS via react-map-gl for interactive visualization
 - **Styling**: Tailwind CSS 4.x (using @tailwindcss/vite plugin)
 - **UI Components**: Headless UI + Heroicons for accessible, unstyled components
 - **WebSocket Server**: Node.js with ws library
@@ -20,24 +20,37 @@ BridgeView AIS is a real-time maritime tracking application that visualizes vess
 ```
 src/
 ├── components/         # React components
-│   ├── ShipMap.tsx    # MapLibre GL map with vessel markers
+│   ├── ShipMap.tsx    # MapLibre GL map with vessel markers (via react-map-gl)
 │   ├── ShipList.tsx   # List view of tracked vessels
 │   ├── NotificationPanel.tsx  # Real-time alerts
-│   └── StatusBar.tsx  # Connection status indicator
+│   ├── StatusBar.tsx  # Connection status indicator
+│   ├── ErrorBoundary.tsx          # App-level error boundary
+│   └── ComponentErrorBoundary.tsx # Component-level error boundary
 ├── hooks/
-│   └── useAISStream.ts  # WebSocket connection management
+│   ├── useAISStream.ts  # WebSocket connection management
+│   └── useTheme.ts      # Dark/light theme toggle
 ├── types/
 │   └── ais.ts         # AIS data type definitions
 ├── constants/
 │   └── bridge.ts      # Blue Water Bridge location data
 ├── utils/
-│   └── geo.ts         # Geographic calculations (distance, bearing, etc.)
+│   ├── geo.ts         # Geographic calculations (distance, bearing, etc.)
+│   └── logger.ts      # Logging utility
+├── test/              # Test infrastructure
+│   ├── setup.ts       # Vitest setup
+│   ├── mocks/         # Mock data factories (ships, AIS messages, WebSocket)
+│   └── utils/         # Test utilities (renderWithProviders)
 ├── App.tsx            # Main app component
-└── main.tsx           # Entry point
+├── main.tsx           # Entry point
+└── index.css          # Global styles
 ```
 
 ### Backend
-- `server.js`: WebSocket proxy server that connects to AISStream.io and relays messages to clients
+- `server.js`: Secure WebSocket proxy server that connects to AISStream.io and relays messages to clients
+  - Rate limiting (5 connections per IP, 60 messages per minute)
+  - Optional authentication token support
+  - Input validation and bounding box size limits
+  - Subscription timeout protection
 
 ## Code Conventions
 
@@ -81,13 +94,14 @@ npm run dev  # Starts both WebSocket proxy and Vite dev server
 ```
 
 This command:
-1. Starts the WebSocket proxy server on port 3000
+1. Starts the WebSocket proxy server on port 3001
 2. Starts Vite dev server on port 5173
 3. Both run concurrently for full-stack development
 
 ### Environment Variables
 - Copy `.env.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` for AISStream.io access
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production
@@ -100,6 +114,16 @@ npm run preview  # Preview production build locally
 ```bash
 npm run lint  # Run ESLint
 ```
+
+### Testing
+```bash
+npm test              # Run tests in watch mode (Vitest)
+npm run test:run      # Run tests once
+npm run test:coverage # Run tests with coverage report
+npm run test:ui       # Run tests with interactive UI
+```
+
+See [TESTING.md](TESTING.md) for comprehensive test documentation.
 
 ## Key Features to Maintain
 
@@ -115,9 +139,9 @@ npm run lint  # Run ESLint
 - Calculate ETA to bridge based on current position, speed, and course
 
 ### Map Rendering
-- MapLibre GL handles high-performance map rendering
-- Leaflet provides user-friendly map controls
-- Custom ship markers show vessel positions and headings
+- MapLibre GL handles high-performance map rendering via react-map-gl
+- Custom ship markers show vessel positions and headings with rotation
+- Map supports dark/light themes and 3D pitch alignment
 - Map updates smoothly without full re-renders
 
 ## Common Tasks
@@ -182,12 +206,21 @@ npm install -D <package>   # Dev dependency
 - Include context about what changed and why
 - Test thoroughly before committing
 
+## CI/CD
+
+- GitHub Actions workflow in `.github/workflows/test.yml`
+- Runs on push to `main` and PRs targeting `main`
+- Tests on Node.js 20.x and 22.x matrix
+- Pipeline: lint → type check → tests with coverage → build
+- Coverage uploaded to Codecov (Node 22.x only)
+
 ## Deployment Considerations
 
 - Build output goes to `dist/` directory
-- Requires Node.js server to run WebSocket proxy
+- Requires Node.js (v20+) server to run WebSocket proxy
 - Environment variables must be configured on server
 - Ensure AISStream.io API key is available in production environment
+- Set `WS_AUTH_TOKEN` for production WebSocket authentication
 
 ## Additional Resources
 
@@ -195,7 +228,8 @@ npm install -D <package>   # Dev dependency
 - [MapLibre GL JS Docs](https://maplibre.org/maplibre-gl-js/docs/)
 - [Tailwind CSS Docs](https://tailwindcss.com/docs)
 - [AISStream.io API](https://aisstream.io)
-- [Leaflet Docs](https://leafletjs.com/reference.html)
+- [react-map-gl Docs](https://visgl.github.io/react-map-gl/)
+- [Vitest Docs](https://vitest.dev)
 
 ## Project Context
 
