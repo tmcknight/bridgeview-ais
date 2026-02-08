@@ -13,11 +13,6 @@ import {
   MapPinIcon,
   ClockIcon,
 } from "@heroicons/react/20/solid";
-import {
-  ArrowUpIcon,
-  FlagIcon,
-  ArrowsPointingOutIcon,
-} from "@heroicons/react/16/solid";
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>;
@@ -77,13 +72,46 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
                 }
               }}
             >
-              {/* Header: name + badge */}
+              {/* Header: icon + name + badge */}
               <div className="flex items-start justify-between mb-2">
-                <div className="flex items-baseline gap-2 min-w-0">
-                  <span className="font-semibold text-base text-slate-800 dark:text-slate-100 shrink-0">{ship.name}</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400 leading-tight truncate">
-                    {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
-                  </span>
+                <div
+                  className="flex items-center gap-1.5 min-w-0"
+                  title={[
+                    NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown",
+                    ship.navStatus !== 1 && ship.navStatus !== 5 ? `Heading ${formatHeading(headingDeg)}` : null,
+                    ship.destination ? `Dest: ${ship.destination}` : null,
+                  ].filter(Boolean).join(" · ")}
+                >
+                  {(() => {
+                    const isStationary = ship.navStatus === 1 || ship.navStatus === 5;
+                    const fill = ship.approaching ? "#ef4444" : isStationary ? "#9ca3af" : "#3b82f6";
+                    // Light: darker shade of fill; Dark: lighter shade of fill
+                    const stroke = ship.approaching ? "#b91c1c" : isStationary ? "#6b7280" : "#1d4ed8";
+                    const strokeDark = ship.approaching ? "#fca5a5" : isStationary ? "#d1d5db" : "#93c5fd";
+                    return isStationary ? (
+                      <svg
+                        width={18}
+                        height={18}
+                        viewBox="0 0 24 24"
+                        className="shrink-0"
+                      >
+                        <circle cx="12" cy="12" r="7" fill={fill} className="in-[.dark]:hidden" stroke={stroke} strokeWidth="1.5" />
+                        <circle cx="12" cy="12" r="7" fill={fill} className="hidden in-[.dark]:block" stroke={strokeDark} strokeWidth="1.5" />
+                      </svg>
+                    ) : (
+                      <svg
+                        width={18}
+                        height={18}
+                        viewBox="0 0 24 24"
+                        className="shrink-0"
+                        style={{ transform: `rotate(${headingDeg}deg)` }}
+                      >
+                        <path d="M12 2 L18 20 L12 16 L6 20 Z" fill={fill} className="in-[.dark]:hidden" stroke={stroke} strokeWidth="1.5" />
+                        <path d="M12 2 L18 20 L12 16 L6 20 Z" fill={fill} className="hidden in-[.dark]:block" stroke={strokeDark} strokeWidth="1.5" />
+                      </svg>
+                    );
+                  })()}
+                  <span className="font-semibold text-base text-slate-800 dark:text-slate-100 truncate">{ship.name}</span>
                 </div>
                 {ship.approaching && (
                   <span className="shrink-0 text-[0.6rem] font-bold text-red-600 dark:text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
@@ -93,39 +121,21 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               </div>
 
               {/* Primary stats row */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
-                <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Distance to bridge">
-                  <MapPinIcon className="shrink-0 w-4 h-4 text-amber-500 dark:text-amber-400" />
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-none">{formatDistance(ship.distanceToBridge)}</span>
+              <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 whitespace-nowrap" title="Distance to bridge">
+                  <MapPinIcon className="shrink-0 w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">{formatDistance(ship.distanceToBridge)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Speed over ground">
-                  <BoltIcon className="shrink-0 w-4 h-4 text-blue-500 dark:text-blue-400" />
-                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-none">{formatSpeed(ship.sog)}</span>
-                </div>
+                {ship.sog > 0 && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 whitespace-nowrap" title="Speed over ground">
+                    <BoltIcon className="shrink-0 w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">{formatSpeed(ship.sog)}</span>
+                  </div>
+                )}
                 {eta !== null && (
-                  <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Estimated time to bridge">
-                    <ClockIcon className="shrink-0 w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-none">{formatETA(eta)}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Secondary info */}
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600 dark:text-slate-400">
-                <div className="flex items-center gap-1 leading-tight" title="Heading">
-                  <ArrowUpIcon className="shrink-0 w-3 h-3" style={{ transform: `rotate(${headingDeg}deg)` }} />
-                  <span className="leading-tight">{formatHeading(headingDeg)}</span>
-                </div>
-                {ship.destination && (
-                  <div className="flex items-center gap-1 leading-tight" title="Destination">
-                    <FlagIcon className="shrink-0 w-3 h-3" />
-                    <span className="leading-tight truncate max-w-32">{ship.destination}</span>
-                  </div>
-                )}
-                {ship.length && ship.length > 0 && (
-                  <div className="flex items-center gap-1 leading-tight" title="Vessel dimensions">
-                    <ArrowsPointingOutIcon className="shrink-0 w-3 h-3" />
-                    <span className="leading-tight">{ship.length}m × {ship.width}m</span>
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 whitespace-nowrap" title="Estimated time to bridge">
+                    <ClockIcon className="shrink-0 w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{formatETA(eta)}</span>
                   </div>
                 )}
               </div>

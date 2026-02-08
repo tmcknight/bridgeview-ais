@@ -25,7 +25,8 @@ import {
 // Create ship icon as React element
 function createShipIconElement(ship: TrackedShip): React.JSX.Element {
   const rotation = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
-  const color = ship.approaching ? "#ef4444" : "#3b82f6";
+  const isStationary = ship.navStatus === 1 || ship.navStatus === 5; // anchored or moored
+  const color = ship.approaching ? "#ef4444" : isStationary ? "#9ca3af" : "#3b82f6";
   const size = 24;
 
   return (
