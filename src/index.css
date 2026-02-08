@@ -54,7 +54,7 @@
   border: none !important;
 }
 
-/* Selected ship pulsing animation */
+/* Selected ship pulse animation */
 .selected-ship-marker {
   z-index: 1000 !important;
 }
