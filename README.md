@@ -16,7 +16,6 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
   - Vessel name and navigation status
   - Current speed, course, and heading
   - Destination and estimated time to bridge
-  - Dimensions (length and width)
   - MMSI identification
 - **Dark/Light Theme**: Toggle between dark and light modes
 - **Modern UI**: Built with Tailwind CSS and Headless UI for a clean, responsive interface
