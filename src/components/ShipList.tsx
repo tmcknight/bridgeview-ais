@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 import type { TrackedShip } from "../types/ais"
 import { NAV_STATUS_LABELS } from "../types/ais"
 import {
@@ -7,6 +7,7 @@ import {
   formatHeading,
   estimatedTimeToBridge,
   formatETA,
+  formatRelativeTime,
 } from "../utils/geo"
 import { BoltIcon, MapPinIcon, ClockIcon } from "@heroicons/react/20/solid"
 import { XMarkIcon } from "@heroicons/react/20/solid"
@@ -26,6 +27,13 @@ export default function ShipList({
   hidden = false,
   onClose,
 }: ShipListProps) {
+  // Re-render every 30s to keep relative timestamps current
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 30_000)
+    return () => clearInterval(id)
+  }, [])
+
   const sorted = useMemo(
     () =>
       Array.from(ships.values()).sort(
@@ -248,8 +256,8 @@ export default function ShipList({
                 >
                   {ship.mmsi}
                 </a>
-                <span className="whitespace-nowrap" title="Last update">
-                  {new Date(ship.lastUpdate).toLocaleTimeString()}
+                <span className="whitespace-nowrap" title={`Last updated ${new Date(ship.lastUpdate).toLocaleTimeString()}`}>
+                  {formatRelativeTime(ship.lastUpdate)}
                 </span>
               </div>
             </div>
