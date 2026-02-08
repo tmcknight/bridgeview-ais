@@ -17,9 +17,9 @@ describe('ShipList', () => {
     it('should not show ship count in header when empty', () => {
       renderWithProviders(<ShipList ships={new Map()} />)
 
-      // Should just say "Tracked Vessels", not "Tracked Vessels (0)"
+      // Should just say "Tracked Vessels", not "N Tracked Vessels"
       expect(screen.getByText('Tracked Vessels')).toBeInTheDocument()
-      expect(screen.queryByText(/Tracked Vessels \(\d+\)/)).not.toBeInTheDocument()
+      expect(screen.queryByText(/\d+ Tracked Vessels/)).not.toBeInTheDocument()
     })
   })
 
@@ -36,7 +36,7 @@ describe('ShipList', () => {
 
       expect(screen.getByText('SHIP ONE')).toBeInTheDocument()
       expect(screen.getByText('SHIP TWO')).toBeInTheDocument()
-      expect(screen.getByText('Tracked Vessels (2)')).toBeInTheDocument()
+      expect(screen.getByText('2 Tracked Vessels')).toBeInTheDocument()
     })
 
     it('should display ship name', () => {
@@ -53,63 +53,59 @@ describe('ShipList', () => {
       expect(screen.getByText('5.5 NM')).toBeInTheDocument()
     })
 
-    it('should display speed', () => {
+    it('should display speed when sog > 0', () => {
       const ship = mockShip({ sog: 12.3 })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
       expect(screen.getByText('12.3 kn')).toBeInTheDocument()
     })
 
-    it('should display navigation status', () => {
+    it('should not display speed when sog is 0', () => {
+      const ship = mockShip({ sog: 0 })
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
+
+      expect(screen.queryByText('0.0 kn')).not.toBeInTheDocument()
+    })
+
+    it('should include navigation status in title attribute', () => {
       const ship = mockShip({ navStatus: 0 })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      expect(screen.getByText('Under way using engine')).toBeInTheDocument()
+      // Nav status is shown in the title of the name/icon container, not as visible text
+      expect(screen.getByTitle(/Under way using engine/)).toBeInTheDocument()
     })
 
-    it('should display destination when available', () => {
+    it('should include destination in title attribute when available', () => {
       const ship = mockShip({ destination: 'DETROIT' })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      expect(screen.getByText('DETROIT')).toBeInTheDocument()
+      // Destination appears in the title attribute, not as visible text
+      expect(screen.getByTitle(/Dest: DETROIT/)).toBeInTheDocument()
     })
 
-    it('should not show destination field when missing', () => {
+    it('should not include destination in title when missing', () => {
       const ship = mockShip({ destination: undefined })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      // FlagIcon should not be rendered
-      expect(screen.queryByTitle('Destination')).not.toBeInTheDocument()
+      expect(screen.queryByTitle(/Dest:/)).not.toBeInTheDocument()
     })
 
-    it('should display vessel dimensions when available', () => {
-      const ship = mockShip({ length: 200, width: 30 })
-      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
-
-      expect(screen.getByText('200m × 30m')).toBeInTheDocument()
-    })
-
-    it('should not show dimensions when length is 0', () => {
-      const ship = mockShip({ length: 0, width: 0 })
-      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
-
-      expect(screen.queryByText(/m × /)).not.toBeInTheDocument()
-    })
-
-    it('should display MMSI', () => {
+    it('should display MMSI as a link', () => {
       const ship = mockShip({ mmsi: 367123456 })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      expect(screen.getByText('367123456')).toBeInTheDocument()
+      const mmsiLink = screen.getByText('367123456')
+      expect(mmsiLink).toBeInTheDocument()
+      expect(mmsiLink.tagName).toBe('A')
+      expect(mmsiLink).toHaveAttribute('href', 'https://www.vesselfinder.com/vessels/details/367123456')
     })
 
-    it('should display last update timestamp', () => {
-      const ship = mockShip({ lastUpdate: new Date('2024-01-15T12:34:56Z').toISOString() })
+    it('should display relative time for last update', () => {
+      const ship = mockShip({ lastUpdate: new Date().toISOString() })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      // Should display as locale time
-      const timeElement = screen.getByTitle('Last update')
-      expect(timeElement).toBeInTheDocument()
+      // Shows relative time like "< 1m ago"
+      expect(screen.getByText('< 1m ago')).toBeInTheDocument()
     })
   })
 
@@ -127,7 +123,8 @@ describe('ShipList', () => {
 
       renderWithProviders(<ShipList ships={ships} />)
 
-      const shipCards = screen.getAllByRole('button')
+      // Ship cards have aria-label starting with "View details for"
+      const shipCards = screen.getAllByRole('button', { name: /View details for/ })
       expect(shipCards).toHaveLength(3)
 
       // Verify order by checking text content
@@ -156,7 +153,7 @@ describe('ShipList', () => {
       const ship = mockShip({ approaching: true })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      const shipCard = screen.getByRole('button')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
       expect(shipCard).toHaveClass('border-red-500')
     })
 
@@ -164,17 +161,16 @@ describe('ShipList', () => {
       const ship = mockShip()
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} selectedShip={ship} />)
 
-      const shipCard = screen.getByRole('button')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
       expect(shipCard).toHaveClass('border-blue-500')
-      expect(shipCard).toHaveClass('bg-blue-900/20')
     })
 
     it('should apply default border for non-approaching, non-selected ships', () => {
       const ship = mockShip({ approaching: false })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} selectedShip={null} />)
 
-      const shipCard = screen.getByRole('button')
-      expect(shipCard).toHaveClass('border-slate-700')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
+      expect(shipCard.className).toMatch(/border-slate/)
     })
   })
 
@@ -235,7 +231,7 @@ describe('ShipList', () => {
 
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      const shipCard = screen.getByRole('button')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
       await user.click(shipCard)
 
       // Should not throw error
@@ -248,7 +244,7 @@ describe('ShipList', () => {
       const ship = mockShip()
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      const shipCard = screen.getByRole('button')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
       expect(shipCard).toBeInTheDocument()
     })
 
@@ -266,7 +262,7 @@ describe('ShipList', () => {
       const ship = mockShip()
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} selectedShip={ship} />)
 
-      const shipCard = screen.getByRole('button')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
       expect(shipCard).toHaveAttribute('aria-pressed', 'true')
     })
 
@@ -274,7 +270,7 @@ describe('ShipList', () => {
       const ship = mockShip()
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} selectedShip={null} />)
 
-      const shipCard = screen.getByRole('button')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
       expect(shipCard).toHaveAttribute('aria-pressed', 'false')
     })
 
@@ -282,41 +278,34 @@ describe('ShipList', () => {
       const ship = mockShip()
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      const shipCard = screen.getByRole('button')
+      const shipCard = screen.getByRole('button', { name: /View details for/ })
       expect(shipCard).toHaveAttribute('tabIndex', '0')
     })
   })
 
-  describe('heading display', () => {
-    it('should use true heading when available (not 511)', () => {
-      const ship = mockShip({ trueHeading: 90, cog: 180 })
-      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
-
-      expect(screen.getByText('90°')).toBeInTheDocument()
-    })
-
-    it('should fall back to COG when true heading is 511 (not available)', () => {
-      const ship = mockShip({ trueHeading: 511, cog: 180 })
-      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
-
-      expect(screen.getByText('180°')).toBeInTheDocument()
-    })
-  })
-
-  describe('ETA calculation', () => {
-    it('should display ETA when ship is moving', () => {
-      const ship = mockShip({ distanceToBridge: 10, sog: 10 }) // 60 minutes = 1 hour
+  describe('ETA display', () => {
+    it('should display ETA when ship is approaching and moving', () => {
+      const ship = mockShip({ distanceToBridge: 10, sog: 10, approaching: true }) // 60 minutes = 1 hour
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
       // 60 minutes is formatted as "~1h 0m"
       expect(screen.getByText('~1h 0m')).toBeInTheDocument()
     })
 
-    it('should display N/A when ship is stationary', () => {
-      const ship = mockShip({ distanceToBridge: 5, sog: 0 })
+    it('should not display ETA when ship is not approaching', () => {
+      const ship = mockShip({ distanceToBridge: 10, sog: 10, approaching: false })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      expect(screen.getByText('N/A')).toBeInTheDocument()
+      // ETA is only shown for approaching ships
+      expect(screen.queryByText('~1h 0m')).not.toBeInTheDocument()
+    })
+
+    it('should not display ETA when ship is stationary', () => {
+      const ship = mockShip({ distanceToBridge: 5, sog: 0, approaching: true })
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
+
+      // ETA not shown because estimatedTimeToBridge returns null for sog < 0.5
+      expect(screen.queryByTitle('Estimated time to bridge')).not.toBeInTheDocument()
     })
   })
 

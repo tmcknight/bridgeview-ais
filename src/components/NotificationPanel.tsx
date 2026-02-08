@@ -97,6 +97,7 @@ function Toast({
 export default function NotificationPanel({
   notifications,
   onDismiss,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onClear: _onClear,
   onSelectShip,
 }: NotificationPanelProps) {

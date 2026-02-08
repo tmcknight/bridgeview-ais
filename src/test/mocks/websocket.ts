@@ -69,7 +69,7 @@ export class MockAISStreamServer {
           if (parsed.BoundingBoxes) {
             resolve(parsed)
           }
-        } catch (error) {
+        } catch {
           // Ignore parse errors
         }
       }

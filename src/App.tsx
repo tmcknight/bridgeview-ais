@@ -34,7 +34,7 @@ function App() {
     })
   }, [])
 
-  const handleSelectShip = useCallback((ship: TrackedShip) => {
+  const handleSelectShip = useCallback((ship: TrackedShip | null) => {
     setSelectedShip(ship)
   }, [])
 
