@@ -4,9 +4,11 @@ import Map, {
   NavigationControl,
   useMap,
 } from "react-map-gl/maplibre";
+import type { MarkerEvent, ErrorEvent as MapErrorEvent, StyleSpecification, LayerSpecification } from "react-map-gl/maplibre";
+import type { AddLayerObject } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import React, { useEffect, memo, useState, useCallback } from "react";
+import React, { useEffect, memo, useState, useCallback, useMemo } from "react";
 import type { TrackedShip } from "../types/ais";
 import type { Theme } from "../hooks/useTheme";
 import {
@@ -77,7 +79,7 @@ const ShipMarker = memo(
     isSelected: boolean;
     is3D: boolean;
   }) => {
-    const handleClick = useCallback((e: any) => {
+    const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
       e.originalEvent.stopPropagation();
       onTogglePopup();
       onSelectShip?.(ship);
@@ -134,7 +136,7 @@ function BridgeMarker({
   onTogglePopup: () => void;
   onSelect?: () => void;
 }) {
-  const handleClick = useCallback((e: any) => {
+  const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
     e.originalEvent.stopPropagation();
     onTogglePopup();
     onSelect?.();
@@ -253,7 +255,7 @@ const TILE_PROVIDERS = {
             source: "osm",
           },
         ],
-      } as any,
+      } as StyleSpecification,
     },
   },
   light: {
@@ -282,7 +284,7 @@ const TILE_PROVIDERS = {
             source: "osm",
           },
         ],
-      } as any,
+      } as StyleSpecification,
     },
   },
 };
@@ -358,16 +360,16 @@ function MapControlGroup({
       if (!mapInstance.getLayer("3d-buildings")) {
         const style = mapInstance.getStyle();
         const buildingLayer = style?.layers?.find(
-          (l: any) =>
+          (l: LayerSpecification) =>
             l.id.includes("building") &&
             l.type === "fill" &&
             !l.id.includes("3d-buildings")
         );
-        if (buildingLayer) {
+        if (buildingLayer && "source" in buildingLayer) {
           mapInstance.addLayer({
             id: "3d-buildings",
-            source: (buildingLayer as any).source,
-            "source-layer": (buildingLayer as any)["source-layer"],
+            source: buildingLayer.source,
+            "source-layer": "source-layer" in buildingLayer ? (buildingLayer["source-layer"] as string) : undefined,
             type: "fill-extrusion",
             minzoom: 13,
             paint: {
@@ -389,7 +391,7 @@ function MapControlGroup({
               ],
               "fill-extrusion-opacity": 0.7,
             },
-          } as any);
+          } as AddLayerObject);
         }
       }
     } else {
@@ -460,7 +462,7 @@ function MapControlGroup({
 interface ShipMapProps {
   ships: Map<number, TrackedShip>;
   selectedShip?: TrackedShip | null;
-  onSelectShip?: (ship: TrackedShip) => void;
+  onSelectShip?: (ship: TrackedShip | null) => void;
   theme: Theme;
   showShipList: boolean;
   onToggleShipList: () => void;
@@ -519,19 +521,25 @@ function MapController({
 }
 
 export default function ShipMap({ ships, selectedShip, onSelectShip, theme, showShipList, onToggleShipList }: ShipMapProps) {
-  const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS[theme].primary.style);
   const [errorCount, setErrorCount] = useState(0);
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
   const [is3D, setIs3D] = useState(false);
   const [bearing, setBearing] = useState(0);
 
-  // Update map style when theme changes
-  useEffect(() => {
-    setMapStyle(TILE_PROVIDERS[theme].primary.style);
+  // Reset error count when theme changes (React recommended pattern for adjusting state on prop change)
+  const [prevTheme, setPrevTheme] = useState(theme);
+  if (prevTheme !== theme) {
+    setPrevTheme(theme);
     setErrorCount(0);
-  }, [theme]);
+  }
 
-  const handleMapError = useCallback((e: any) => {
+  // Derive map style from theme + error count
+  const mapStyle = useMemo(() => {
+    const provider = TILE_PROVIDERS[theme];
+    return errorCount >= 3 ? provider.fallback.style : provider.primary.style;
+  }, [theme, errorCount]);
+
+  const handleMapError = useCallback((e: MapErrorEvent) => {
     const errorMsg = e.error?.message || "";
     if (
       errorMsg.includes("tile") ||
@@ -545,7 +553,6 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           console.warn(
             `Failed to load tiles from ${provider.primary.name} after ${newCount} attempts. Switching to ${provider.fallback.name}.`
           );
-          setMapStyle(provider.fallback.style);
         }
         return newCount;
       });
@@ -569,12 +576,12 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
     setBearing(e.viewState.bearing);
   }, []);
 
-  // Open popup when ship is selected from list
-  useEffect(() => {
-    if (selectedShip) {
-      setOpenPopupId(selectedShip.mmsi);
-    }
-  }, [selectedShip]);
+  // Open popup when ship is selected from list (React recommended pattern for adjusting state on prop change)
+  const [prevSelectedMmsi, setPrevSelectedMmsi] = useState<number | undefined>(selectedShip?.mmsi);
+  if (selectedShip && selectedShip.mmsi !== prevSelectedMmsi) {
+    setPrevSelectedMmsi(selectedShip.mmsi);
+    setOpenPopupId(selectedShip.mmsi);
+  }
 
   return (
     <div className={`w-full h-full ${showShipList ? "ship-list-visible" : ""}`}>
@@ -602,7 +609,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           onTogglePopup={() =>
             setOpenPopupId(openPopupId === "bridge" ? null : "bridge")
           }
-          onSelect={() => onSelectShip?.(null as any)}
+          onSelect={() => onSelectShip?.(null)}
         />
         {Array.from(ships.values()).map((ship) => (
           <ShipMarker

@@ -244,7 +244,9 @@ export function useAISStream(): UseAISStreamReturn {
 
   // Use a ref for processMessage so the WebSocket effect doesn't re-run on callback changes
   const processMessageRef = useRef(processMessage);
-  processMessageRef.current = processMessage;
+  useEffect(() => {
+    processMessageRef.current = processMessage;
+  }, [processMessage]);
 
   useEffect(() => {
     let isCleanedUp = false;
