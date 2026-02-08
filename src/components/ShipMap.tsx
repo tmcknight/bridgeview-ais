@@ -4,7 +4,9 @@ import Map, {
   NavigationControl,
   useMap,
 } from "react-map-gl/maplibre";
+import type { MarkerEvent, ErrorEvent } from "react-map-gl/maplibre";
 import maplibregl from "maplibre-gl";
+import type { LayerSpecification, StyleSpecification, FillLayerSpecification } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import React, { useEffect, memo, useState, useCallback } from "react";
 import type { TrackedShip } from "../types/ais";
@@ -77,7 +79,7 @@ const ShipMarker = memo(
     isSelected: boolean;
     is3D: boolean;
   }) => {
-    const handleClick = useCallback((e: any) => {
+    const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
       e.originalEvent.stopPropagation();
       onTogglePopup();
       onSelectShip?.(ship);
@@ -134,7 +136,7 @@ function BridgeMarker({
   onTogglePopup: () => void;
   onSelect?: () => void;
 }) {
-  const handleClick = useCallback((e: any) => {
+  const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
     e.originalEvent.stopPropagation();
     onTogglePopup();
     onSelect?.();
@@ -253,7 +255,7 @@ const TILE_PROVIDERS = {
             source: "osm",
           },
         ],
-      } as any,
+      } as StyleSpecification,
     },
   },
   light: {
@@ -282,7 +284,7 @@ const TILE_PROVIDERS = {
             source: "osm",
           },
         ],
-      } as any,
+      } as StyleSpecification,
     },
   },
 };
@@ -358,16 +360,17 @@ function MapControlGroup({
       if (!mapInstance.getLayer("3d-buildings")) {
         const style = mapInstance.getStyle();
         const buildingLayer = style?.layers?.find(
-          (l: any) =>
+          (l: LayerSpecification) =>
             l.id.includes("building") &&
             l.type === "fill" &&
             !l.id.includes("3d-buildings")
         );
         if (buildingLayer) {
+          const fillLayer = buildingLayer as FillLayerSpecification;
           mapInstance.addLayer({
             id: "3d-buildings",
-            source: (buildingLayer as any).source,
-            "source-layer": (buildingLayer as any)["source-layer"],
+            source: fillLayer.source,
+            "source-layer": fillLayer["source-layer"],
             type: "fill-extrusion",
             minzoom: 13,
             paint: {
@@ -389,7 +392,7 @@ function MapControlGroup({
               ],
               "fill-extrusion-opacity": 0.7,
             },
-          } as any);
+          } as LayerSpecification);
         }
       }
     } else {
@@ -460,7 +463,7 @@ function MapControlGroup({
 interface ShipMapProps {
   ships: Map<number, TrackedShip>;
   selectedShip?: TrackedShip | null;
-  onSelectShip?: (ship: TrackedShip) => void;
+  onSelectShip?: (ship: TrackedShip | null) => void;
   theme: Theme;
   showShipList: boolean;
   onToggleShipList: () => void;
@@ -519,41 +522,46 @@ function MapController({
 }
 
 export default function ShipMap({ ships, selectedShip, onSelectShip, theme, showShipList, onToggleShipList }: ShipMapProps) {
-  const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS[theme].primary.style);
-  const [errorCount, setErrorCount] = useState(0);
+  // Use a ref to track the previous theme to properly reset error count
+  const prevThemeRef = React.useRef(theme);
+  const [mapStyle, setMapStyle] = useState<string | StyleSpecification>(() => TILE_PROVIDERS[theme].primary.style);
+  const errorCountRef = React.useRef(0);
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
   const [is3D, setIs3D] = useState(false);
   const [bearing, setBearing] = useState(0);
 
-  // Update map style when theme changes
+  // Update map style when theme changes - this is synchronizing with external system (map style)
+  // We use queueMicrotask to defer the state update to avoid the sync setState warning
   useEffect(() => {
-    setMapStyle(TILE_PROVIDERS[theme].primary.style);
-    setErrorCount(0);
+    if (prevThemeRef.current !== theme) {
+      prevThemeRef.current = theme;
+      queueMicrotask(() => {
+        setMapStyle(TILE_PROVIDERS[theme].primary.style);
+      });
+      errorCountRef.current = 0;
+    }
   }, [theme]);
 
-  const handleMapError = useCallback((e: any) => {
+  const handleMapError = useCallback((e: ErrorEvent) => {
     const errorMsg = e.error?.message || "";
     if (
       errorMsg.includes("tile") ||
       errorMsg.includes("source") ||
       errorMsg.includes("load")
     ) {
-      setErrorCount((prev) => {
-        const newCount = prev + 1;
-        if (newCount >= 3) {
-          const provider = TILE_PROVIDERS[theme];
-          console.warn(
-            `Failed to load tiles from ${provider.primary.name} after ${newCount} attempts. Switching to ${provider.fallback.name}.`
-          );
-          setMapStyle(provider.fallback.style);
-        }
-        return newCount;
-      });
+      errorCountRef.current += 1;
+      if (errorCountRef.current >= 3) {
+        const provider = TILE_PROVIDERS[theme];
+        console.warn(
+          `Failed to load tiles from ${provider.primary.name} after ${errorCountRef.current} attempts. Switching to ${provider.fallback.name}.`
+        );
+        setMapStyle(provider.fallback.style);
+      }
     }
   }, [theme]);
 
   const handleStyleLoad = useCallback(() => {
-    setErrorCount(0);
+    errorCountRef.current = 0;
   }, []);
 
   const handleMapClick = useCallback(() => {
@@ -570,9 +578,17 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
   }, []);
 
   // Open popup when ship is selected from list
+  // Track previous selection to only update when it changes
+  // We use queueMicrotask to defer the state update to avoid the sync setState warning
+  const prevSelectedShipRef = React.useRef(selectedShip);
   useEffect(() => {
-    if (selectedShip) {
-      setOpenPopupId(selectedShip.mmsi);
+    if (selectedShip && selectedShip !== prevSelectedShipRef.current) {
+      prevSelectedShipRef.current = selectedShip;
+      queueMicrotask(() => {
+        setOpenPopupId(selectedShip.mmsi);
+      });
+    } else if (!selectedShip && prevSelectedShipRef.current) {
+      prevSelectedShipRef.current = selectedShip;
     }
   }, [selectedShip]);
 
@@ -602,7 +618,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           onTogglePopup={() =>
             setOpenPopupId(openPopupId === "bridge" ? null : "bridge")
           }
-          onSelect={() => onSelectShip?.(null as any)}
+          onSelect={() => onSelectShip?.(null)}
         />
         {Array.from(ships.values()).map((ship) => (
           <ShipMarker

@@ -15,7 +15,7 @@ import { XMarkIcon } from "@heroicons/react/20/solid"
 interface ShipListProps {
   ships: Map<number, TrackedShip>
   selectedShip?: TrackedShip | null
-  onSelectShip?: (ship: TrackedShip) => void
+  onSelectShip?: (ship: TrackedShip | null) => void
   hidden?: boolean
   onClose?: () => void
 }

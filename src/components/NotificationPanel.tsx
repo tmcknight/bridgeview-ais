@@ -97,7 +97,7 @@ function Toast({
 export default function NotificationPanel({
   notifications,
   onDismiss,
-  onClear: _onClear,
+  onClear,
   onSelectShip,
 }: NotificationPanelProps) {
   const active = notifications.filter((n) => !n.dismissed);
@@ -105,8 +105,22 @@ export default function NotificationPanel({
   if (active.length === 0) return null;
 
   return (
-    <div className="absolute top-2.5 left-2.5 z-50 flex flex-col gap-2 pointer-events-none">
-      {active.slice(0, 5).map((n) => (
+    <div className="absolute top-2.5 left-2.5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm">
+      {/* Header with notification count and clear all button */}
+      <div className="pointer-events-auto bg-white dark:bg-slate-800 rounded-lg shadow-lg px-4 py-2 flex items-center justify-between border-l-4 border-l-blue-500">
+        <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          Notifications ({active.length})
+        </span>
+        <Button
+          onClick={onClear}
+          className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+        >
+          Clear all
+        </Button>
+      </div>
+      
+      {/* Notification toasts */}
+      {active.slice(0, 10).map((n) => (
         <div key={n.id} className="pointer-events-auto">
           <Toast
             notification={n}
