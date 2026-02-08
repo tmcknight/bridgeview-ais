@@ -40,11 +40,19 @@ function App() {
   return (
     <div className={`flex flex-col h-screen overflow-hidden ${theme === 'dark' ? 'dark' : ''}`}>
       <header className="flex items-center justify-between px-5 py-3 bg-slate-100 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-600 shrink-0">
-        <div className="flex items-baseline gap-3 max-md:flex-col max-md:gap-0">
+        <div className="flex flex-col">
           <h1 className="text-xl font-bold text-slate-800 dark:text-slate-200">BridgeView AIS</h1>
           <span className="text-xs text-slate-600 dark:text-slate-400">Blue Water Bridge Ship Tracker</span>
         </div>
         <div className="flex items-center gap-4">
+          {notifPermission === "default" && (
+            <Button
+              className="bg-transparent border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 px-3 py-1.5 rounded-md text-xs transition-all hover:border-blue-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+              onClick={requestNotifications}
+            >
+              Enable Notifications
+            </Button>
+          )}
           <Button
             className="p-2 rounded-md transition-colors bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700"
             onClick={toggleTheme}
@@ -57,14 +65,6 @@ function App() {
               <MoonIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
             )}
           </Button>
-          {notifPermission === "default" && (
-            <Button
-              className="bg-transparent border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 px-3 py-1.5 rounded-md text-xs transition-all hover:border-blue-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-              onClick={requestNotifications}
-            >
-              Enable Notifications
-            </Button>
-          )}
           <StatusBar connectionStatus={connectionStatus} />
         </div>
       </header>
