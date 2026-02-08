@@ -1,7 +1,30 @@
 {
   "name": "bridgeview-ais",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Real-time maritime tracking application for vessel traffic near the Blue Water Bridge using AIS data",
+  "author": "Thomas McKnight",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tmcknight/bridgeview-ais.git"
+  },
+  "homepage": "https://github.com/tmcknight/bridgeview-ais",
+  "bugs": {
+    "url": "https://github.com/tmcknight/bridgeview-ais/issues"
+  },
+  "keywords": [
+    "ais",
+    "maritime",
+    "ship-tracking",
+    "vessel-tracking",
+    "maplibre",
+    "react",
+    "websocket",
+    "real-time"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "type": "module",
   "scripts": {
     "dev": "node --env-file=.env server.js & vite",
