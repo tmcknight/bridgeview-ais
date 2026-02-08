@@ -56,7 +56,6 @@ export function isApproaching(
   // Use pre-calculated distance if provided, otherwise calculate
   const dist = distanceToBridgeNM ?? haversineDistanceNM(lat, lon, BRIDGE_CENTER.lat, BRIDGE_CENTER.lng);
   const isNorthOfBridge = lat > BRIDGE_CENTER.lat;
-  const isSouthOfBridge = lat < BRIDGE_CENTER.lat;
 
   // Normalize COG to 0-360
   const heading = ((cog % 360) + 360) % 360;
@@ -64,11 +63,8 @@ export function isApproaching(
   // Only consider ships within reasonable range
   if (dist > MAX_TRACKING_DISTANCE_NM) return false;
 
-  // Ship is north of bridge and heading south (roughly 135-225°)
+  // Only consider ships heading south from north of the bridge (roughly 135-225°)
   if (isNorthOfBridge && heading > 135 && heading < 225) return true;
-
-  // Ship is south of bridge and heading north (roughly 315-360 or 0-45°)
-  if (isSouthOfBridge && (heading > 315 || heading < 45)) return true;
 
   return false;
 }

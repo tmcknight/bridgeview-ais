@@ -221,7 +221,7 @@ export default function ShipList({
                     </span>
                   </div>
                 )}
-                {eta !== null && (
+                {ship.approaching && eta !== null && (
                   <div
                     className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 whitespace-nowrap"
                     title="Estimated time to bridge"

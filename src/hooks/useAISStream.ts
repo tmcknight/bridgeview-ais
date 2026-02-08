@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { AISMessage, TrackedShip } from "../types/ais";
-import { AIS_BOUNDING_BOX } from "../constants/bridge";
 import {
+  AIS_BOUNDING_BOX,
   APPROACH_NOTIFICATION_DISTANCE_NM,
+  BRIDGE_CENTER,
   CLOSE_APPROACH_DISTANCE_NM,
   MAX_NOTIFICATIONS,
   STALE_SHIP_TIMEOUT_MS,
@@ -153,13 +154,25 @@ export function useAISStream(): UseAISStreamReturn {
       if (MessageType === "PositionReport" && Message.PositionReport) {
         const pos = Message.PositionReport;
         const dist = distanceToBridge(MetaData.latitude, MetaData.longitude);
-        const approaching = isApproaching(
+        let approaching = isApproaching(
           MetaData.latitude,
           MetaData.longitude,
           pos.Cog,
           pos.Sog,
           dist // Pass pre-calculated distance to avoid duplicate calculation
         );
+
+        // Filter out vessels that shouldn't be considered approaching
+        const destination = existing?.destination?.toUpperCase() ?? "";
+        const heading = ((pos.Cog % 360) + 360) % 360;
+        const isNorthbound = heading > 315 || heading < 45;
+        const isSouthOfBridge = MetaData.latitude < BRIDGE_CENTER.lat;
+        if (destination === "TUG-ASSIST") {
+          approaching = false;
+        }
+        if (isSouthOfBridge && isNorthbound && destination === "SARNIA") {
+          approaching = false;
+        }
 
         const ship: TrackedShip = {
           mmsi,
