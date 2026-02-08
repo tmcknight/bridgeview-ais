@@ -1,9 +1,10 @@
 # Docker Setup
 
-BridgeView AIS can be run in Docker using `docker compose`. The setup uses two containers:
+BridgeView AIS can be run in Docker using `docker compose`. The setup uses three containers:
 
 - **frontend**: Nginx serving the built React app and proxying WebSocket connections
 - **ws-server**: Node.js WebSocket proxy server connecting to AISStream.io
+- **vessel-notifier**: Node.js service that sends push notifications via [ntfy](https://ntfy.sh) when vessels pass under the bridge
 
 ## Prerequisites
 
@@ -36,13 +37,16 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `AISSTREAM_API_KEY` | Yes | — | Your AISStream.io API key |
 | `WS_AUTH_TOKEN` | No | — | Token for WebSocket authentication |
 | `APP_PORT` | No | `3000` | Host port for the web interface |
+| `NTFY_TOPIC` | No | `bridgeview-ais` | ntfy topic for vessel notifications |
+| `NTFY_SERVER` | No | `https://ntfy.sh` | ntfy server URL |
+| `NTFY_TOKEN` | No | — | ntfy access token for authentication |
 
 ## Architecture
 
 ```
 Browser  -->  Nginx (:80)  --/ws-->  ws-server (:3001)  -->  AISStream.io
-                |
-           static files
+                |                          |
+           static files          vessel-notifier  -->  ntfy.sh
            (React app)
 ```
 
@@ -60,6 +64,7 @@ docker compose logs -f
 # View logs for a specific service
 docker compose logs -f ws-server
 docker compose logs -f frontend
+docker compose logs -f vessel-notifier
 
 # Stop
 docker compose down
@@ -79,6 +84,9 @@ docker build --target ws-server -t bridgeview-ws .
 # Build only the frontend image
 docker build --target frontend -t bridgeview-frontend \
   --build-arg VITE_WS_PROXY_URL=ws://your-domain.com/ws .
+
+# Build only the vessel notifier image
+docker build --target vessel-notifier -t bridgeview-notifier .
 ```
 
 ## Custom WebSocket URL

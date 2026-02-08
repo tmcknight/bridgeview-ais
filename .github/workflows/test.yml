@@ -45,6 +45,18 @@ jobs:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
 
+      - name: Install vessel-notifier dependencies
+        run: npm ci
+        working-directory: services/vessel-notifier
+
+      - name: Vessel notifier type check
+        run: npx tsc --noEmit
+        working-directory: services/vessel-notifier
+
+      - name: Vessel notifier tests
+        run: npm run test:coverage
+        working-directory: services/vessel-notifier
+
       - name: Build
         run: npm run build
 

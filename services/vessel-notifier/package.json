@@ -1,0 +1,31 @@
+{
+  "name": "vessel-notifier",
+  "version": "1.0.0",
+  "description": "Vessel notification service for BridgeView AIS - sends ntfy alerts when vessels pass under the Blue Water Bridge",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.0.0",
+    "eslint": "^9.0.0"
+  }
+}

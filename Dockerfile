@@ -28,7 +28,32 @@ COPY server.js ./
 EXPOSE 3001
 CMD ["node", "server.js"]
 
-# Stage 3: Nginx frontend server
+# Stage 3: Build vessel notifier
+FROM node:22-alpine AS notifier-build
+
+WORKDIR /app
+
+COPY services/vessel-notifier/package.json services/vessel-notifier/package-lock.json ./
+RUN npm ci
+
+COPY services/vessel-notifier/ .
+RUN npm run build
+
+# Stage 4: Production vessel notifier
+FROM node:22-alpine AS vessel-notifier
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY services/vessel-notifier/package.json services/vessel-notifier/package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY --from=notifier-build /app/dist/ ./dist/
+
+CMD ["node", "dist/index.js"]
+
+# Stage 5: Nginx frontend server
 FROM nginx:alpine AS frontend
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf

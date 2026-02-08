@@ -52,6 +52,28 @@ src/
   - Input validation and bounding box size limits
   - Subscription timeout protection
 
+### Vessel Notification Service
+```
+services/vessel-notifier/
+├── src/
+│   ├── index.ts              # Entry point with env config
+│   ├── notifier.ts           # Main service (WebSocket client, orchestration)
+│   ├── bridge-detector.ts    # Vessel tracking and bridge crossing detection
+│   ├── ntfy-client.ts        # ntfy HTTP API client
+│   ├── geo.ts                # Geographic calculations
+│   ├── types.ts              # TypeScript type definitions
+│   └── __tests__/            # Unit tests (49 tests)
+├── package.json
+├── tsconfig.json
+├── vitest.config.ts
+└── README.md
+```
+- Connects to the WebSocket proxy as a client
+- Tracks vessel positions and detects bridge crossings (< 0.5 NM)
+- Sends push notifications via [ntfy](https://ntfy.sh)
+- Per-vessel cooldown to prevent duplicate notifications
+- See [services/vessel-notifier/README.md](services/vessel-notifier/README.md) for details
+
 ## Code Conventions
 
 ### TypeScript
