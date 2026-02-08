@@ -99,7 +99,7 @@ This command:
 3. Both run concurrently for full-stack development
 
 ### Environment Variables
-- Copy `.env.example.env` to `.env` for local development
+- Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` for AISStream.io access
 - Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`
 - Never commit `.env` file (it's gitignored)
