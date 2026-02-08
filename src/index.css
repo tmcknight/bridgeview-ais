@@ -93,7 +93,7 @@
 
 /* Popup styles */
 .maplibregl-popup-content {
-  @apply bg-slate-50! dark:bg-slate-200! rounded-md! px-2! py-1.5!;
+  @apply bg-slate-50! dark:bg-slate-200! rounded-md! px-3! py-2.5!;
 }
 .maplibregl-popup-tip {
   @apply border-t-slate-50! dark:border-t-slate-200!;

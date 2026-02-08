@@ -162,32 +162,49 @@ function BridgeMarker({
           closeButton={false}
           closeOnClick={false}
         >
-          <div className="ship-popup">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">
+          <div className="bridge-popup min-w-55">
+            <div className="mb-2.5 pb-2 border-b border-slate-200">
+              <h3 className="m-0! text-base font-bold text-slate-800 leading-none">
                 Blue Water Bridge
               </h3>
+              <span className="mt-1 block text-[0.65rem] text-slate-500 leading-none">
+                International Crossing
+              </span>
             </div>
 
-            <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
+            <div className="space-y-1.5 mb-2.5">
               <div
-                className="flex items-center gap-1 text-slate-700 whitespace-nowrap leading-none"
+                className="flex items-center gap-2 text-slate-700"
                 title="Connects Sarnia, ON and Port Huron, MI"
               >
                 <GlobeAmericasIcon className="shrink-0 w-3.5 h-3.5 text-blue-500" />
-                <span className="text-sm font-semibold leading-none">Sarnia ↔ Port Huron</span>
+                <span className="text-xs leading-none">
+                  <span className="font-semibold">Sarnia, ON</span>
+                  <span className="text-slate-400 mx-1">↔</span>
+                  <span className="font-semibold">Port Huron, MI</span>
+                </span>
               </div>
               <div
-                className="flex items-center gap-1 text-slate-700 whitespace-nowrap leading-none"
+                className="flex items-center gap-2 text-slate-700"
                 title="Air draft clearance"
               >
                 <ArrowsUpDownIcon className="shrink-0 w-3.5 h-3.5 text-amber-500" />
-                <span className="text-sm font-semibold leading-none">~46 m (152 ft)</span>
+                <span className="text-xs leading-none">
+                  Clearance: <span className="font-semibold">~46 m</span>
+                  <span className="text-slate-400 ml-1">(152 ft)</span>
+                </span>
+              </div>
+              <div
+                className="flex items-center gap-2 text-slate-700"
+                title="Waterway"
+              >
+                <InformationCircleIcon className="shrink-0 w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs leading-none">St. Clair River</span>
               </div>
             </div>
 
-            <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200">
-              <span>International crossing over the St. Clair River</span>
+            <div className="text-[0.6rem] text-slate-400 pt-1.5 border-t border-slate-200 leading-tight">
+              {BRIDGE_CENTER.lat.toFixed(4)}°N, {Math.abs(BRIDGE_CENTER.lng).toFixed(4)}°W
             </div>
           </div>
         </Popup>
