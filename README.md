@@ -4,6 +4,11 @@
 
 A real-time ship tracking application that displays vessel traffic near the Blue Water Bridge using Automatic Identification System (AIS) data.
 
+<picture>
+  <source srcset="img/darkmode.png" media="(prefers-color-scheme: dark)">
+  <img src="img/lightmode.png" alt="BridgeView AIS screenshot">
+</picture>
+
 ## 🔍 Overview
 
 BridgeView AIS is a web-based maritime tracking tool that provides live visualization of ship movements and detailed vessel information. Built with modern web technologies, it offers an intuitive interface for monitoring shipping activity in the Blue Water Bridge area.
@@ -45,23 +50,28 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/tmcknight/bridgeview-ais.git
 cd bridgeview-ais
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Set up environment variables:
+
 ```bash
 cp .example.env .env
 ```
+
 Add your AISStream.io API key to the `.env` file (see `.example.env` for all options).
 
 4. Start the development server:
+
 ```bash
 npm run dev
 ```
@@ -99,6 +109,7 @@ This project was built using React, TypeScript, and Vite, with hot module replac
 ## 🏗️ Architecture
 
 The application consists of:
+
 - **React frontend**: Handles UI rendering and user interactions
 - **WebSocket proxy server** (`server.js`): Secure proxy to AISStream.io with rate limiting, authentication, and input validation
 - **MapLibre GL via react-map-gl**: High-performance interactive map visualization with 3D support
