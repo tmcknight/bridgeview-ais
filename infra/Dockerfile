@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY server.js ./
+COPY server/server.js ./
 
 EXPOSE 3001
 CMD ["node", "server.js"]
@@ -56,7 +56,7 @@ CMD ["node", "dist/index.js"]
 # Stage 5: Nginx frontend server
 FROM nginx:alpine AS frontend
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY infra/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

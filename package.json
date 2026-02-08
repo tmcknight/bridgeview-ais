@@ -27,15 +27,15 @@
   },
   "type": "module",
   "scripts": {
-    "dev": "node --env-file=.env server.js & vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "server": "node --env-file=.env server.js",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "dev": "node --env-file=.env server/server.js & vite --config config/vite.config.ts",
+    "build": "tsc -b && vite build --config config/vite.config.ts",
+    "lint": "eslint --config config/eslint.config.js .",
+    "preview": "vite preview --config config/vite.config.ts",
+    "server": "node --env-file=.env server/server.js",
+    "test": "vitest --config config/vitest.config.ts",
+    "test:ui": "vitest --ui --config config/vitest.config.ts",
+    "test:run": "vitest run --config config/vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config config/vitest.config.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

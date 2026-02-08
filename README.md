@@ -88,7 +88,7 @@ cp .example.env .env
 docker compose up --build -d
 ```
 
-The application will be available at `http://localhost:3000`. See [DOCKER.md](DOCKER.md) for full details.
+The application will be available at `http://localhost:3000`. See [infra/DOCKER.md](infra/DOCKER.md) for full details.
 
 ## 👨‍💻 Development
 
@@ -111,7 +111,7 @@ This project was built using React, TypeScript, and Vite, with hot module replac
 The application consists of:
 
 - **React frontend**: Handles UI rendering and user interactions
-- **WebSocket proxy server** (`server.js`): Secure proxy to AISStream.io with rate limiting, authentication, and input validation
+- **WebSocket proxy server** (`server/server.js`): Secure proxy to AISStream.io with rate limiting, authentication, and input validation
 - **MapLibre GL via react-map-gl**: High-performance interactive map visualization with 3D support
 - **Component architecture**: Modular design with ShipMap, ShipList, NotificationPanel, StatusBar, and ErrorBoundary components
 - **Custom hooks**: `useAISStream` for WebSocket management, `useTheme` for dark/light mode
@@ -128,7 +128,7 @@ This project was mostly vibe coded with [Claude](https://claude.ai) - an AI assi
 
 ## 📖 Documentation
 
-- [DOCKER.md](DOCKER.md) - Docker containerization setup and usage
+- [infra/DOCKER.md](infra/DOCKER.md) - Docker containerization setup and usage
 - [TESTING.md](TESTING.md) - Comprehensive test documentation and coverage details
 - [SECURITY.md](SECURITY.md) - Security policies and vulnerability reporting
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
