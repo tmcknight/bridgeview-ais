@@ -418,24 +418,27 @@ interface ShipMapProps {
 
 function MapController({
   selectedShip,
+  ships,
   isBridgeSelected,
 }: {
   selectedShip?: TrackedShip | null;
+  ships: Map<number, TrackedShip>;
   isBridgeSelected: boolean;
 }) {
   const { current: map } = useMap();
+  const liveShip = selectedShip ? ships.get(selectedShip.mmsi) : null;
 
   useEffect(() => {
-    if (selectedShip && map) {
+    if (liveShip && map) {
       const currentZoom = map.getZoom();
-      map.flyTo({
-        center: [selectedShip.longitude, selectedShip.latitude],
+      map.easeTo({
+        center: [liveShip.longitude, liveShip.latitude],
         zoom: Math.max(currentZoom, 13),
-        duration: 800,
+        duration: 500,
         essential: true,
       });
     }
-  }, [map, selectedShip]);
+  }, [map, liveShip, liveShip?.latitude, liveShip?.longitude]);
 
   useEffect(() => {
     if (isBridgeSelected && map) {
@@ -552,6 +555,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: Sh
         ))}
         <MapController
           selectedShip={selectedShip}
+          ships={ships}
           isBridgeSelected={openPopupId === "bridge"}
         />
         <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} />
