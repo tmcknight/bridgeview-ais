@@ -147,9 +147,9 @@ describe('isApproaching', () => {
   describe('northbound ships (from Lake St. Clair)', () => {
     const southOfBridge = BRIDGE_CENTER.lat - 0.05
 
-    it('should return true when south of bridge, heading 0° (due north), moving', () => {
+    it('should return false when south of bridge, heading 0° (due north) — only southbound from north is detected', () => {
       const result = isApproaching(southOfBridge, BRIDGE_CENTER.lng, 0, 10)
-      expect(result).toBe(true)
+      expect(result).toBe(false)
     })
 
     it('should return true when south of bridge, heading 315° (NW)', () => {
@@ -157,9 +157,9 @@ describe('isApproaching', () => {
       expect(result).toBe(false) // 315 is at edge, but not > 315
     })
 
-    it('should return true when south of bridge, heading 316° (within range)', () => {
+    it('should return false when south of bridge, heading 316° — only southbound from north is detected', () => {
       const result = isApproaching(southOfBridge, BRIDGE_CENTER.lng, 316, 10)
-      expect(result).toBe(true)
+      expect(result).toBe(false)
     })
 
     it('should return true when south of bridge, heading 45° (NE)', () => {
@@ -167,14 +167,14 @@ describe('isApproaching', () => {
       expect(result).toBe(false) // 45 is at edge, but not < 45
     })
 
-    it('should return true when south of bridge, heading 44° (within range)', () => {
+    it('should return false when south of bridge, heading 44° — only southbound from north is detected', () => {
       const result = isApproaching(southOfBridge, BRIDGE_CENTER.lng, 44, 10)
-      expect(result).toBe(true)
+      expect(result).toBe(false)
     })
 
-    it('should return true when south of bridge, heading 359° (almost north)', () => {
+    it('should return false when south of bridge, heading 359° — only southbound from north is detected', () => {
       const result = isApproaching(southOfBridge, BRIDGE_CENTER.lng, 359, 10)
-      expect(result).toBe(true)
+      expect(result).toBe(false)
     })
 
     it('should return false when south of bridge, heading 90° (due east)', () => {
@@ -259,15 +259,15 @@ describe('isApproaching', () => {
     it('should normalize COG -10° to 350°', () => {
       const southOfBridge = BRIDGE_CENTER.lat - 0.05
       const result = isApproaching(southOfBridge, BRIDGE_CENTER.lng, -10, 10)
-      // 350° is northbound, should be true from south
-      expect(result).toBe(true)
+      // 350° is northbound from south — only southbound from north is detected
+      expect(result).toBe(false)
     })
 
     it('should normalize COG 720° to 0°', () => {
       const southOfBridge = BRIDGE_CENTER.lat - 0.05
       const result = isApproaching(southOfBridge, BRIDGE_CENTER.lng, 720, 10)
-      // 0° is due north, should be true from south
-      expect(result).toBe(true)
+      // 0° is due north from south — only southbound from north is detected
+      expect(result).toBe(false)
     })
   })
 })
