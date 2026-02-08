@@ -214,6 +214,22 @@ npm install -D <package>   # Dev dependency
 - Pipeline: lint → type check → tests with coverage → build
 - Coverage uploaded to Codecov (Node 22.x only)
 
+## Docker
+
+The app can be containerized using `docker compose`. See [DOCKER.md](DOCKER.md) for full documentation.
+
+```bash
+docker compose up --build -d   # Build and start
+docker compose logs -f         # View logs
+docker compose down            # Stop
+```
+
+Key files:
+- `Dockerfile`: Multi-stage build (build → ws-server, frontend targets)
+- `docker-compose.yml`: Orchestrates ws-server and nginx frontend services
+- `nginx.conf`: Nginx config for static files and WebSocket proxying
+- `.dockerignore`: Excludes unnecessary files from Docker builds
+
 ## Deployment Considerations
 
 - Build output goes to `dist/` directory
@@ -221,6 +237,7 @@ npm install -D <package>   # Dev dependency
 - Environment variables must be configured on server
 - Ensure AISStream.io API key is available in production environment
 - Set `WS_AUTH_TOKEN` for production WebSocket authentication
+- Docker deployment available via `docker compose` (see [DOCKER.md](DOCKER.md))
 
 ## Additional Resources
 
