@@ -67,9 +67,14 @@ function ShipPopupContent({ ship }: { ship: TrackedShip }) {
   return (
     <div className="ship-popup">
       <div className="flex items-start justify-between gap-2 mb-2">
-        <h3 className="m-0! text-base font-bold text-slate-800 leading-tight">
-          {ship.name}
-        </h3>
+        <div className="flex items-baseline gap-2 min-w-0">
+          <h3 className="m-0! text-base font-bold text-slate-800 leading-tight shrink-0">
+            {ship.name}
+          </h3>
+          <span className="text-xs text-slate-500 leading-tight truncate">
+            {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
+          </span>
+        </div>
         {ship.approaching && (
           <span className="shrink-0 text-[0.6rem] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded tracking-wide">
             APPROACHING
@@ -78,64 +83,65 @@ function ShipPopupContent({ ship }: { ship: TrackedShip }) {
       </div>
 
       {/* Primary stats */}
-      <div className="flex gap-3 mb-2">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
         <div
-          className="flex items-center gap-1 text-slate-700"
+          className="flex items-center gap-1 text-slate-700 whitespace-nowrap leading-none"
           title="Speed over ground"
         >
-          <BoltIcon className="w-3.5 h-3.5 text-blue-500" />
-          <span className="text-sm font-semibold">{formatSpeed(ship.sog)}</span>
+          <BoltIcon className="shrink-0 w-3.5 h-3.5 text-blue-500" />
+          <span className="text-sm font-semibold leading-none">{formatSpeed(ship.sog)}</span>
         </div>
         <div
-          className="flex items-center gap-1 text-slate-700"
+          className="flex items-center gap-1 text-slate-700 whitespace-nowrap leading-none"
           title="Distance to bridge"
         >
-          <MapPinIcon className="w-3.5 h-3.5 text-amber-500" />
-          <span className="text-sm font-semibold">
+          <MapPinIcon className="shrink-0 w-3.5 h-3.5 text-amber-500" />
+          <span className="text-sm font-semibold leading-none">
             {formatDistance(ship.distanceToBridge)}
           </span>
         </div>
-        <div
-          className="flex items-center gap-1 text-slate-700"
-          title="Estimated time to bridge"
-        >
-          <ClockIcon className="w-3.5 h-3.5 text-emerald-500" />
-          <span className="text-sm font-semibold">{formatETA(eta)}</span>
-        </div>
+        {eta !== null && (
+          <div
+            className="flex items-center gap-1 text-slate-700 whitespace-nowrap leading-none"
+            title="Estimated time to bridge"
+          >
+            <ClockIcon className="shrink-0 w-3.5 h-3.5 text-emerald-500" />
+            <span className="text-sm font-semibold leading-none">{formatETA(eta)}</span>
+          </div>
+        )}
       </div>
 
       {/* Secondary details */}
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 mb-1.5">
-        <div className="flex items-center gap-1" title="Heading">
-          <ArrowUpIcon
-            className="w-3 h-3 text-slate-400"
-            style={{ transform: `rotate(${headingDeg}deg)` }}
-          />
-          <span>{formatHeading(headingDeg)}</span>
+      <div className="text-xs text-slate-500 mb-1.5">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+          <div className="flex items-center gap-1 leading-tight" title="Heading">
+            <ArrowUpIcon
+              className="shrink-0 w-3 h-3 text-slate-400 -translate-y-px"
+              style={{ transform: `rotate(${headingDeg}deg)` }}
+            />
+            <span className="leading-tight">{formatHeading(headingDeg)}</span>
+          </div>
+          {ship.destination && (
+            <div className="flex items-center gap-1 leading-tight" title="Destination">
+              <FlagIcon className="shrink-0 w-3 h-3 text-slate-400 -translate-y-px" />
+              <span className="leading-tight">{ship.destination}</span>
+            </div>
+          )}
+          {ship.length && ship.length > 0 && (
+            <div className="flex items-center gap-1 leading-tight" title="Vessel dimensions">
+              <ArrowsPointingOutIcon className="shrink-0 w-3 h-3 text-slate-400 -translate-y-px" />
+              <span className="leading-tight">
+                {ship.length}m × {ship.width}m
+              </span>
+            </div>
+          )}
         </div>
-        <span title="Navigation status">
-          {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
-        </span>
-        {ship.destination && (
-          <div className="flex items-center gap-1" title="Destination">
-            <FlagIcon className="w-3 h-3 text-slate-400" />
-            <span>{ship.destination}</span>
-          </div>
-        )}
-        {ship.length && ship.length > 0 && (
-          <div className="flex items-center gap-1" title="Vessel dimensions">
-            <ArrowsPointingOutIcon className="w-3 h-3 text-slate-400" />
-            <span>
-              {ship.length}m × {ship.width}m
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Footer */}
-      <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200 flex justify-between">
-        <span title="MMSI identifier">{ship.mmsi}</span>
-        <span title="Last update">
+      <div className="text-[0.65rem] text-slate-500 pt-1 border-t border-slate-200 flex flex-wrap justify-between gap-x-2 gap-y-0.5">
+        <span className="whitespace-nowrap" title="MMSI identifier">{ship.mmsi}</span>
+        <span className="whitespace-nowrap" title="Last update">
           {new Date(ship.lastUpdate).toLocaleTimeString()}
         </span>
       </div>
@@ -204,17 +210,24 @@ const ShipMarker = memo(
 function BridgeMarker({
   isPopupOpen,
   onTogglePopup,
+  onSelect,
 }: {
   isPopupOpen: boolean;
   onTogglePopup: () => void;
+  onSelect?: () => void;
 }) {
+  const handleClick = useCallback(() => {
+    onTogglePopup();
+    onSelect?.();
+  }, [onTogglePopup, onSelect]);
+
   return (
     <>
       <Marker
         longitude={BRIDGE_CENTER.lng}
         latitude={BRIDGE_CENTER.lat}
         anchor="center"
-        onClick={onTogglePopup}
+        onClick={handleClick}
       >
         <div className="bridge-marker">
           <div className="bridge-icon">🌉</div>
@@ -237,20 +250,20 @@ function BridgeMarker({
               </h3>
             </div>
 
-            <div className="flex gap-3 mb-2">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
               <div
-                className="flex items-center gap-1 text-slate-700"
+                className="flex items-center gap-1 text-slate-700 whitespace-nowrap leading-none"
                 title="Connects Sarnia, ON and Port Huron, MI"
               >
-                <GlobeAmericasIcon className="w-3.5 h-3.5 text-blue-500" />
-                <span className="text-sm font-semibold">Sarnia ↔ Port Huron</span>
+                <GlobeAmericasIcon className="shrink-0 w-3.5 h-3.5 text-blue-500" />
+                <span className="text-sm font-semibold leading-none">Sarnia ↔ Port Huron</span>
               </div>
               <div
-                className="flex items-center gap-1 text-slate-700"
+                className="flex items-center gap-1 text-slate-700 whitespace-nowrap leading-none"
                 title="Air draft clearance"
               >
-                <ArrowsUpDownIcon className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-sm font-semibold">~46 m (152 ft)</span>
+                <ArrowsUpDownIcon className="shrink-0 w-3.5 h-3.5 text-amber-500" />
+                <span className="text-sm font-semibold leading-none">~46 m (152 ft)</span>
               </div>
             </div>
 
@@ -362,7 +375,13 @@ interface ShipMapProps {
   onSelectShip?: (ship: TrackedShip) => void;
 }
 
-function MapController({ selectedShip }: { selectedShip?: TrackedShip | null }) {
+function MapController({
+  selectedShip,
+  isBridgeSelected,
+}: {
+  selectedShip?: TrackedShip | null;
+  isBridgeSelected: boolean;
+}) {
   const { current: map } = useMap();
 
   useEffect(() => {
@@ -376,6 +395,17 @@ function MapController({ selectedShip }: { selectedShip?: TrackedShip | null }) 
       });
     }
   }, [map, selectedShip]);
+
+  useEffect(() => {
+    if (isBridgeSelected && map) {
+      map.flyTo({
+        center: [BRIDGE_CENTER.lng, BRIDGE_CENTER.lat],
+        zoom: DEFAULT_ZOOM,
+        duration: 800,
+        essential: true,
+      });
+    }
+  }, [map, isBridgeSelected]);
 
   return null;
 }
@@ -432,6 +462,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapPr
           onTogglePopup={() =>
             setOpenPopupId(openPopupId === "bridge" ? null : "bridge")
           }
+          onSelect={() => onSelectShip?.(null as any)}
         />
         {Array.from(ships.values()).map((ship) => (
           <ShipMarker
@@ -445,7 +476,10 @@ export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapPr
             onSelectShip={onSelectShip}
           />
         ))}
-        <MapController selectedShip={selectedShip} />
+        <MapController
+          selectedShip={selectedShip}
+          isBridgeSelected={openPopupId === "bridge"}
+        />
         <RecenterButton />
       </Map>
       <AttributionToggle />

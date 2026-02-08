@@ -76,8 +76,13 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               }}
             >
               {/* Header: name + badge */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold text-sm text-slate-100 truncate">{ship.name}</span>
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <span className="font-semibold text-sm text-slate-100 shrink-0">{ship.name}</span>
+                  <span className="text-xs text-slate-400 leading-tight truncate">
+                    {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
+                  </span>
+                </div>
                 {ship.approaching && (
                   <span className="shrink-0 text-[0.6rem] font-bold text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
                     APPROACHING
@@ -86,46 +91,47 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               </div>
 
               {/* Primary stats row */}
-              <div className="flex gap-4 mb-2">
-                <div className="flex items-center gap-1.5 min-w-0" title="Distance to bridge">
-                  <MapPinIcon className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="text-sm font-semibold text-slate-100">{formatDistance(ship.distanceToBridge)}</span>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
+                <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Distance to bridge">
+                  <MapPinIcon className="shrink-0 w-4 h-4 text-amber-400" />
+                  <span className="text-sm font-semibold text-slate-100 leading-none">{formatDistance(ship.distanceToBridge)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 min-w-0" title="Speed over ground">
-                  <BoltIcon className="w-4 h-4 text-blue-400 shrink-0" />
-                  <span className="text-sm font-semibold text-slate-100">{formatSpeed(ship.sog)}</span>
+                <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Speed over ground">
+                  <BoltIcon className="shrink-0 w-4 h-4 text-blue-400" />
+                  <span className="text-sm font-semibold text-slate-100 leading-none">{formatSpeed(ship.sog)}</span>
                 </div>
-                <div className="flex items-center gap-1.5 min-w-0" title="Estimated time to bridge">
-                  <ClockIcon className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-sm font-semibold text-slate-100">{formatETA(eta)}</span>
-                </div>
+                {eta !== null && (
+                  <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Estimated time to bridge">
+                    <ClockIcon className="shrink-0 w-4 h-4 text-emerald-400" />
+                    <span className="text-sm font-semibold text-slate-100 leading-none">{formatETA(eta)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Secondary info */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-                <div className="flex items-center gap-1" title="Heading">
-                  <ArrowUpIcon className="w-3 h-3" style={{ transform: `rotate(${headingDeg}deg)` }} />
-                  <span>{formatHeading(headingDeg)}</span>
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
+                <div className="flex items-center gap-1 leading-tight" title="Heading">
+                  <ArrowUpIcon className="shrink-0 w-3 h-3 -translate-y-px" style={{ transform: `rotate(${headingDeg}deg)` }} />
+                  <span className="leading-tight">{formatHeading(headingDeg)}</span>
                 </div>
-                <span title="Navigation status">{NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}</span>
                 {ship.destination && (
-                  <div className="flex items-center gap-1" title="Destination">
-                    <FlagIcon className="w-3 h-3" />
-                    <span className="truncate max-w-32">{ship.destination}</span>
+                  <div className="flex items-center gap-1 leading-tight" title="Destination">
+                    <FlagIcon className="shrink-0 w-3 h-3 -translate-y-px" />
+                    <span className="leading-tight truncate max-w-32">{ship.destination}</span>
                   </div>
                 )}
                 {ship.length && ship.length > 0 && (
-                  <div className="flex items-center gap-1" title="Vessel dimensions">
-                    <ArrowsPointingOutIcon className="w-3 h-3" />
-                    <span>{ship.length}m × {ship.width}m</span>
+                  <div className="flex items-center gap-1 leading-tight" title="Vessel dimensions">
+                    <ArrowsPointingOutIcon className="shrink-0 w-3 h-3 -translate-y-px" />
+                    <span className="leading-tight">{ship.length}m × {ship.width}m</span>
                   </div>
                 )}
               </div>
 
               {/* Footer */}
-              <div className="flex justify-between mt-2 pt-1.5 border-t border-slate-700/60 text-[0.65rem] text-slate-500">
-                <span title="MMSI identifier">{ship.mmsi}</span>
-                <span title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
+              <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-700/60 text-[0.65rem] text-slate-500">
+                <span className="whitespace-nowrap" title="MMSI identifier">{ship.mmsi}</span>
+                <span className="whitespace-nowrap" title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
               </div>
             </div>
           );

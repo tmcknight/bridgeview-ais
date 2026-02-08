@@ -78,6 +78,10 @@
 }
 
 /* Popup styles */
+.maplibregl-popup {
+  @apply max-w-sm!;
+}
+
 .ship-popup h3 {
   @apply mb-2 text-sm text-slate-800;
   margin-top: 0;
@@ -88,7 +92,7 @@
 }
 
 .maplibregl-popup-content {
-  @apply px-3 py-2.5 bg-white rounded-md;
+  @apply px-3! pt-3! pb-1.5! bg-white rounded-md;
 }
 
 .maplibregl-popup-close-button {
