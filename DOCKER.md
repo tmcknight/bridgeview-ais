@@ -25,7 +25,7 @@ cp .example.env .env
 docker compose up --build -d
 ```
 
-3. Open http://localhost in your browser.
+3. Open http://localhost:3000 in your browser.
 
 ## Configuration
 
@@ -35,7 +35,7 @@ Environment variables are configured in `.env` and passed to the containers via 
 |---|---|---|---|
 | `AISSTREAM_API_KEY` | Yes | — | Your AISStream.io API key |
 | `WS_AUTH_TOKEN` | No | — | Token for WebSocket authentication |
-| `APP_PORT` | No | `80` | Host port for the web interface |
+| `APP_PORT` | No | `3000` | Host port for the web interface |
 
 ## Architecture
 

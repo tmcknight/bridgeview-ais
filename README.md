@@ -78,7 +78,7 @@ cp .example.env .env
 docker compose up --build -d
 ```
 
-The application will be available at `http://localhost`. See [DOCKER.md](DOCKER.md) for full details.
+The application will be available at `http://localhost:3000`. See [DOCKER.md](DOCKER.md) for full details.
 
 ## 👨‍💻 Development
 

@@ -15,9 +15,9 @@ services:
       context: .
       target: frontend
       args:
-        - VITE_WS_PROXY_URL=ws://localhost/ws
+        - VITE_WS_PROXY_URL=ws://localhost:3000/ws
     ports:
-      - "${APP_PORT:-80}:80"
+      - "${APP_PORT:-3000}:80"
     depends_on:
       - ws-server
     restart: unless-stopped
