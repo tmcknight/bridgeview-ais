@@ -85,10 +85,10 @@
 
 /* Popup styles */
 .maplibregl-popup-content {
-  @apply bg-slate-200! dark:bg-slate-200! rounded-md! px-2! py-1.5!;
+  @apply bg-slate-50! dark:bg-slate-200! rounded-md! px-2! py-1.5!;
 }
 .maplibregl-popup-tip {
-  @apply border-t-slate-200! dark:border-t-slate-200!;
+  @apply border-t-slate-50! dark:border-t-slate-200!;
 }
 
 .maplibregl-popup-close-button {
@@ -102,7 +102,7 @@
 /* Zoom control group */
 .maplibregl-ctrl-group {
   @apply rounded!;
-  border: 1px solid #94a3b8 !important;
+  border: 1px solid #cbd5e1 !important;
 }
 
 .dark .maplibregl-ctrl-group {
@@ -117,7 +117,7 @@
 /* Zoom controls */
 .maplibregl-ctrl-zoom-in,
 .maplibregl-ctrl-zoom-out {
-  background: #e2e8f0 !important;
+  background: #f1f5f9 !important;
   border: none !important;
 }
 

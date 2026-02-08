@@ -263,7 +263,7 @@ function AttributionToggle({ theme }: { theme: Theme }) {
         </div>
       )}
       <button
-        className="w-7.75 h-7.75 p-0 bg-slate-200 dark:bg-slate-600 border border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-500 focus:outline-none"
+        className="w-7.75 h-7.75 p-0 bg-slate-100 dark:bg-slate-600 border border-slate-300 dark:border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-500 focus:outline-none"
         onClick={() => setShowAttribution(!showAttribution)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -296,7 +296,7 @@ function RecenterButton({ theme }: { theme: Theme }) {
   return (
     <div className={theme === 'dark' ? 'dark' : ''}>
       <button
-        className="maplibregl-ctrl-icon maplibregl-ctrl-recenter absolute top-[87px] right-2.5 z-40 w-7.75 h-7.75 p-0 bg-slate-200 dark:bg-slate-600 border border-slate-400 dark:border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-500 focus:outline-none"
+        className="maplibregl-ctrl-icon maplibregl-ctrl-recenter absolute top-[87px] right-2.5 z-40 w-7.75 h-7.75 p-0 bg-slate-100 dark:bg-slate-600 border border-slate-300 dark:border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-500 focus:outline-none"
         onClick={handleRecenter}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
