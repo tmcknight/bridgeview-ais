@@ -9,7 +9,7 @@ import {
   estimatedTimeToBridge,
   formatETA,
 } from './geo'
-import { BRIDGE_CENTER, MAX_TRACKING_DISTANCE_NM } from '../constants/bridge'
+import { BRIDGE_CENTER } from '../constants/bridge'
 
 describe('haversineDistanceNM', () => {
   it('should return 0 for identical coordinates', () => {
