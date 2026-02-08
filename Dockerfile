@@ -1,5 +1,5 @@
 # Stage 1: Install dependencies and build the frontend
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ ENV VITE_WS_PROXY_URL=${VITE_WS_PROXY_URL}
 RUN npm run build
 
 # Stage 2: Production WebSocket server
-FROM node:22-alpine AS ws-server
+FROM node:25-alpine AS ws-server
 
 WORKDIR /app
 
@@ -29,7 +29,7 @@ EXPOSE 3001
 CMD ["node", "server.js"]
 
 # Stage 3: Build vessel notifier
-FROM node:22-alpine AS notifier-build
+FROM node:25-alpine AS notifier-build
 
 WORKDIR /app
 
@@ -40,7 +40,7 @@ COPY services/vessel-notifier/ .
 RUN npm run build
 
 # Stage 4: Production vessel notifier
-FROM node:22-alpine AS vessel-notifier
+FROM node:25-alpine AS vessel-notifier
 
 WORKDIR /app
 
