@@ -1,6 +1,6 @@
 # Docker Setup
 
-BridgeView AIS can be run in Docker using `docker compose`. The setup uses three containers:
+BridgeView AIS can be run in Docker using `docker compose` from the repo root. The setup uses three containers:
 
 - **frontend**: Nginx serving the built React app and proxying WebSocket connections
 - **ws-server**: Node.js WebSocket proxy server connecting to AISStream.io
@@ -23,23 +23,23 @@ cp .example.env .env
 2. Build and start the containers:
 
 ```bash
-docker compose up --build -d
+docker compose -f infra/docker-compose.yml up --build -d
 ```
 
 3. Open http://localhost:3000 in your browser.
 
 ## Configuration
 
-Environment variables are configured in `.env` and passed to the containers via `docker-compose.yml`.
+Environment variables are configured in `.env` and passed to the containers via `infra/docker-compose.yml`.
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `AISSTREAM_API_KEY` | Yes | — | Your AISStream.io API key |
-| `WS_AUTH_TOKEN` | No | — | Token for WebSocket authentication |
-| `APP_PORT` | No | `3000` | Host port for the web interface |
-| `NTFY_TOPIC` | No | `bridgeview-ais` | ntfy topic for vessel notifications |
-| `NTFY_SERVER` | No | `https://ntfy.sh` | ntfy server URL |
-| `NTFY_TOKEN` | No | — | ntfy access token for authentication |
+| Variable            | Required | Default           | Description                          |
+| ------------------- | -------- | ----------------- | ------------------------------------ |
+| `AISSTREAM_API_KEY` | Yes      | —                 | Your AISStream.io API key            |
+| `WS_AUTH_TOKEN`     | No       | —                 | Token for WebSocket authentication   |
+| `APP_PORT`          | No       | `3000`            | Host port for the web interface      |
+| `NTFY_TOPIC`        | No       | `bridgeview-ais`  | ntfy topic for vessel notifications  |
+| `NTFY_SERVER`       | No       | `https://ntfy.sh` | ntfy server URL                      |
+| `NTFY_TOKEN`        | No       | —                 | ntfy access token for authentication |
 
 ## Architecture
 
@@ -56,21 +56,21 @@ Nginx serves the production-built frontend and proxies WebSocket connections on 
 
 ```bash
 # Build and start
-docker compose up --build -d
+docker compose -f infra/docker-compose.yml up --build -d
 
 # View logs
-docker compose logs -f
+docker compose -f infra/docker-compose.yml logs -f
 
 # View logs for a specific service
-docker compose logs -f ws-server
-docker compose logs -f frontend
-docker compose logs -f vessel-notifier
+docker compose -f infra/docker-compose.yml logs -f ws-server
+docker compose -f infra/docker-compose.yml logs -f frontend
+docker compose -f infra/docker-compose.yml logs -f vessel-notifier
 
 # Stop
-docker compose down
+docker compose -f infra/docker-compose.yml down
 
 # Rebuild after code changes
-docker compose up --build -d
+docker compose -f infra/docker-compose.yml up --build -d
 ```
 
 ## Building Individual Targets
@@ -79,14 +79,14 @@ The Dockerfile uses multi-stage builds. You can build individual stages:
 
 ```bash
 # Build only the WebSocket server image
-docker build --target ws-server -t bridgeview-ws .
+docker build -f infra/Dockerfile --target ws-server -t bridgeview-ws .
 
 # Build only the frontend image
-docker build --target frontend -t bridgeview-frontend \
+docker build -f infra/Dockerfile --target frontend -t bridgeview-frontend \
   --build-arg VITE_WS_PROXY_URL=ws://your-domain.com/ws .
 
 # Build only the vessel notifier image
-docker build --target vessel-notifier -t bridgeview-notifier .
+docker build -f infra/Dockerfile --target vessel-notifier -t bridgeview-notifier .
 ```
 
 ## Custom WebSocket URL
@@ -94,8 +94,8 @@ docker build --target vessel-notifier -t bridgeview-notifier .
 If deploying behind a reverse proxy or on a custom domain, set `VITE_WS_PROXY_URL` at build time:
 
 ```bash
-docker compose build --build-arg VITE_WS_PROXY_URL=wss://your-domain.com/ws
-docker compose up -d
+docker compose -f infra/docker-compose.yml build --build-arg VITE_WS_PROXY_URL=wss://your-domain.com/ws
+docker compose -f infra/docker-compose.yml up -d
 ```
 
 For secure WebSocket connections (wss://), configure TLS termination in your reverse proxy or load balancer.

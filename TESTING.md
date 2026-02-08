@@ -15,15 +15,15 @@ Duration:    < 1 second
 
 ### Coverage Breakdown
 
-| File                  | Stmts | Branch | Funcs | Lines |
-|-----------------------|-------|--------|-------|-------|
-| **All files**         | 100%  | 94.11% | 100%  | 100%  |
-| components/           | 100%  | 86.95% | 100%  | 100%  |
-| └─ NotificationPanel  | 100%  | 50%    | 100%  | 100%  |
-| └─ ShipList           | 100%  | 90.47% | 100%  | 100%  |
-| constants/bridge      | 100%  | 100%   | 100%  | 100%  |
-| types/ais             | 100%  | 100%   | 100%  | 100%  |
-| utils/geo             | 100%  | 100%   | 100%  | 100%  |
+| File                 | Stmts | Branch | Funcs | Lines |
+| -------------------- | ----- | ------ | ----- | ----- |
+| **All files**        | 100%  | 94.11% | 100%  | 100%  |
+| components/          | 100%  | 86.95% | 100%  | 100%  |
+| └─ NotificationPanel | 100%  | 50%    | 100%  | 100%  |
+| └─ ShipList          | 100%  | 90.47% | 100%  | 100%  |
+| constants/bridge     | 100%  | 100%   | 100%  | 100%  |
+| types/ais            | 100%  | 100%   | 100%  | 100%  |
+| utils/geo            | 100%  | 100%   | 100%  | 100%  |
 
 ## Running Tests
 
@@ -44,9 +44,11 @@ npm run test:ui
 ## Test Structure
 
 ### Unit Tests: Geographic Utilities (68 tests)
+
 **File:** `src/utils/geo.test.ts`
 
 Tests all geographic calculation functions:
+
 - **haversineDistanceNM**: Distance calculations using Haversine formula (20 tests)
   - Same point (0 distance)
   - Known distances (Blue Water Bridge to Detroit ~48.5 NM)
@@ -67,9 +69,11 @@ Tests all geographic calculation functions:
 **Coverage:** 100% lines, 100% functions, 100% branches
 
 ### Component Tests: ShipList (33 tests)
+
 **File:** `src/components/ShipList.test.tsx`
 
 Tests ship list display and interactions:
+
 - Empty state rendering (2 tests)
 - Ship card content display (11 tests)
   - Name, distance, speed, ETA, heading
@@ -94,9 +98,11 @@ Tests ship list display and interactions:
 **Coverage:** 100% lines, 100% functions, 90.47% branches
 
 ### Component Tests: NotificationPanel (21 tests)
+
 **File:** `src/components/NotificationPanel.test.tsx`
 
 Tests notification display and management:
+
 - Visibility logic (4 tests)
   - Shows when notifications present
   - Hides when all dismissed or empty
@@ -122,6 +128,7 @@ Tests notification display and management:
 ## Mock Infrastructure
 
 ### Mock Factories
+
 **Location:** `src/test/mocks/`
 
 - **ships.ts**: TrackedShip mock factories
@@ -150,10 +157,12 @@ Tests notification display and management:
 **File:** `.github/workflows/test.yml`
 
 GitHub Actions workflow runs on:
+
 - Every push to `main` branch
 - Every pull request to `main` branch
 
 ### Workflow Steps
+
 1. **Checkout code** (actions/checkout@v4)
 2. **Setup Node.js** (actions/setup-node@v4)
    - Matrix: Node 20.x and 22.x
@@ -171,6 +180,7 @@ All steps must pass for the workflow to succeed.
 ## Known Limitations
 
 ### WebSocket Integration Tests (Skipped)
+
 **File:** `src/hooks/useAISStream.test.ts.skip`
 
 The WebSocket integration tests (27 tests) for `useAISStream` hook were created but are currently skipped due to technical challenges:
@@ -180,12 +190,14 @@ The WebSocket integration tests (27 tests) for `useAISStream` hook were created 
 **Status:** Tests are preserved in `.skip` file for future implementation with alternative mocking approach.
 
 **Recommended Alternatives:**
+
 1. Use `vi.mock()` to mock the WebSocket constructor directly
 2. Mock at a higher level (mock the entire useAISStream hook in component tests)
 3. Use integration testing framework like Playwright for true WebSocket testing
 4. Wait for better jsdom WebSocket support or alternative test environment
 
 The WebSocket hook is indirectly tested through:
+
 - Unit tests for geographic utilities (used by the hook)
 - Component tests (which rely on hook output)
 - Manual testing with live WebSocket connection
@@ -193,17 +205,20 @@ The WebSocket hook is indirectly tested through:
 ## Future Enhancements
 
 ### Potential Testing Additions
+
 - **E2E Tests**: Full user flows with Playwright
   - Map interaction scenarios
   - Real WebSocket data flow
   - Multi-ship tracking
 - **Visual Regression**: Screenshot comparison for map rendering
 - **Performance Tests**: Benchmarks for 50+ ships
-- **Server Tests**: Validation of server.js proxy logic
+- **Server Tests**: Validation of server/server.js proxy logic
 - **Mutation Testing**: Verify test quality with Stryker
 
 ### Coverage Goals
+
 Current coverage exceeds initial target of 70%+:
+
 - ✅ Statements: 100% (target: 70%)
 - ✅ Functions: 100% (target: 70%)
 - ✅ Branches: 94.11% (target: 65%)
@@ -214,6 +229,7 @@ Future goal: Increase branch coverage to 100% by adding edge case tests.
 ## Troubleshooting
 
 ### Tests Fail Locally
+
 ```bash
 # Clear cache and reinstall
 rm -rf node_modules coverage
@@ -222,7 +238,9 @@ npm run test:run
 ```
 
 ### Coverage Thresholds Not Met
-Check `vitest.config.ts` for configured thresholds:
+
+Check `config/vitest.config.ts` for configured thresholds:
+
 ```typescript
 coverage: {
   thresholds: {
@@ -235,16 +253,18 @@ coverage: {
 ```
 
 ### Slow Test Execution
+
 - Check for infinite loops or timeout issues
 - Use `test.skip()` to isolate problematic tests
 - Increase timeout for specific tests:
   ```typescript
-  it('slow test', async () => {
+  it("slow test", async () => {
     // test code
   }, 10000) // 10 second timeout
   ```
 
 ### Mock Data Issues
+
 - Verify mock factories in `src/test/mocks/`
 - Check that overrides match TrackedShip interface
 - Ensure AIS message structure matches types in `src/types/ais.ts`
@@ -252,6 +272,7 @@ coverage: {
 ## Best Practices
 
 ### Writing New Tests
+
 1. **Co-locate tests**: Place `.test.ts` files next to source files
 2. **Use descriptive names**: Test names should explain what is being tested
 3. **Arrange-Act-Assert**: Structure tests clearly
@@ -260,6 +281,7 @@ coverage: {
 6. **Cover edge cases**: Test error states, missing data, boundary conditions
 
 ### Example Test Structure
+
 ```typescript
 import { describe, it, expect } from 'vitest'
 import { renderWithProviders, screen } from '@/test/utils/renderWithProviders'

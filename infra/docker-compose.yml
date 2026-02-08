@@ -1,7 +1,8 @@
 services:
   ws-server:
     build:
-      context: .
+      context: ..
+      dockerfile: infra/Dockerfile
       target: ws-server
     environment:
       - AISSTREAM_API_KEY=${AISSTREAM_API_KEY}
@@ -12,7 +13,8 @@ services:
 
   vessel-notifier:
     build:
-      context: .
+      context: ..
+      dockerfile: infra/Dockerfile
       target: vessel-notifier
     environment:
       - NTFY_TOPIC=${NTFY_TOPIC:-bridgeview-ais}
@@ -26,7 +28,8 @@ services:
 
   frontend:
     build:
-      context: .
+      context: ..
+      dockerfile: infra/Dockerfile
       target: frontend
       args:
         - VITE_WS_PROXY_URL=ws://localhost:3000/ws

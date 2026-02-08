@@ -14,15 +14,15 @@ A Node.js service that monitors AIS vessel traffic near the Blue Water Bridge an
 
 All configuration is done via environment variables:
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `NTFY_TOPIC` | Yes | - | ntfy topic name to publish notifications to |
-| `NTFY_SERVER` | No | `https://ntfy.sh` | ntfy server URL |
-| `NTFY_TOKEN` | No | - | ntfy access token for authentication |
-| `WS_PROXY_URL` | No | `ws://localhost:3001` | WebSocket proxy server URL |
-| `WS_AUTH_TOKEN` | No | - | WebSocket proxy authentication token |
-| `BRIDGE_THRESHOLD_NM` | No | `0.5` | Distance threshold in nautical miles |
-| `NOTIFICATION_COOLDOWN_MS` | No | `1800000` (30 min) | Cooldown between notifications for the same vessel |
+| Variable                   | Required | Default               | Description                                        |
+| -------------------------- | -------- | --------------------- | -------------------------------------------------- |
+| `NTFY_TOPIC`               | Yes      | -                     | ntfy topic name to publish notifications to        |
+| `NTFY_SERVER`              | No       | `https://ntfy.sh`     | ntfy server URL                                    |
+| `NTFY_TOKEN`               | No       | -                     | ntfy access token for authentication               |
+| `WS_PROXY_URL`             | No       | `ws://localhost:3001` | WebSocket proxy server URL                         |
+| `WS_AUTH_TOKEN`            | No       | -                     | WebSocket proxy authentication token               |
+| `BRIDGE_THRESHOLD_NM`      | No       | `0.5`                 | Distance threshold in nautical miles               |
+| `NOTIFICATION_COOLDOWN_MS` | No       | `1800000` (30 min)    | Cooldown between notifications for the same vessel |
 
 ## Local Development
 
@@ -48,11 +48,11 @@ NTFY_TOPIC=my-topic npm start
 
 ## Docker
 
-The service is included in the project's Docker Compose setup. See the [project DOCKER.md](../../DOCKER.md) for details.
+The service is included in the project's Docker Compose setup. See the [project infra/DOCKER.md](../../infra/DOCKER.md) for details.
 
 ```bash
 # Run with Docker Compose (from project root)
-NTFY_TOPIC=my-topic docker compose up vessel-notifier -d
+NTFY_TOPIC=my-topic docker compose -f infra/docker-compose.yml up vessel-notifier -d
 ```
 
 ## Notification Format
@@ -87,7 +87,7 @@ You can receive notifications on any device that supports ntfy:
 ## Architecture
 
 ```
-AISStream.io → WebSocket Proxy (server.js) → Vessel Notifier → ntfy.sh → Your Devices
+AISStream.io → WebSocket Proxy (server/server.js) → Vessel Notifier → ntfy.sh → Your Devices
 ```
 
 ### Modules
