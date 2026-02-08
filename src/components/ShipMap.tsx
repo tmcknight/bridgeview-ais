@@ -20,23 +20,23 @@ import {
   ArrowsUpDownIcon,
   HomeIcon,
   InformationCircleIcon,
+  CubeIcon,
+  ArrowUpIcon,
 } from "@heroicons/react/20/solid";
 
 // Create ship icon as React element
+function getShipRotation(ship: TrackedShip): number {
+  return ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
+}
+
 function createShipIconElement(ship: TrackedShip): React.JSX.Element {
-  const rotation = ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
   const isStationary = ship.navStatus === 1 || ship.navStatus === 5; // anchored or moored
   const color = ship.approaching ? "#ef4444" : isStationary ? "#9ca3af" : "#3b82f6";
   const size = 24;
 
   return (
     <div className="ship-marker">
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        style={{ transform: `rotate(${rotation}deg)` }}
-      >
+      <svg width={size} height={size} viewBox="0 0 24 24">
         <path
           d="M12 2 L18 20 L12 16 L6 20 Z"
           fill={color}
@@ -67,12 +67,14 @@ const ShipMarker = memo(
     onTogglePopup,
     onSelectShip,
     isSelected,
+    is3D,
   }: {
     ship: TrackedShip;
     isPopupOpen: boolean;
     onTogglePopup: () => void;
     onSelectShip?: (ship: TrackedShip) => void;
     isSelected: boolean;
+    is3D: boolean;
   }) => {
     const handleClick = useCallback((e: any) => {
       e.originalEvent.stopPropagation();
@@ -88,6 +90,9 @@ const ShipMarker = memo(
           anchor="center"
           onClick={handleClick}
           className={isSelected ? "selected-ship-marker" : ""}
+          rotation={getShipRotation(ship)}
+          rotationAlignment="map"
+          pitchAlignment={is3D ? "map" : "viewport"}
         >
           {createShipIconElement(ship)}
         </Marker>
@@ -112,7 +117,8 @@ const ShipMarker = memo(
     return (
       prevProps.ship.lastUpdate === nextProps.ship.lastUpdate &&
       prevProps.isPopupOpen === nextProps.isPopupOpen &&
-      prevProps.isSelected === nextProps.isSelected
+      prevProps.isSelected === nextProps.isSelected &&
+      prevProps.is3D === nextProps.is3D
     );
   }
 );
@@ -280,7 +286,20 @@ function AttributionToggle({ theme }: { theme: Theme }) {
   );
 }
 
-function RecenterButton({ theme }: { theme: Theme }) {
+const MAP_BTN = "w-[29px] h-[29px] p-0 flex items-center justify-center cursor-pointer focus:outline-none bg-slate-100 dark:bg-slate-600 hover:bg-slate-200 dark:hover:bg-slate-500";
+const MAP_BTN_3D_ACTIVE = "w-[29px] h-[29px] p-0 flex items-center justify-center cursor-pointer focus:outline-none bg-blue-500 dark:bg-blue-600 hover:bg-blue-600 dark:hover:bg-blue-700";
+
+function MapControlGroup({
+  theme,
+  is3D,
+  onToggle3D,
+  bearing,
+}: {
+  theme: Theme;
+  is3D: boolean;
+  onToggle3D: (next: boolean) => void;
+  bearing: number;
+}) {
   const { current: map } = useMap();
 
   const handleRecenter = () => {
@@ -293,22 +312,99 @@ function RecenterButton({ theme }: { theme: Theme }) {
     }
   };
 
+  const handleToggle3D = () => {
+    if (!map) return;
+    const next = !is3D;
+    onToggle3D(next);
+
+    if (next) {
+      map.easeTo({ pitch: 60, duration: 500 });
+      const mapInstance = map.getMap();
+      if (!mapInstance.getLayer("3d-buildings")) {
+        const style = mapInstance.getStyle();
+        const buildingLayer = style?.layers?.find(
+          (l: any) =>
+            l.id.includes("building") &&
+            l.type === "fill" &&
+            !l.id.includes("3d-buildings")
+        );
+        if (buildingLayer) {
+          mapInstance.addLayer({
+            id: "3d-buildings",
+            source: (buildingLayer as any).source,
+            "source-layer": (buildingLayer as any)["source-layer"],
+            type: "fill-extrusion",
+            minzoom: 13,
+            paint: {
+              "fill-extrusion-color": theme === "dark" ? "#475569" : "#cbd5e1",
+              "fill-extrusion-height": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                13,
+                0,
+                15,
+                ["coalesce", ["get", "render_height"], ["get", "height"], 10],
+              ],
+              "fill-extrusion-base": [
+                "coalesce",
+                ["get", "render_min_height"],
+                ["get", "min_height"],
+                0,
+              ],
+              "fill-extrusion-opacity": 0.7,
+            },
+          } as any);
+        }
+      }
+    } else {
+      map.easeTo({ pitch: 0, duration: 500 });
+      const mapInstance = map.getMap();
+      if (mapInstance.getLayer("3d-buildings")) {
+        mapInstance.removeLayer("3d-buildings");
+      }
+    }
+  };
+
+  const handleResetNorth = () => {
+    if (map) {
+      map.easeTo({ bearing: 0, duration: 500 });
+    }
+  };
+
   return (
-    <div className={theme === 'dark' ? 'dark' : ''}>
-      <button
-        className="maplibregl-ctrl-icon maplibregl-ctrl-recenter absolute top-[87px] right-2.5 z-40 w-7.75 h-7.75 p-0 bg-slate-100 dark:bg-slate-600 border border-slate-300 dark:border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-500 focus:outline-none"
-        onClick={handleRecenter}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleRecenter();
-          }
-        }}
-        aria-label="Re-center map on Blue Water Bridge"
-        title="Re-center on bridge"
-      >
-        <HomeIcon className="w-4 h-4 text-slate-700 dark:text-white" />
-      </button>
+    <div className={`absolute top-[87px] right-2.5 z-40 ${theme === "dark" ? "dark" : ""}`}>
+      <div className="flex flex-col rounded border border-slate-300 dark:border-slate-400 shadow-lg overflow-hidden divide-y divide-slate-300 dark:divide-slate-400">
+        <button
+          className={MAP_BTN}
+          onClick={handleRecenter}
+          aria-label="Re-center map on Blue Water Bridge"
+          title="Re-center on bridge"
+        >
+          <HomeIcon className="w-3.5 h-3.5 text-slate-700 dark:text-white" />
+        </button>
+        <button
+          className={is3D ? MAP_BTN_3D_ACTIVE : MAP_BTN}
+          onClick={handleToggle3D}
+          aria-label="Toggle 3D map view"
+          title={is3D ? "Switch to 2D view" : "Switch to 3D view"}
+        >
+          <CubeIcon
+            className={`w-3.5 h-3.5 ${is3D ? "text-white" : "text-slate-700 dark:text-white"}`}
+          />
+        </button>
+        <button
+          className={MAP_BTN}
+          onClick={handleResetNorth}
+          aria-label="Reset map to face north"
+          title="Reset north"
+        >
+          <ArrowUpIcon
+            className="w-3.5 h-3.5 text-slate-700 dark:text-white transition-transform duration-200"
+            style={{ transform: `rotate(${-bearing}deg)` }}
+          />
+        </button>
+      </div>
     </div>
   );
 }
@@ -359,6 +455,8 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: Sh
   const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS[theme].primary.style);
   const [errorCount, setErrorCount] = useState(0);
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
+  const [is3D, setIs3D] = useState(false);
+  const [bearing, setBearing] = useState(0);
 
   // Update map style when theme changes
   useEffect(() => {
@@ -395,6 +493,15 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: Sh
     setOpenPopupId(null);
   }, []);
 
+  const handleMove = useCallback((e: { viewState: { pitch: number; bearing: number } }) => {
+    setBearing(e.viewState.bearing);
+  }, []);
+
+  const handleMoveEnd = useCallback((e: { viewState: { pitch: number; bearing: number } }) => {
+    setIs3D(e.viewState.pitch > 0);
+    setBearing(e.viewState.bearing);
+  }, []);
+
   // Open popup when ship is selected from list
   useEffect(() => {
     if (selectedShip) {
@@ -417,6 +524,8 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: Sh
         onError={handleMapError}
         onLoad={handleStyleLoad}
         onClick={handleMapClick}
+        onMove={handleMove}
+        onMoveEnd={handleMoveEnd}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
       >
@@ -438,13 +547,14 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: Sh
               setOpenPopupId(openPopupId === ship.mmsi ? null : ship.mmsi)
             }
             onSelectShip={onSelectShip}
+            is3D={is3D}
           />
         ))}
         <MapController
           selectedShip={selectedShip}
           isBridgeSelected={openPopupId === "bridge"}
         />
-        <RecenterButton theme={theme} />
+        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} />
       </Map>
       <AttributionToggle theme={theme} />
     </div>
