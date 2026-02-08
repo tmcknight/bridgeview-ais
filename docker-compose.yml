@@ -1,0 +1,23 @@
+services:
+  ws-server:
+    build:
+      context: .
+      target: ws-server
+    environment:
+      - AISSTREAM_API_KEY=${AISSTREAM_API_KEY}
+      - PORT=3001
+      - WS_AUTH_TOKEN=${WS_AUTH_TOKEN:-}
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      target: frontend
+      args:
+        - VITE_WS_PROXY_URL=ws://localhost:3000/ws
+    ports:
+      - "${APP_PORT:-3000}:80"
+    depends_on:
+      - ws-server
+    restart: unless-stopped
