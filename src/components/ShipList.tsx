@@ -62,12 +62,12 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               tabIndex={0}
               aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
               aria-pressed={isSelected}
-              className={`bg-slate-900 border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              className={`group bg-slate-900 border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none ${
                 isSelected
                   ? "border-blue-500 bg-blue-900/20"
                   : ship.approaching
-                  ? "border-red-500"
-                  : "border-slate-700 hover:border-blue-500"
+                  ? "border-red-500 hover:border-red-400"
+                  : "border-slate-700 hover:border-blue-400"
               }`}
               onClick={() => onSelectShip?.(ship)}
               onKeyDown={(e) => {
@@ -80,7 +80,7 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               {/* Header: name + badge */}
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-baseline gap-2 min-w-0">
-                  <span className="font-semibold text-sm text-slate-100 shrink-0">{ship.name}</span>
+                  <span className={`font-semibold text-base text-slate-100 shrink-0 ${!isSelected ? "group-focus:underline group-focus:decoration-blue-500 group-focus:decoration-2 group-focus:underline-offset-2" : ""}`}>{ship.name}</span>
                   <span className="text-xs text-slate-400 leading-tight truncate">
                     {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
                   </span>
@@ -132,7 +132,17 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
 
               {/* Footer */}
               <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-700/60 text-[0.65rem] text-slate-500">
-                <span className="whitespace-nowrap" title="MMSI identifier">{ship.mmsi}</span>
+                <a
+                  href={`https://www.vesselfinder.com/vessels/details/${ship.mmsi}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="whitespace-nowrap hover:text-blue-400 hover:underline transition-colors"
+                  title="View vessel details on VesselFinder"
+                  onClick={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  {ship.mmsi}
+                </a>
                 <span className="whitespace-nowrap" title="Last update">{new Date(ship.lastUpdate).toLocaleTimeString()}</span>
               </div>
             </div>
