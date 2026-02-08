@@ -68,6 +68,18 @@ npm run dev
 
 This command starts both the WebSocket proxy server (port 3001) and the Vite development server (port 5173). The application will be available at `http://localhost:5173`.
 
+### Docker
+
+Alternatively, you can run the app with Docker:
+
+```bash
+cp .example.env .env
+# Edit .env and set AISSTREAM_API_KEY
+docker compose up --build -d
+```
+
+The application will be available at `http://localhost`. See [DOCKER.md](DOCKER.md) for full details.
+
 ## 👨‍💻 Development
 
 This project was built using React, TypeScript, and Vite, with hot module replacement (HMR) for a smooth development experience.
@@ -105,6 +117,7 @@ This project was mostly vibe coded with [Claude](https://claude.ai) - an AI assi
 
 ## 📖 Documentation
 
+- [DOCKER.md](DOCKER.md) - Docker containerization setup and usage
 - [TESTING.md](TESTING.md) - Comprehensive test documentation and coverage details
 - [SECURITY.md](SECURITY.md) - Security policies and vulnerability reporting
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
