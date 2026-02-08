@@ -92,6 +92,10 @@ function App() {
             notifications={notifications}
             onDismiss={dismissNotification}
             onClear={clearNotifications}
+            onSelectShip={(mmsi) => {
+              const ship = ships.get(mmsi)
+              if (ship) handleSelectShip(ship)
+            }}
           />
           {connectionStatus === "connecting" && ships.size === 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-50">
