@@ -62,7 +62,7 @@ jobs:
 
       - name: Upload build artifacts (Node 22.x only)
         if: matrix.node-version == '22.x'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist
           path: dist/
