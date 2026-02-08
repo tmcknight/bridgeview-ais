@@ -12,10 +12,12 @@ import {
   BoltIcon,
   MapPinIcon,
   ClockIcon,
+} from "@heroicons/react/20/solid";
+import {
   ArrowUpIcon,
   FlagIcon,
   ArrowsPointingOutIcon,
-} from "@heroicons/react/20/solid";
+} from "@heroicons/react/16/solid";
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>;
@@ -111,18 +113,18 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               {/* Secondary info */}
               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
                 <div className="flex items-center gap-1 leading-tight" title="Heading">
-                  <ArrowUpIcon className="shrink-0 w-3 h-3 -translate-y-px" style={{ transform: `rotate(${headingDeg}deg)` }} />
+                  <ArrowUpIcon className="shrink-0 w-3 h-3" style={{ transform: `rotate(${headingDeg}deg)` }} />
                   <span className="leading-tight">{formatHeading(headingDeg)}</span>
                 </div>
                 {ship.destination && (
                   <div className="flex items-center gap-1 leading-tight" title="Destination">
-                    <FlagIcon className="shrink-0 w-3 h-3 -translate-y-px" />
+                    <FlagIcon className="shrink-0 w-3 h-3" />
                     <span className="leading-tight truncate max-w-32">{ship.destination}</span>
                   </div>
                 )}
                 {ship.length && ship.length > 0 && (
                   <div className="flex items-center gap-1 leading-tight" title="Vessel dimensions">
-                    <ArrowsPointingOutIcon className="shrink-0 w-3 h-3 -translate-y-px" />
+                    <ArrowsPointingOutIcon className="shrink-0 w-3 h-3" />
                     <span className="leading-tight">{ship.length}m × {ship.width}m</span>
                   </div>
                 )}

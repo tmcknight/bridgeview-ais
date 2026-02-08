@@ -53,6 +53,10 @@
 }
 
 /* Selected ship pulsing animation */
+.selected-ship-marker {
+  z-index: 1000 !important;
+}
+
 .selected-ship-marker .ship-marker {
   animation: pulse-selected 1.5s ease-in-out infinite;
 }
@@ -78,25 +82,15 @@
 }
 
 /* Popup styles */
-.maplibregl-popup {
-  @apply max-w-sm!;
-}
-
-.ship-popup h3 {
-  @apply mb-2 text-sm text-slate-800;
-  margin-top: 0;
-}
-
-.ship-popup {
-  @apply min-w-56;
-}
-
 .maplibregl-popup-content {
-  @apply px-3! pt-3! pb-1.5! bg-white rounded-md;
+  @apply bg-slate-200! rounded-md! px-2! py-1.5!;
+}
+.maplibregl-popup-tip {
+  @apply border-t-slate-200!;
 }
 
 .maplibregl-popup-close-button {
-  @apply text-slate-500 text-xl px-2 py-1;
+  @apply text-slate-500;
 }
 
 .maplibregl-popup-close-button:hover {
