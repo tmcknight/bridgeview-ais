@@ -39,6 +39,14 @@
   }
 }
 
+/* ===== Ship list fade effect ===== */
+@media (min-width: 768px) {
+  .ship-list-panel {
+    mask-image: linear-gradient(to right, transparent 32px, black 80px);
+    -webkit-mask-image: linear-gradient(to right, transparent 32px, black 80px);
+  }
+}
+
 /* ===== MapLibre overrides (rendered outside React) ===== */
 
 /* Marker styles */
@@ -97,6 +105,14 @@
 
 .maplibregl-popup-close-button:hover {
   @apply bg-slate-100 dark:bg-slate-100 text-slate-800 dark:text-slate-800;
+}
+
+/* Offset MapLibre top-right controls for ship list overlay */
+@media (min-width: 768px) {
+  .maplibregl-ctrl-top-right {
+    right: calc(25rem - 10px) !important;
+    z-index: 50 !important;
+  }
 }
 
 /* Zoom control group */

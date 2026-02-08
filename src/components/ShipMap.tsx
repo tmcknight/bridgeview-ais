@@ -195,6 +195,15 @@ function BridgeMarker({
   );
 }
 
+// Padding to offset map center for the ship list panel overlay
+function getMapPadding() {
+  // w-95 = 380px on md+ screens; bottom half on mobile
+  if (window.innerWidth >= 768) {
+    return { top: 0, bottom: 0, left: 0, right: 460 };
+  }
+  return { top: 0, bottom: window.innerHeight * 0.5, left: 0, right: 0 };
+}
+
 // Tile providers configuration
 const TILE_PROVIDERS = {
   dark: {
@@ -262,7 +271,7 @@ function AttributionToggle({ theme }: { theme: Theme }) {
   const [showAttribution, setShowAttribution] = useState(false);
 
   return (
-    <div className={`absolute bottom-2.5 right-2.5 z-40 ${theme === 'dark' ? 'dark' : ''}`}>
+    <div className={`absolute bottom-2.5 right-2.5 md:right-100 z-50 ${theme === 'dark' ? 'dark' : ''}`}>
       {showAttribution && (
         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 px-2 py-1.5 bg-white/95 dark:bg-slate-800/95 border border-slate-300/40 dark:border-slate-600/40 rounded text-[0.65rem] text-slate-600 dark:text-slate-400 whitespace-nowrap">
           © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenStreetMap</a> contributors · Tiles: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenFreeMap</a>
@@ -308,6 +317,7 @@ function MapControlGroup({
         center: [BRIDGE_CENTER.lng, BRIDGE_CENTER.lat],
         zoom: DEFAULT_ZOOM,
         duration: 500,
+        padding: getMapPadding(),
       });
     }
   };
@@ -373,7 +383,7 @@ function MapControlGroup({
   };
 
   return (
-    <div className={`absolute top-[87px] right-2.5 z-40 ${theme === "dark" ? "dark" : ""}`}>
+    <div className={`absolute top-[87px] right-2.5 md:right-100 z-50 ${theme === "dark" ? "dark" : ""}`}>
       <div className="flex flex-col rounded border border-slate-300 dark:border-slate-400 shadow-lg overflow-hidden divide-y divide-slate-300 dark:divide-slate-400">
         <button
           className={MAP_BTN}
@@ -436,6 +446,7 @@ function MapController({
         zoom: Math.max(currentZoom, 13),
         duration: 500,
         essential: true,
+        padding: getMapPadding(),
       });
     }
   }, [map, liveShip, liveShip?.latitude, liveShip?.longitude]);
@@ -447,6 +458,7 @@ function MapController({
         zoom: DEFAULT_ZOOM,
         duration: 800,
         essential: true,
+        padding: getMapPadding(),
       });
     }
   }, [map, isBridgeSelected]);
