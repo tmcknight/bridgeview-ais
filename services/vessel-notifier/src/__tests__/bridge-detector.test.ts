@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { BridgeDetector } from "../bridge-detector.js";
 import { BRIDGE_CENTER } from "../geo.js";
 import type { AISMessage } from "../types.js";
