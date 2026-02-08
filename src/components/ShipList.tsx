@@ -36,8 +36,8 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
   if (sorted.length === 0) {
     return (
       <div className="p-4">
-        <h2 className="text-base mb-3 text-slate-200">Tracked Vessels</h2>
-        <div className="text-center py-8 px-4 text-slate-400">
+        <h2 className="text-base mb-3 text-slate-800 dark:text-slate-200">Tracked Vessels</h2>
+        <div className="text-center py-8 px-4 text-slate-500 dark:text-slate-400">
           <p className="mb-2">No vessels detected in the tracking area.</p>
           <p className="text-xs opacity-70">
             Ships will appear here as AIS data is received from the St. Clair River area.
@@ -49,7 +49,7 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
 
   return (
     <div className="p-4">
-      <h2 className="text-base mb-3 text-slate-200">Tracked Vessels ({sorted.length})</h2>
+      <h2 className="text-base mb-3 text-slate-800 dark:text-slate-200">Tracked Vessels ({sorted.length})</h2>
       <div className="flex flex-col gap-2">
         {sorted.map((ship) => {
           const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog);
@@ -62,12 +62,12 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               tabIndex={0}
               aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
               aria-pressed={isSelected}
-              className={`group bg-slate-900 border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none ${
+              className={`group bg-slate-50 dark:bg-slate-900 border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none ${
                 isSelected
-                  ? "border-blue-500 bg-blue-900/20"
+                  ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                   : ship.approaching
-                  ? "border-red-500 hover:border-red-400"
-                  : "border-slate-700 hover:border-blue-400"
+                  ? "border-red-500 hover:border-red-400 focus:border-red-400 dark:hover:border-red-400 dark:focus:border-red-400"
+                  : "border-slate-300 dark:border-slate-700 hover:border-blue-400 focus:border-blue-400 dark:hover:border-blue-400 dark:focus:border-blue-400"
               }`}
               onClick={() => onSelectShip?.(ship)}
               onKeyDown={(e) => {
@@ -80,13 +80,13 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               {/* Header: name + badge */}
               <div className="flex items-start justify-between mb-2">
                 <div className="flex items-baseline gap-2 min-w-0">
-                  <span className={`font-semibold text-base text-slate-100 shrink-0 ${!isSelected ? "group-focus:underline group-focus:decoration-blue-500 group-focus:decoration-2 group-focus:underline-offset-2" : ""}`}>{ship.name}</span>
-                  <span className="text-xs text-slate-400 leading-tight truncate">
+                  <span className="font-semibold text-base text-slate-800 dark:text-slate-100 shrink-0">{ship.name}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 leading-tight truncate">
                     {NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"}
                   </span>
                 </div>
                 {ship.approaching && (
-                  <span className="shrink-0 text-[0.6rem] font-bold text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
+                  <span className="shrink-0 text-[0.6rem] font-bold text-red-600 dark:text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
                     APPROACHING
                   </span>
                 )}
@@ -95,23 +95,23 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               {/* Primary stats row */}
               <div className="flex flex-wrap gap-x-4 gap-y-1 mb-2">
                 <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Distance to bridge">
-                  <MapPinIcon className="shrink-0 w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-semibold text-slate-100 leading-none">{formatDistance(ship.distanceToBridge)}</span>
+                  <MapPinIcon className="shrink-0 w-4 h-4 text-amber-500 dark:text-amber-400" />
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-none">{formatDistance(ship.distanceToBridge)}</span>
                 </div>
                 <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Speed over ground">
-                  <BoltIcon className="shrink-0 w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-semibold text-slate-100 leading-none">{formatSpeed(ship.sog)}</span>
+                  <BoltIcon className="shrink-0 w-4 h-4 text-blue-500 dark:text-blue-400" />
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-none">{formatSpeed(ship.sog)}</span>
                 </div>
                 {eta !== null && (
                   <div className="flex items-center gap-1.5 whitespace-nowrap leading-none" title="Estimated time to bridge">
-                    <ClockIcon className="shrink-0 w-4 h-4 text-emerald-400" />
-                    <span className="text-sm font-semibold text-slate-100 leading-none">{formatETA(eta)}</span>
+                    <ClockIcon className="shrink-0 w-4 h-4 text-emerald-500 dark:text-emerald-400" />
+                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-none">{formatETA(eta)}</span>
                   </div>
                 )}
               </div>
 
               {/* Secondary info */}
-              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-400">
+              <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-1 leading-tight" title="Heading">
                   <ArrowUpIcon className="shrink-0 w-3 h-3" style={{ transform: `rotate(${headingDeg}deg)` }} />
                   <span className="leading-tight">{formatHeading(headingDeg)}</span>
@@ -131,12 +131,12 @@ export default function ShipList({ ships, selectedShip, onSelectShip }: ShipList
               </div>
 
               {/* Footer */}
-              <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-700/60 text-[0.65rem] text-slate-500">
+              <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-300/60 dark:border-slate-700/60 text-[0.65rem] text-slate-500 dark:text-slate-500">
                 <a
                   href={`https://www.vesselfinder.com/vessels/details/${ship.mmsi}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="whitespace-nowrap hover:text-blue-400 hover:underline transition-colors"
+                  className="whitespace-nowrap hover:text-blue-500 dark:hover:text-blue-400 hover:underline transition-colors"
                   title="View vessel details on VesselFinder"
                   onClick={(e) => e.stopPropagation()}
                   onMouseDown={(e) => e.preventDefault()}

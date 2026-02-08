@@ -31,12 +31,12 @@ export default function StatusBar({ connectionStatus }: StatusBarProps) {
 
   return (
     <div className="flex flex-col items-end gap-1 text-xs">
-      <span className="text-slate-400">
-        AIS Data via <a href="https://aisstream.io" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">aisstream.io</a>
+      <span className="text-slate-600 dark:text-slate-400">
+        AIS Data via <a href="https://aisstream.io" target="_blank" rel="noopener noreferrer" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 underline">aisstream.io</a>
       </span>
       <div className="flex items-center gap-1.5" aria-live="polite" aria-atomic="true">
         <span className={`inline-block w-2 h-2 rounded-full ${config.dotClass}`} aria-hidden="true" />
-        <span className="text-slate-200">{config.label}</span>
+        <span className="text-slate-800 dark:text-slate-200">{config.label}</span>
       </div>
     </div>
   );

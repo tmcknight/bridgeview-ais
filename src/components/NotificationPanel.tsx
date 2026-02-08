@@ -31,11 +31,11 @@ export default function NotificationPanel({
       leaveFrom="opacity-100"
       leaveTo="opacity-0"
     >
-      <div className="absolute top-2.5 left-2.5 z-50 w-85 max-h-100 overflow-y-auto bg-slate-800 border border-slate-600 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.4)] max-md:w-[calc(100%-20px)]">
-        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-600">
-          <h3 className="text-sm">Notifications ({active.length})</h3>
+      <div className="absolute top-2.5 left-2.5 z-50 w-85 max-h-100 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-[0_4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.4)] max-md:w-[calc(100%-20px)]">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-300 dark:border-slate-600">
+          <h3 className="text-sm text-slate-800 dark:text-slate-200">Notifications ({active.length})</h3>
           <Button
-            className="bg-transparent border-none text-slate-400 text-xs px-1.5 py-0.5 hover:text-slate-200 cursor-pointer"
+            className="bg-transparent border-none text-slate-600 dark:text-slate-400 text-xs px-1.5 py-0.5 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
             onClick={onClear}
           >
             Clear all
@@ -48,14 +48,14 @@ export default function NotificationPanel({
               className={`flex items-start justify-between px-2.5 py-2 rounded-md mb-1 ${TYPE_STYLES[n.type] ?? ""}`}
             >
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-xs">{n.shipName}</div>
-                <div className="text-[0.75rem] text-slate-400 mt-0.5">{n.message}</div>
-                <div className="text-[0.65rem] text-slate-400 mt-0.5">
+                <div className="font-semibold text-xs text-slate-800 dark:text-slate-100">{n.shipName}</div>
+                <div className="text-[0.75rem] text-slate-600 dark:text-slate-400 mt-0.5">{n.message}</div>
+                <div className="text-[0.65rem] text-slate-500 dark:text-slate-400 mt-0.5">
                   {n.timestamp.toLocaleTimeString()}
                 </div>
               </div>
               <Button
-                className="bg-transparent border-none text-slate-400 text-lg p-0 ml-2 leading-none shrink-0 hover:text-slate-200 cursor-pointer"
+                className="bg-transparent border-none text-slate-600 dark:text-slate-400 text-lg p-0 ml-2 leading-none shrink-0 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 onClick={() => onDismiss(n.id)}
                 title="Dismiss"
               >

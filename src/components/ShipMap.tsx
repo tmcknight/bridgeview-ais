@@ -8,6 +8,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import React, { useEffect, memo, useState, useCallback } from "react";
 import type { TrackedShip } from "../types/ais";
+import type { Theme } from "../hooks/useTheme";
 import {
   BRIDGE_CENTER,
   DEFAULT_ZOOM,
@@ -18,6 +19,7 @@ import {
   GlobeAmericasIcon,
   ArrowsUpDownIcon,
   HomeIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/20/solid";
 
 // Create ship icon as React element
@@ -186,45 +188,81 @@ function BridgeMarker({
   );
 }
 
-// Tile providers configuration (unchanged)
+// Tile providers configuration
 const TILE_PROVIDERS = {
-  primary: {
-    name: "OpenFreeMap Fiord",
-    style: "https://tiles.openfreemap.org/styles/fiord",
+  dark: {
+    primary: {
+      name: "OpenFreeMap Fiord",
+      style: "https://tiles.openfreemap.org/styles/fiord",
+    },
+    fallback: {
+      name: "OpenStreetMap",
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxzoom: 19,
+          },
+        },
+        layers: [
+          {
+            id: "osm",
+            type: "raster",
+            source: "osm",
+          },
+        ],
+      } as any,
+    },
   },
-  fallback: {
-    name: "OpenStreetMap",
-    style: {
-      version: 8,
-      sources: {
-        osm: {
-          type: "raster",
-          tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-          tileSize: 256,
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxzoom: 19,
+  light: {
+    primary: {
+      name: "OpenFreeMap Bright",
+      style: "https://tiles.openfreemap.org/styles/bright",
+    },
+    fallback: {
+      name: "OpenStreetMap",
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution:
+              '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxzoom: 19,
+          },
         },
-      },
-      layers: [
-        {
-          id: "osm",
-          type: "raster",
-          source: "osm",
-        },
-      ],
-    } as any, // Type assertion for MapLibre GL style specification
+        layers: [
+          {
+            id: "osm",
+            type: "raster",
+            source: "osm",
+          },
+        ],
+      } as any,
+    },
   },
 };
 
 // Custom attribution control component
-function AttributionToggle() {
+function AttributionToggle({ theme }: { theme: Theme }) {
   const [showAttribution, setShowAttribution] = useState(false);
 
   return (
-    <div className="absolute bottom-0 right-0 z-40 m-2.5">
+    <div className={`absolute bottom-2.5 right-2.5 z-40 ${theme === 'dark' ? 'dark' : ''}`}>
+      {showAttribution && (
+        <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 px-2 py-1.5 bg-white/95 dark:bg-slate-800/95 border border-slate-300/40 dark:border-slate-600/40 rounded text-[0.65rem] text-slate-600 dark:text-slate-400 whitespace-nowrap">
+          © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenStreetMap</a> contributors · Tiles: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenFreeMap</a>
+        </div>
+      )}
       <button
-        className="w-7 h-7 bg-slate-800/90 border-2 border-slate-500 rounded text-xs text-slate-100 flex items-center justify-center cursor-pointer hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-7.75 h-7.75 p-0 bg-slate-200 dark:bg-slate-600 border border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-500 focus:outline-none"
         onClick={() => setShowAttribution(!showAttribution)}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
@@ -235,19 +273,13 @@ function AttributionToggle() {
         aria-label="Toggle map attribution"
         title="Map attribution"
       >
-        ⓘ
+        <InformationCircleIcon className="w-4 h-4 text-slate-700 dark:text-white" />
       </button>
-      {showAttribution && (
-        <div className="absolute bottom-full right-0 mb-1 px-2 py-1.5 bg-slate-800/95 border border-slate-600/40 rounded text-[0.65rem] text-slate-400 max-w-xs">
-          <div>© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-200 underline">OpenStreetMap</a> contributors</div>
-          <div className="mt-0.5">Tiles: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-200 underline">OpenFreeMap</a></div>
-        </div>
-      )}
     </div>
   );
 }
 
-function RecenterButton() {
+function RecenterButton({ theme }: { theme: Theme }) {
   const { current: map } = useMap();
 
   const handleRecenter = () => {
@@ -261,20 +293,22 @@ function RecenterButton() {
   };
 
   return (
-    <button
-      className="maplibregl-ctrl-icon maplibregl-ctrl-recenter absolute top-[87px] right-2.5 z-40 w-7.75 h-7.75 p-0 bg-slate-600 border border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-500 focus:outline-none"
-      onClick={handleRecenter}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          handleRecenter();
-        }
-      }}
-      aria-label="Re-center map on Blue Water Bridge"
-      title="Re-center on bridge"
-    >
-      <HomeIcon className="w-4 h-4 text-white" />
-    </button>
+    <div className={theme === 'dark' ? 'dark' : ''}>
+      <button
+        className="maplibregl-ctrl-icon maplibregl-ctrl-recenter absolute top-[87px] right-2.5 z-40 w-7.75 h-7.75 p-0 bg-slate-200 dark:bg-slate-600 border border-slate-400 dark:border-slate-400 rounded shadow-lg flex items-center justify-center cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-500 focus:outline-none"
+        onClick={handleRecenter}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleRecenter();
+          }
+        }}
+        aria-label="Re-center map on Blue Water Bridge"
+        title="Re-center on bridge"
+      >
+        <HomeIcon className="w-4 h-4 text-slate-700 dark:text-white" />
+      </button>
+    </div>
   );
 }
 
@@ -282,6 +316,7 @@ interface ShipMapProps {
   ships: Map<number, TrackedShip>;
   selectedShip?: TrackedShip | null;
   onSelectShip?: (ship: TrackedShip) => void;
+  theme: Theme;
 }
 
 function MapController({
@@ -319,10 +354,16 @@ function MapController({
   return null;
 }
 
-export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapProps) {
-  const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS.primary.style);
+export default function ShipMap({ ships, selectedShip, onSelectShip, theme }: ShipMapProps) {
+  const [mapStyle, setMapStyle] = useState(TILE_PROVIDERS[theme].primary.style);
   const [errorCount, setErrorCount] = useState(0);
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
+
+  // Update map style when theme changes
+  useEffect(() => {
+    setMapStyle(TILE_PROVIDERS[theme].primary.style);
+    setErrorCount(0);
+  }, [theme]);
 
   const handleMapError = useCallback((e: any) => {
     const errorMsg = e.error?.message || "";
@@ -334,15 +375,16 @@ export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapPr
       setErrorCount((prev) => {
         const newCount = prev + 1;
         if (newCount >= 3) {
+          const provider = TILE_PROVIDERS[theme];
           console.warn(
-            `Failed to load tiles from ${TILE_PROVIDERS.primary.name} after ${newCount} attempts. Switching to ${TILE_PROVIDERS.fallback.name}.`
+            `Failed to load tiles from ${provider.primary.name} after ${newCount} attempts. Switching to ${provider.fallback.name}.`
           );
-          setMapStyle(TILE_PROVIDERS.fallback.style);
+          setMapStyle(provider.fallback.style);
         }
         return newCount;
       });
     }
-  }, []);
+  }, [theme]);
 
   const handleStyleLoad = useCallback(() => {
     setErrorCount(0);
@@ -401,9 +443,9 @@ export default function ShipMap({ ships, selectedShip, onSelectShip }: ShipMapPr
           selectedShip={selectedShip}
           isBridgeSelected={openPopupId === "bridge"}
         />
-        <RecenterButton />
+        <RecenterButton theme={theme} />
       </Map>
-      <AttributionToggle />
+      <AttributionToggle theme={theme} />
     </div>
   );
 }
