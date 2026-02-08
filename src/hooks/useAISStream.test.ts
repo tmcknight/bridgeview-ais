@@ -10,7 +10,6 @@ import {
 } from '../test/mocks/aisMessages'
 import {
   APPROACH_NOTIFICATION_DISTANCE_NM,
-  CLOSE_APPROACH_DISTANCE_NM,
 } from '../constants/bridge'
 
 describe('useAISStream', () => {
