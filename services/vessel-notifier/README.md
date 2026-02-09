@@ -52,7 +52,7 @@ The service is included in the project's Docker Compose setup. See the [project 
 
 ```bash
 # Run with Docker Compose (from project root)
-NTFY_TOPIC=my-topic docker compose -f infra/docker-compose.yml up vessel-notifier -d
+NTFY_TOPIC=my-topic docker compose up vessel-notifier -d
 ```
 
 ## Notification Format
