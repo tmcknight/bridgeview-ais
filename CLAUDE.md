@@ -276,7 +276,7 @@ docker compose down            # Stop
 Key files:
 
 - `infra/Dockerfile`: Multi-stage build (build → ws-server, frontend targets)
-- `infra/docker-compose.yml`: Orchestrates ws-server and nginx frontend services
+- `docker-compose.yml`: Orchestrates ws-server and nginx frontend services
 - `infra/nginx.conf`: Nginx config for static files and WebSocket proxying
 - `.dockerignore`: Excludes unnecessary files from Docker builds
 
