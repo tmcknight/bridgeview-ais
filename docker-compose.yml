@@ -1,7 +1,6 @@
 services:
   ws-server:
     build:
-      context: ..
       dockerfile: infra/Dockerfile
       target: ws-server
     environment:
@@ -13,7 +12,6 @@ services:
 
   vessel-notifier:
     build:
-      context: ..
       dockerfile: infra/Dockerfile
       target: vessel-notifier
     environment:
@@ -28,7 +26,6 @@ services:
 
   frontend:
     build:
-      context: ..
       dockerfile: infra/Dockerfile
       target: frontend
       args:

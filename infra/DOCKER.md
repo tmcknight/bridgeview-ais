@@ -23,14 +23,14 @@ cp .example.env .env
 2. Build and start the containers:
 
 ```bash
-docker compose -f infra/docker-compose.yml up --build -d
+docker compose up --build -d
 ```
 
 3. Open http://localhost:3000 in your browser.
 
 ## Configuration
 
-Environment variables are configured in `.env` and passed to the containers via `infra/docker-compose.yml`.
+Environment variables are configured in `.env` and passed to the containers via `docker-compose.yml`.
 
 | Variable            | Required | Default           | Description                          |
 | ------------------- | -------- | ----------------- | ------------------------------------ |
@@ -56,21 +56,21 @@ Nginx serves the production-built frontend and proxies WebSocket connections on 
 
 ```bash
 # Build and start
-docker compose -f infra/docker-compose.yml up --build -d
+docker compose up --build -d
 
 # View logs
-docker compose -f infra/docker-compose.yml logs -f
+docker compose logs -f
 
 # View logs for a specific service
-docker compose -f infra/docker-compose.yml logs -f ws-server
-docker compose -f infra/docker-compose.yml logs -f frontend
-docker compose -f infra/docker-compose.yml logs -f vessel-notifier
+docker compose logs -f ws-server
+docker compose logs -f frontend
+docker compose logs -f vessel-notifier
 
 # Stop
-docker compose -f infra/docker-compose.yml down
+docker compose down
 
 # Rebuild after code changes
-docker compose -f infra/docker-compose.yml up --build -d
+docker compose up --build -d
 ```
 
 ## Building Individual Targets
@@ -94,8 +94,8 @@ docker build -f infra/Dockerfile --target vessel-notifier -t bridgeview-notifier
 If deploying behind a reverse proxy or on a custom domain, set `VITE_WS_PROXY_URL` at build time:
 
 ```bash
-docker compose -f infra/docker-compose.yml build --build-arg VITE_WS_PROXY_URL=wss://your-domain.com/ws
-docker compose -f infra/docker-compose.yml up -d
+docker compose build --build-arg VITE_WS_PROXY_URL=wss://your-domain.com/ws
+docker compose up -d
 ```
 
 For secure WebSocket connections (wss://), configure TLS termination in your reverse proxy or load balancer.
