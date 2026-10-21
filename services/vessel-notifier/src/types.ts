@@ -146,6 +146,8 @@ export interface NotifierConfig {
   notificationCooldownMs: number;
   /** How long to keep stale vessels in tracker (ms) */
   staleVesselTimeoutMs: number;
+  /** How far ahead (s) to predict passages from speed and course */
+  predictionHorizonSeconds?: number;
 }
 
 /** Navigation status labels */

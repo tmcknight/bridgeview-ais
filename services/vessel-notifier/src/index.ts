@@ -22,6 +22,8 @@ function loadConfig(): Partial<NotifierConfig> {
       process.env.NOTIFICATION_COOLDOWN_MS,
       10
     );
+  if (process.env.PREDICTION_HORIZON_SECONDS)
+    config.predictionHorizonSeconds = parseInt(process.env.PREDICTION_HORIZON_SECONDS, 10);
   if (process.env.WATCH_POINTS)
     config.watchPoints = parseWatchPoints(
       process.env.WATCH_POINTS,

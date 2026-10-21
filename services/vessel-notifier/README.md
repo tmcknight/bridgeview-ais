@@ -7,7 +7,7 @@ A Node.js service that monitors AIS vessel traffic around one or more watch poin
 1. Connects to the BridgeView AIS WebSocket proxy server
 2. Receives real-time AIS position reports for vessels in the tracking area
 3. Tracks each vessel's distance to every watch point
-4. When a moving vessel is about to pass a point (its course takes it within the point's radius, default 0.5 NM), predicts from its speed and course when it will be abeam and sends an ntfy notification and/or webhook at that moment. Each new report re-predicts, and predictions only look 3 minutes ahead. AIS reports in the area can be a minute or more apart, so this keeps alerts live. If a passage could not be predicted (no course broadcast, or the vessel sped up), it is caught on the first report after the vessel is abeam instead
+4. When a moving vessel is about to pass a point (its course takes it within the point's radius, default 0.5 NM), predicts from its speed and course when it will be abeam and sends an ntfy notification and/or webhook at that moment. Each new report re-predicts or cancels, and predictions look up to 10 minutes ahead (`PREDICTION_HORIZON_SECONDS`). AIS reports in the area can be a minute or more apart, so this keeps alerts live. If a passage could not be predicted (no course broadcast, or the vessel sped up), it is caught on the first report after the vessel is abeam instead
 5. Looks each vessel up on [Wikidata](https://www.wikidata.org) (by MMSI / IMO) as soon as it is seen, so details like build year, builder, operator, tonnage, photo and Wikipedia link are ready by the time it passes. An alert waits at most 1.5 s for a lookup still in flight, then goes out without the details
 6. Applies a cooldown per vessel and point (default 30 minutes) to prevent duplicate notifications
 
@@ -22,6 +22,7 @@ All configuration is done via environment variables:
 | `WEBHOOK_SECRET`           | No       | -                     | Secret for signing webhook bodies (HMAC-SHA256)    |
 | `WATCH_POINTS`             | No       | Blue Water Bridge     | JSON array of points to watch (max 5), see below   |
 | `VESSEL_INFO_LOOKUP`       | No       | `true`                | Set to `false` to skip Wikidata vessel lookups     |
+| `PREDICTION_HORIZON_SECONDS` | No     | `600` (10 min)        | How far ahead to predict passages; `0` disables    |
 | `NTFY_SERVER`              | No       | `https://ntfy.sh`     | ntfy server URL                                    |
 | `NTFY_TOKEN`               | No       | -                     | ntfy access token for authentication               |
 | `WS_PROXY_URL`             | No       | `ws://localhost:3001` | WebSocket proxy server URL                         |

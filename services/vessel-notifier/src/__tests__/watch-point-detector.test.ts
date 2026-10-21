@@ -470,6 +470,14 @@ describe("WatchPointDetector", () => {
       expect(predicted).toHaveLength(0);
     });
 
+    it("predicts up to 10 minutes ahead by default", () => {
+      // 0.9 NM out at 6 kn is 9 minutes away
+      detector.processMessage(makePositionMessage(123456789, BRIDGE_CENTER.lat + 0.9 / 60, BRIDGE_CENTER.lng, 180, 6));
+      expect(detector.pendingPredictionCount).toBe(1);
+      vi.advanceTimersByTime(9 * 60_000);
+      expect(predicted).toHaveLength(1);
+    });
+
     it("does not predict beyond the horizon", () => {
       // 1.3 NM out at 6 kn is 13 minutes away
       detector.processMessage(makePositionMessage(123456789, 43.02, BRIDGE_CENTER.lng, 180, 6));

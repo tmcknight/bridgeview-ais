@@ -40,7 +40,9 @@ const DEFAULT_CONFIG: WatchPointDetectorConfig = {
   watchPoints: [BLUE_WATER_BRIDGE],
   cooldownMs: 30 * 60 * 1000, // 30 minutes
   staleTimeoutMs: 15 * 60 * 1000, // 15 minutes
-  predictionHorizonSeconds: 180, // 3 minutes
+  // AIS reports near the bridge can be several minutes apart, so look well ahead;
+  // each new report reschedules or cancels the prediction
+  predictionHorizonSeconds: 10 * 60, // 10 minutes
 };
 
 /**
@@ -195,6 +197,10 @@ export class WatchPointDetector {
 
     const secondsToAbeam = (projection.alongNM / vessel.sog) * 3600;
     if (secondsToAbeam > predictionHorizonSeconds) return;
+
+    console.log(
+      `[notifier] Predicting ${vessel.name} abeam of ${point.name} in ${Math.round(secondsToAbeam)}s (${projection.alongNM.toFixed(2)} NM ahead, ${projection.crossNM.toFixed(2)} NM off, ${vessel.sog} kn)`
+    );
 
     const timer = setTimeout(() => {
       this.predictions.delete(key);

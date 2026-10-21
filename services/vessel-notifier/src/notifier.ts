@@ -44,6 +44,9 @@ export class VesselNotifier {
       ],
       cooldownMs: this.config.notificationCooldownMs,
       staleTimeoutMs: this.config.staleVesselTimeoutMs,
+      ...(this.config.predictionHorizonSeconds !== undefined && {
+        predictionHorizonSeconds: this.config.predictionHorizonSeconds,
+      }),
       onPredictedPassage: (event) => void this.dispatch(event),
     });
     if (this.config.ntfyTopic) {

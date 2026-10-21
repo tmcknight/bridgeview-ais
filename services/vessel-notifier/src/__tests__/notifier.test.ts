@@ -131,6 +131,24 @@ describe("VesselNotifier", () => {
       expect(JSON.parse(options.body).watchPoint.id).toBe("a");
     });
 
+    it("keeps the default prediction horizon when none is configured", async () => {
+      notifier.stop();
+      notifier = new VesselNotifier({
+        wsProxyUrl: "ws://localhost:3001",
+        webhookUrl: "https://example.com/hook",
+        vesselInfoLookup: false,
+        watchPoints: [{ id: "a", name: "Point A", latitude: 43.0, longitude: -82.42, radiusNM: 0.5 }],
+      });
+      notifier.start();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // 3 NM out at 8 kn is ~22 minutes away: beyond the 10 minute horizon
+      const ws = (notifier as unknown as { ws: MockSocket }).ws;
+      ws.emit("message", position(43.05, -82.42));
+      await vi.advanceTimersByTimeAsync(30 * 60_000);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
     it("sends a predicted passage when the vessel is due abeam", async () => {
       notifier.stop();
       notifier = new VesselNotifier({
