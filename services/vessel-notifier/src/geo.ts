@@ -71,12 +71,47 @@ export function closestApproach(
   const dy = b.y - a.y;
   const lengthSq = dx * dx + dy * dy;
 
-  // Point is at the origin of the projection
-  const t = lengthSq === 0 ? 1 : -(a.x * dx + a.y * dy) / lengthSq;
+  // Point is at the origin of the projection. With no movement the vessel
+  // cannot have passed anything, so treat it as not yet started (t = 0).
+  const t = lengthSq === 0 ? 0 : -(a.x * dx + a.y * dy) / lengthSq;
   const clamped = Math.min(1, Math.max(0, t));
   const distanceNM = Math.hypot(a.x + clamped * dx, a.y + clamped * dy);
 
   return { t, distanceNM };
+}
+
+/**
+ * Project a vessel's current course ahead to find where it will be abeam of
+ * a point (closest approach), using the same local flat-earth projection.
+ *
+ * `alongNM` is how far ahead along the course the abeam position is
+ * (negative once the point is behind); `crossNM` is how far off the course
+ * line the point lies; `abeam` is the estimated position when abeam.
+ */
+export function projectAbeam(
+  lat: number,
+  lon: number,
+  cogDeg: number,
+  pointLat: number,
+  pointLon: number
+): { alongNM: number; crossNM: number; abeam: { lat: number; lon: number } } {
+  const cosLat = Math.cos(pointLat * DEG_TO_RAD);
+  const x = (lon - pointLon) * 60 * cosLat;
+  const y = (lat - pointLat) * 60;
+  const ux = Math.sin(cogDeg * DEG_TO_RAD);
+  const uy = Math.cos(cogDeg * DEG_TO_RAD);
+
+  const alongNM = -(x * ux + y * uy);
+  const crossNM = Math.abs(x * uy - y * ux);
+
+  return {
+    alongNM,
+    crossNM,
+    abeam: {
+      lat: lat + (alongNM * uy) / 60,
+      lon: lon + (alongNM * ux) / (60 * cosLat),
+    },
+  };
 }
 
 /**

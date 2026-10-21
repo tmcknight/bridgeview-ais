@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { WatchPointDetector, BLUE_WATER_BRIDGE } from "../watch-point-detector.js";
 import { BRIDGE_CENTER } from "../geo.js";
-import type { AISMessage } from "../types.js";
+import type { AISMessage, PassageEvent } from "../types.js";
 
 function makePositionMessage(
   mmsi: number,
@@ -411,6 +411,119 @@ describe("WatchPointDetector", () => {
     it("does not fire on the first report for a vessel", () => {
       const msg = makePositionMessage(123456789, BRIDGE_CENTER.lat, BRIDGE_CENTER.lng);
       expect(detector.processMessage(msg)).toEqual([]);
+    });
+  });
+
+  describe("predicted passages", () => {
+    let predicted: PassageEvent[];
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      predicted = [];
+      detector = new WatchPointDetector({
+        watchPoints: [BLUE_WATER_BRIDGE],
+        onPredictedPassage: (event) => predicted.push(event),
+      });
+    });
+
+    afterEach(() => {
+      detector.dispose();
+      vi.useRealTimers();
+    });
+
+    // 0.1 NM north of the bridge, heading due south at 6 kn: abeam in 60 s
+    const approaching = (sog = 6, cog = 180) =>
+      makePositionMessage(123456789, BRIDGE_CENTER.lat + 0.1 / 60, BRIDGE_CENTER.lng, cog, sog);
+
+    it("fires at the predicted moment the vessel is abeam", () => {
+      expect(detector.processMessage(approaching())).toEqual([]);
+      expect(detector.pendingPredictionCount).toBe(1);
+
+      vi.advanceTimersByTime(59_000);
+      expect(predicted).toHaveLength(0);
+
+      vi.advanceTimersByTime(1_000);
+      expect(predicted).toHaveLength(1);
+      expect(predicted[0].predicted).toBe(true);
+      expect(predicted[0].closestApproach).toBeCloseTo(0, 3);
+      expect(predicted[0].latitude).toBeCloseTo(BRIDGE_CENTER.lat, 5);
+      expect(predicted[0].direction).toBe("southbound");
+    });
+
+    it("reschedules when a new report changes the speed", () => {
+      detector.processMessage(approaching(6));
+      vi.advanceTimersByTime(30_000);
+
+      // Same spot (no progress), now 12 kn: abeam in 30 s from now
+      detector.processMessage(approaching(12));
+      vi.advanceTimersByTime(29_000);
+      expect(predicted).toHaveLength(0);
+      vi.advanceTimersByTime(1_000);
+      expect(predicted).toHaveLength(1);
+      expect(detector.pendingPredictionCount).toBe(0);
+    });
+
+    it("cancels when the vessel stops", () => {
+      detector.processMessage(approaching(6));
+      detector.processMessage(approaching(0));
+      vi.advanceTimersByTime(10 * 60_000);
+      expect(predicted).toHaveLength(0);
+    });
+
+    it("does not predict beyond the horizon", () => {
+      // 1.3 NM out at 6 kn is 13 minutes away
+      detector.processMessage(makePositionMessage(123456789, 43.02, BRIDGE_CENTER.lng, 180, 6));
+      expect(detector.pendingPredictionCount).toBe(0);
+    });
+
+    it("does not predict when the course passes outside the radius", () => {
+      // Heading due south ~1 NM east of the bridge
+      const lng = BRIDGE_CENTER.lng + 1 / (60 * Math.cos((BRIDGE_CENTER.lat * Math.PI) / 180));
+      detector.processMessage(makePositionMessage(123456789, BRIDGE_CENTER.lat + 0.1 / 60, lng, 180, 6));
+      expect(detector.pendingPredictionCount).toBe(0);
+    });
+
+    it("does not predict when heading away", () => {
+      detector.processMessage(approaching(6, 0));
+      expect(detector.pendingPredictionCount).toBe(0);
+    });
+
+    it("does not predict without a course (COG 360)", () => {
+      detector.processMessage(approaching(6, 360));
+      expect(detector.pendingPredictionCount).toBe(0);
+    });
+
+    it("suppresses the observed passage after a predicted one", () => {
+      detector.processMessage(approaching());
+      vi.advanceTimersByTime(60_000);
+      expect(predicted).toHaveLength(1);
+
+      const observed = detector.processMessage(
+        makePositionMessage(123456789, BRIDGE_CENTER.lat - 0.05 / 60, BRIDGE_CENTER.lng, 180, 6)
+      );
+      expect(observed).toEqual([]);
+    });
+
+    it("falls back to the observed passage when the prediction runs late", () => {
+      // Predicted 60 s out at 6 kn, but the vessel speeds up and is past at the next report
+      detector.processMessage(approaching(6));
+      vi.advanceTimersByTime(20_000);
+      const [observed] = detector.processMessage(
+        makePositionMessage(123456789, BRIDGE_CENTER.lat - 0.05 / 60, BRIDGE_CENTER.lng, 180, 12)
+      );
+      expect(observed).toBeDefined();
+      expect(observed.predicted).toBe(false);
+      expect(detector.pendingPredictionCount).toBe(0);
+
+      vi.advanceTimersByTime(10 * 60_000);
+      expect(predicted).toHaveLength(0);
+    });
+
+    it("dispose cancels pending predictions", () => {
+      detector.processMessage(approaching());
+      detector.dispose();
+      vi.advanceTimersByTime(10 * 60_000);
+      expect(predicted).toHaveLength(0);
     });
   });
 

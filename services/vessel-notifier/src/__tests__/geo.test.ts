@@ -4,6 +4,7 @@ import {
   distanceToBridge,
   getDirection,
   closestApproach,
+  projectAbeam,
   BRIDGE_CENTER,
 } from "../geo.js";
 
@@ -58,6 +59,10 @@ describe("geo utilities", () => {
       expect(distanceNM).toBeCloseTo(0);
     });
 
+    it("reports t = 0 when the vessel has not moved", () => {
+      expect(closestApproach(43.0, -82.42, 43.0, -82.42, 43.0, -82.42).t).toBe(0);
+    });
+
     it("reports t > 1 when the point is still ahead", () => {
       const { t } = closestApproach(43.02, -82.42, 43.01, -82.42, 43.0, -82.42);
       expect(t).toBeCloseTo(2);
@@ -73,6 +78,22 @@ describe("geo utilities", () => {
       const { t, distanceNM } = closestApproach(43.01, -82.41, 42.99, -82.41, 43.0, -82.42);
       expect(t).toBeCloseTo(0.5);
       expect(distanceNM).toBeCloseTo(0.6 * Math.cos(43 * Math.PI / 180), 2);
+    });
+  });
+
+  describe("projectAbeam", () => {
+    it("measures distance ahead and off the course line", () => {
+      // 0.02 deg north of the point (1.2 NM), heading due south, 0.01 deg east
+      const { alongNM, crossNM, abeam } = projectAbeam(43.02, -82.41, 180, 43.0, -82.42);
+      expect(alongNM).toBeCloseTo(1.2, 3);
+      expect(crossNM).toBeCloseTo(0.6 * Math.cos(43 * Math.PI / 180), 3);
+      expect(abeam.lat).toBeCloseTo(43.0, 6);
+      expect(abeam.lon).toBeCloseTo(-82.41, 6);
+    });
+
+    it("reports a negative distance once the point is behind", () => {
+      const { alongNM } = projectAbeam(42.99, -82.42, 180, 43.0, -82.42);
+      expect(alongNM).toBeLessThan(0);
     });
   });
 

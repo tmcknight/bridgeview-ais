@@ -131,6 +131,28 @@ describe("VesselNotifier", () => {
       expect(JSON.parse(options.body).watchPoint.id).toBe("a");
     });
 
+    it("sends a predicted passage when the vessel is due abeam", async () => {
+      notifier.stop();
+      notifier = new VesselNotifier({
+        wsProxyUrl: "ws://localhost:3001",
+        webhookUrl: "https://example.com/hook",
+        vesselInfoLookup: false,
+        watchPoints: [{ id: "a", name: "Point A", latitude: 43.0, longitude: -82.42, radiusNM: 0.5 }],
+      });
+      notifier.start();
+      await vi.advanceTimersByTimeAsync(0);
+
+      // 0.1 NM north, heading south at 8 kn: abeam in 45 s
+      const ws = (notifier as unknown as { ws: MockSocket }).ws;
+      ws.emit("message", position(43.0 + 0.1 / 60, -82.42));
+      await vi.advanceTimersByTimeAsync(44_000);
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(JSON.parse(fetchMock.mock.calls[0][1].body).timing).toBe("predicted");
+    });
+
     it("adds Wikidata details looked up while the vessel approached", async () => {
       fetchMock.mockImplementation(async (url: string) =>
         url.startsWith("https://query.wikidata.org/")

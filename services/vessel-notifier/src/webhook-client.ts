@@ -24,6 +24,8 @@ export interface WebhookPayload {
   };
   distanceNM: number;
   closestApproachNM: number;
+  /** "predicted" fires at the estimated moment of passing; "observed" after a report confirms it */
+  timing: "predicted" | "observed";
   direction: "northbound" | "southbound";
   vessel: {
     mmsi: number;
@@ -85,6 +87,7 @@ export class WebhookClient {
       },
       distanceNM: round(event.distance, 3),
       closestApproachNM: round(event.closestApproach, 3),
+      timing: event.predicted ? "predicted" : "observed",
       direction: event.direction,
       vessel: {
         mmsi: event.mmsi,

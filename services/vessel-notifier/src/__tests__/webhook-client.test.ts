@@ -17,6 +17,7 @@ function makePassageEvent(overrides: Partial<PassageEvent> = {}): PassageEvent {
     navStatus: 0,
     distance: 0.31234,
     closestApproach: 0.0456,
+    predicted: true,
     direction: "southbound",
     timestamp: Date.UTC(2026, 9, 21, 12, 0, 0),
     destination: "DETROIT",
@@ -58,6 +59,7 @@ describe("WebhookClient", () => {
         },
         distanceNM: 0.312,
         closestApproachNM: 0.046,
+        timing: "predicted",
         direction: "southbound",
         vessel: {
           mmsi: 123456789,
@@ -84,6 +86,11 @@ describe("WebhookClient", () => {
       const vesselInfo = { wikidataId: "Q6719625", wikidataUrl: "https://www.wikidata.org/wiki/Q6719625", yearBuilt: 1979 };
       const payload = client.formatPayload(makePassageEvent({ vesselInfo }));
       expect(payload.vessel.wikidata).toEqual(vesselInfo);
+    });
+
+    it("marks observed passages", () => {
+      const client = new WebhookClient({ url: "https://example.com/hook" });
+      expect(client.formatPayload(makePassageEvent({ predicted: false })).timing).toBe("observed");
     });
 
     it("omits the nav status label when status is unknown", () => {

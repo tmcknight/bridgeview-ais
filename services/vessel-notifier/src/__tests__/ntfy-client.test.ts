@@ -16,6 +16,7 @@ function makeCrossingEvent(
     course: 180,
     distance: 0.3,
     closestApproach: 0.05,
+    predicted: true,
     direction: "southbound",
     timestamp: Date.now(),
     ...overrides,

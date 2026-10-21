@@ -91,7 +91,7 @@ export interface VesselInfo {
   wikipediaUrl?: string;
 }
 
-/** Fired when a vessel passes a watch point (just after closest approach) */
+/** Fired when a vessel passes a watch point (at or just after closest approach) */
 export interface PassageEvent {
   watchPoint: WatchPoint;
   mmsi: number;
@@ -104,8 +104,10 @@ export interface PassageEvent {
   navStatus?: number;
   /** Distance (NM) from the point at the time of the report */
   distance: number;
-  /** Closest the vessel's track came to the point (NM) */
+  /** Closest the vessel's track came (or is predicted to come) to the point (NM) */
   closestApproach: number;
+  /** True when predicted from speed/course; false when observed after the fact */
+  predicted: boolean;
   direction: "northbound" | "southbound";
   timestamp: number;
   destination?: string;

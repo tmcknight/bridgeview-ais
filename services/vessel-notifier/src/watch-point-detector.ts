@@ -1,6 +1,7 @@
 import {
   haversineDistanceNM,
   closestApproach,
+  projectAbeam,
   getDirection,
   BRIDGE_CENTER,
   CLOSE_APPROACH_DISTANCE_NM,
@@ -14,10 +15,18 @@ export interface WatchPointDetectorConfig {
   cooldownMs: number;
   /** How long to keep stale vessels in tracker (ms) */
   staleTimeoutMs: number;
+  /** How far ahead (s) to predict a passage from speed and course; 0 disables */
+  predictionHorizonSeconds: number;
+  /** Receives predicted passages, which fire on a timer between reports */
+  onPredictedPassage?: (event: PassageEvent) => void;
 }
 
 /** AIS reports 511 when true heading is not available */
 const HEADING_NOT_AVAILABLE = 511;
+/** AIS reports COG 360 when course is not available */
+const COURSE_NOT_AVAILABLE = 360;
+/** Vessels slower than this (kn) are not treated as passing */
+const MIN_PASSING_SPEED_KN = 0.5;
 
 export const BLUE_WATER_BRIDGE: WatchPoint = {
   id: "blue-water-bridge",
@@ -31,19 +40,26 @@ const DEFAULT_CONFIG: WatchPointDetectorConfig = {
   watchPoints: [BLUE_WATER_BRIDGE],
   cooldownMs: 30 * 60 * 1000, // 30 minutes
   staleTimeoutMs: 15 * 60 * 1000, // 15 minutes
+  predictionHorizonSeconds: 180, // 3 minutes
 };
 
 /**
  * Detects when vessels pass watch points (e.g. the Blue Water Bridge).
  *
- * A passage fires on the first position report after the vessel comes abeam
- * of the point (its closest approach), so the alert lands as the vessel is
- * going by rather than when it first gets near. Both the closest approach and
- * the current position must be within the point's radius.
+ * AIS reports can be a minute or more apart, so passages are predicted: each
+ * report projects the vessel's speed and course ahead, and if it will come
+ * abeam of a point (within the point's radius) inside the prediction horizon,
+ * a timer fires `onPredictedPassage` at that moment. Every report reschedules
+ * the timer, so the prediction tracks speed and course changes.
+ *
+ * As a fallback (no course broadcast, or the prediction ran late), a passage
+ * is also observed on the first report after the vessel has come abeam; that
+ * is returned from `processMessage`. Cooldown ensures only one of the two fires.
  */
 export class WatchPointDetector {
   private vessels = new Map<number, TrackedVessel>();
   private notified = new Map<string, number>(); // "pointId:mmsi" -> timestamp of last notification
+  private predictions = new Map<string, ReturnType<typeof setTimeout>>(); // "pointId:mmsi" -> pending timer
   private config: WatchPointDetectorConfig;
 
   constructor(config: Partial<WatchPointDetectorConfig> = {}) {
@@ -105,8 +121,12 @@ export class WatchPointDetector {
 
     this.vessels.set(mmsi, vessel);
 
+    for (const point of this.config.watchPoints) {
+      this.updatePrediction(point, vessel);
+    }
+
     // Need a previous position to know which way it is going, and must be moving
-    if (!existing || report.Sog < 0.5) return [];
+    if (!existing || report.Sog < MIN_PASSING_SPEED_KN) return [];
 
     const events: PassageEvent[] = [];
 
@@ -130,35 +150,113 @@ export class WatchPointDetector {
       if (distance > point.radiusNM) continue;
 
       const key = `${point.id}:${mmsi}`;
-      const lastNotified = this.notified.get(key);
-      if (lastNotified && now - lastNotified < this.config.cooldownMs) continue;
+      if (this.isOnCooldown(key, now)) continue;
 
+      this.cancelPrediction(key);
       this.notified.set(key, now);
 
-      events.push({
-        watchPoint: point,
-        mmsi,
-        name: vessel.name,
-        latitude: lat,
-        longitude: lon,
-        speed: report.Sog,
-        course: report.Cog,
-        heading: vessel.heading,
-        navStatus: vessel.navStatus,
-        distance,
-        closestApproach: approach.distanceNM,
-        direction: getDirection(report.Cog, lat, point.latitude),
-        timestamp: now,
-        destination: vessel.destination,
-        shipType: vessel.shipType,
-        length: vessel.length,
-        beam: vessel.beam,
-        imo: vessel.imo,
-        callSign: vessel.callSign,
-      });
+      events.push(
+        this.buildEvent(point, vessel, {
+          latitude: lat,
+          longitude: lon,
+          distance,
+          closestApproach: approach.distanceNM,
+          predicted: false,
+          timestamp: now,
+        })
+      );
     }
 
     return events;
+  }
+
+  /**
+   * Schedule (or reschedule, or cancel) the predicted passage of a point
+   * based on the vessel's latest speed and course.
+   */
+  private updatePrediction(point: WatchPoint, vessel: TrackedVessel): void {
+    const key = `${point.id}:${vessel.mmsi}`;
+    this.cancelPrediction(key);
+
+    const { predictionHorizonSeconds, onPredictedPassage } = this.config;
+    if (!onPredictedPassage || predictionHorizonSeconds <= 0) return;
+    if (vessel.sog < MIN_PASSING_SPEED_KN) return;
+    if (!(vessel.cog >= 0 && vessel.cog < COURSE_NOT_AVAILABLE)) return;
+    if (this.isOnCooldown(key, Date.now())) return;
+
+    const projection = projectAbeam(
+      vessel.latitude,
+      vessel.longitude,
+      vessel.cog,
+      point.latitude,
+      point.longitude
+    );
+    if (projection.alongNM <= 0 || projection.crossNM > point.radiusNM) return;
+
+    const secondsToAbeam = (projection.alongNM / vessel.sog) * 3600;
+    if (secondsToAbeam > predictionHorizonSeconds) return;
+
+    const timer = setTimeout(() => {
+      this.predictions.delete(key);
+      const now = Date.now();
+      if (this.isOnCooldown(key, now)) return;
+      this.notified.set(key, now);
+
+      // Use the latest vessel state so static data that arrived meanwhile is included
+      const latest = this.vessels.get(vessel.mmsi) ?? vessel;
+      onPredictedPassage(
+        this.buildEvent(point, latest, {
+          latitude: projection.abeam.lat,
+          longitude: projection.abeam.lon,
+          distance: projection.crossNM,
+          closestApproach: projection.crossNM,
+          predicted: true,
+          timestamp: now,
+        })
+      );
+    }, secondsToAbeam * 1000);
+
+    this.predictions.set(key, timer);
+  }
+
+  private cancelPrediction(key: string): void {
+    const timer = this.predictions.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      this.predictions.delete(key);
+    }
+  }
+
+  private isOnCooldown(key: string, now: number): boolean {
+    const lastNotified = this.notified.get(key);
+    return lastNotified !== undefined && now - lastNotified < this.config.cooldownMs;
+  }
+
+  private buildEvent(
+    point: WatchPoint,
+    vessel: TrackedVessel,
+    position: Pick<
+      PassageEvent,
+      "latitude" | "longitude" | "distance" | "closestApproach" | "predicted" | "timestamp"
+    >
+  ): PassageEvent {
+    return {
+      watchPoint: point,
+      mmsi: vessel.mmsi,
+      name: vessel.name,
+      ...position,
+      speed: vessel.sog,
+      course: vessel.cog,
+      heading: vessel.heading,
+      navStatus: vessel.navStatus,
+      direction: getDirection(vessel.cog, vessel.latitude, point.latitude),
+      destination: vessel.destination,
+      shipType: vessel.shipType,
+      length: vessel.length,
+      beam: vessel.beam,
+      imo: vessel.imo,
+      callSign: vessel.callSign,
+    };
   }
 
   private processStaticData(message: AISMessage): void {
@@ -189,6 +287,9 @@ export class WatchPointDetector {
     for (const [mmsi, vessel] of this.vessels) {
       if (now - vessel.lastUpdate > this.config.staleTimeoutMs) {
         this.vessels.delete(mmsi);
+        for (const point of this.config.watchPoints) {
+          this.cancelPrediction(`${point.id}:${mmsi}`);
+        }
         removed++;
       }
     }
@@ -201,6 +302,17 @@ export class WatchPointDetector {
     }
 
     return removed;
+  }
+
+  /** Cancel all pending predicted passages */
+  dispose(): void {
+    for (const timer of this.predictions.values()) clearTimeout(timer);
+    this.predictions.clear();
+  }
+
+  /** Get the number of pending predicted passages */
+  get pendingPredictionCount(): number {
+    return this.predictions.size;
   }
 
   /** Get the number of currently tracked vessels */

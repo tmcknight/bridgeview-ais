@@ -44,6 +44,7 @@ export class VesselNotifier {
       ],
       cooldownMs: this.config.notificationCooldownMs,
       staleTimeoutMs: this.config.staleVesselTimeoutMs,
+      onPredictedPassage: (event) => void this.dispatch(event),
     });
     if (this.config.ntfyTopic) {
       this.ntfy = new NtfyClient({
@@ -94,6 +95,8 @@ export class VesselNotifier {
       clearInterval(this.cleanupTimer);
       this.cleanupTimer = null;
     }
+
+    this.detector.dispose();
 
     if (this.ws) {
       this.ws.close();
@@ -202,7 +205,7 @@ export class VesselNotifier {
     const event: PassageEvent = info ? { ...passage, vesselInfo: info } : passage;
 
     console.log(
-      `[notifier] Passage detected at ${event.watchPoint.name}: ${event.name} (MMSI: ${event.mmsi}) ${event.direction} at ${event.speed.toFixed(1)} kn`
+      `[notifier] Passage ${event.predicted ? "predicted" : "observed"} at ${event.watchPoint.name}: ${event.name} (MMSI: ${event.mmsi}) ${event.direction} at ${event.speed.toFixed(1)} kn`
     );
 
     const report = (channel: string) => (success: boolean) => {
