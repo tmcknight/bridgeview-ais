@@ -91,6 +91,7 @@ export interface TrackedShip {
   shipType?: number;
   length?: number;
   width?: number;
+  imo?: number;
 }
 
 export const NAV_STATUS_LABELS: Record<number, string> = {

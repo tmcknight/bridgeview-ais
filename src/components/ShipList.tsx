@@ -11,6 +11,7 @@ import {
 } from "../utils/geo"
 import { BoltIcon, MapPinIcon, ClockIcon } from "@heroicons/react/20/solid"
 import { XMarkIcon } from "@heroicons/react/20/solid"
+import VesselInfoCard from "./VesselInfoCard"
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>
@@ -241,6 +242,10 @@ export default function ShipList({
                   </div>
                 )}
               </div>
+
+              {isSelected && (
+                <VesselInfoCard mmsi={ship.mmsi} imo={ship.imo} hidden={hidden} />
+              )}
 
               {/* Footer */}
               <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-300/60 dark:border-slate-700/60 text-[0.65rem] text-slate-500 dark:text-slate-500">
