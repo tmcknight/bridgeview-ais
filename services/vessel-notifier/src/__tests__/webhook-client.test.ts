@@ -79,6 +79,13 @@ describe("WebhookClient", () => {
       });
     });
 
+    it("includes Wikidata details under vessel.wikidata", () => {
+      const client = new WebhookClient({ url: "https://example.com/hook" });
+      const vesselInfo = { wikidataId: "Q6719625", wikidataUrl: "https://www.wikidata.org/wiki/Q6719625", yearBuilt: 1979 };
+      const payload = client.formatPayload(makePassageEvent({ vesselInfo }));
+      expect(payload.vessel.wikidata).toEqual(vesselInfo);
+    });
+
     it("omits the nav status label when status is unknown", () => {
       const client = new WebhookClient({ url: "https://example.com/hook" });
       const payload = client.formatPayload(makePassageEvent({ navStatus: undefined }));

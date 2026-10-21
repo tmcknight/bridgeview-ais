@@ -40,7 +40,8 @@ describe("VesselNotifier", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    fetchMock.mockClear();
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
 
     notifier = new VesselNotifier({
       ntfyServer: "https://ntfy.example.com",
@@ -107,6 +108,7 @@ describe("VesselNotifier", () => {
       notifier = new VesselNotifier({
         wsProxyUrl: "ws://localhost:3001",
         webhookUrl: "https://example.com/hook",
+        vesselInfoLookup: false,
         watchPoints: [
           { id: "a", name: "Point A", latitude: 43.0, longitude: -82.42, radiusNM: 0.5 },
           { id: "b", name: "Point B", latitude: 42.5, longitude: -82.9, radiusNM: 1 },
@@ -127,6 +129,50 @@ describe("VesselNotifier", () => {
       const [url, options] = fetchMock.mock.calls[0];
       expect(url).toBe("https://example.com/hook");
       expect(JSON.parse(options.body).watchPoint.id).toBe("a");
+    });
+
+    it("adds Wikidata details looked up while the vessel approached", async () => {
+      fetchMock.mockImplementation(async (url: string) =>
+        url.startsWith("https://query.wikidata.org/")
+          ? {
+              ok: true,
+              status: 200,
+              json: async () => ({
+                results: {
+                  bindings: [
+                    {
+                      ship: { type: "uri", value: "http://www.wikidata.org/entity/Q6719625" },
+                      built: { type: "literal", value: "1979-01-01T00:00:00Z" },
+                    },
+                  ],
+                },
+              }),
+            }
+          : { ok: true, status: 200, statusText: "OK" }
+      );
+
+      notifier.stop();
+      notifier = new VesselNotifier({
+        wsProxyUrl: "ws://localhost:3001",
+        webhookUrl: "https://example.com/hook",
+        watchPoints: [{ id: "a", name: "Point A", latitude: 43.0, longitude: -82.42, radiusNM: 0.5 }],
+      });
+      notifier.start();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const ws = (notifier as unknown as { ws: MockSocket }).ws;
+      ws.emit("message", position(43.05, -82.42));
+      ws.emit("message", position(43.0, -82.42));
+      await vi.advanceTimersByTimeAsync(0);
+
+      const webhookCalls = fetchMock.mock.calls.filter(([url]) => url === "https://example.com/hook");
+      expect(webhookCalls).toHaveLength(1);
+      const body = JSON.parse(webhookCalls[0][1].body);
+      expect(body.vessel.wikidata).toMatchObject({ wikidataId: "Q6719625", yearBuilt: 1979 });
+
+      // Looked up once on first sighting, reused at the passage
+      const lookups = fetchMock.mock.calls.filter(([url]) => url.startsWith("https://query.wikidata.org/"));
+      expect(lookups).toHaveLength(1);
     });
   });
 });

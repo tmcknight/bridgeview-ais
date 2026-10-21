@@ -16,6 +16,7 @@ export interface NtfyMessage {
   tags: string[];
   priority: number;
   click?: string;
+  attach?: string;
 }
 
 /**
@@ -52,12 +53,26 @@ export class NtfyClient {
       lines.push(`Length: ${event.length}m`);
     }
 
+    const info = event.vesselInfo;
+    if (info) {
+      if (info.description) lines.push(`Type: ${info.description}`);
+      const built = [
+        info.yearBuilt && `Built ${info.yearBuilt}`,
+        info.builder && `by ${info.builder}`,
+      ].filter(Boolean);
+      if (built.length) lines.push(built.join(" "));
+      if (info.operator) lines.push(`Operator: ${info.operator}`);
+      if (info.grossTonnage) lines.push(`Gross tonnage: ${info.grossTonnage.toLocaleString("en-US")}`);
+    }
+
     return {
       topic: this.config.topic,
       title,
       message: lines.join("\n"),
       tags: ["ship", directionLabel.toLowerCase()],
       priority: 3, // default priority
+      ...(info && { click: info.wikipediaUrl ?? info.wikidataUrl }),
+      ...(info?.imageUrl && { attach: info.imageUrl }),
     };
   }
 

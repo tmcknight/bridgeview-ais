@@ -22,6 +22,19 @@ function makeCrossingEvent(
   };
 }
 
+const VESSEL_INFO = {
+  wikidataId: "Q6719625",
+  wikidataUrl: "https://www.wikidata.org/wiki/Q6719625",
+  name: "Indiana Harbor",
+  description: "self-discharging bulk carrier",
+  imageUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Lakers%20Indiana%20Harbor.jpg?width=480",
+  yearBuilt: 1979,
+  builder: "Bay Shipbuilding Company",
+  operator: "American Steamship Company",
+  grossTonnage: 35923,
+  wikipediaUrl: "https://en.wikipedia.org/wiki/MV_Indiana_Harbor",
+};
+
 describe("NtfyClient", () => {
   let client: NtfyClient;
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -105,6 +118,33 @@ describe("NtfyClient", () => {
       const event = makeCrossingEvent({ destination: undefined });
       const msg = client.formatMessage(event);
       expect(msg.message).not.toContain("Destination");
+    });
+
+    it("adds Wikidata details, photo and link when available", () => {
+      const msg = client.formatMessage(makeCrossingEvent({ vesselInfo: VESSEL_INFO }));
+      expect(msg.message).toContain("Type: self-discharging bulk carrier");
+      expect(msg.message).toContain("Built 1979 by Bay Shipbuilding Company");
+      expect(msg.message).toContain("Operator: American Steamship Company");
+      expect(msg.message).toContain("Gross tonnage: 35,923");
+      expect(msg.attach).toBe(VESSEL_INFO.imageUrl);
+      expect(msg.click).toBe(VESSEL_INFO.wikipediaUrl);
+    });
+
+    it("links to Wikidata when there is no Wikipedia article", () => {
+      const msg = client.formatMessage(
+        makeCrossingEvent({
+          vesselInfo: { wikidataId: "Q1", wikidataUrl: "https://www.wikidata.org/wiki/Q1" },
+        })
+      );
+      expect(msg.click).toBe("https://www.wikidata.org/wiki/Q1");
+      expect(msg.attach).toBeUndefined();
+    });
+
+    it("omits Wikidata fields without vessel info", () => {
+      const msg = client.formatMessage(makeCrossingEvent());
+      expect(msg.click).toBeUndefined();
+      expect(msg.attach).toBeUndefined();
+      expect(msg.message).not.toContain("Built");
     });
 
     it("excludes length when not available", () => {

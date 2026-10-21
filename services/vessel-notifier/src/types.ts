@@ -76,6 +76,21 @@ export interface TrackedVessel {
   callSign?: string;
 }
 
+/** Supplementary vessel details looked up from Wikidata by MMSI / IMO */
+export interface VesselInfo {
+  wikidataId: string;
+  wikidataUrl: string;
+  name?: string;
+  description?: string;
+  imageUrl?: string;
+  imagePageUrl?: string;
+  yearBuilt?: number;
+  builder?: string;
+  operator?: string;
+  grossTonnage?: number;
+  wikipediaUrl?: string;
+}
+
 /** Fired when a vessel passes a watch point (just after closest approach) */
 export interface PassageEvent {
   watchPoint: WatchPoint;
@@ -99,6 +114,8 @@ export interface PassageEvent {
   beam?: number;
   imo?: number;
   callSign?: string;
+  /** Wikidata details, when the vessel is on Wikidata and the lookup finished in time */
+  vesselInfo?: VesselInfo;
 }
 
 /** Notifier service configuration */
@@ -117,6 +134,8 @@ export interface NotifierConfig {
   webhookUrl?: string;
   /** Shared secret used to sign webhook payloads (optional) */
   webhookSecret?: string;
+  /** Look up vessel details on Wikidata (default: true) */
+  vesselInfoLookup: boolean;
   /** Points to watch; defaults to the Blue Water Bridge */
   watchPoints?: WatchPoint[];
   /** Default radius in NM for the Blue Water Bridge watch point */

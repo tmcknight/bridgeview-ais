@@ -13,6 +13,8 @@ function loadConfig(): Partial<NotifierConfig> {
   if (process.env.WS_AUTH_TOKEN) config.wsAuthToken = process.env.WS_AUTH_TOKEN;
   if (process.env.WEBHOOK_URL) config.webhookUrl = process.env.WEBHOOK_URL;
   if (process.env.WEBHOOK_SECRET) config.webhookSecret = process.env.WEBHOOK_SECRET;
+  if (process.env.VESSEL_INFO_LOOKUP)
+    config.vesselInfoLookup = process.env.VESSEL_INFO_LOOKUP !== "false";
   if (process.env.BRIDGE_THRESHOLD_NM)
     config.bridgeThresholdNM = parseFloat(process.env.BRIDGE_THRESHOLD_NM);
   if (process.env.NOTIFICATION_COOLDOWN_MS)

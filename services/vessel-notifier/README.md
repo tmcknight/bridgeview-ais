@@ -8,7 +8,8 @@ A Node.js service that monitors AIS vessel traffic around one or more watch poin
 2. Receives real-time AIS position reports for vessels in the tracking area
 3. Tracks each vessel's distance to every watch point
 4. When a moving vessel goes past a point (its track comes within the point's radius, default 0.5 NM), sends an ntfy notification and/or webhook on the first position report after it is abeam of the point, so alerts arrive as the vessel is going by, typically within one AIS report interval (~2–10 s for a moving ship)
-5. Applies a cooldown per vessel and point (default 30 minutes) to prevent duplicate notifications
+5. Looks each vessel up on [Wikidata](https://www.wikidata.org) (by MMSI / IMO) as soon as it is seen, so details like build year, builder, operator, tonnage, photo and Wikipedia link are ready by the time it passes. An alert waits at most 1.5 s for a lookup still in flight, then goes out without the details
+6. Applies a cooldown per vessel and point (default 30 minutes) to prevent duplicate notifications
 
 ## Configuration
 
@@ -20,6 +21,7 @@ All configuration is done via environment variables:
 | `WEBHOOK_URL`              | One of\* | -                     | URL that receives a JSON POST for each passage     |
 | `WEBHOOK_SECRET`           | No       | -                     | Secret for signing webhook bodies (HMAC-SHA256)    |
 | `WATCH_POINTS`             | No       | Blue Water Bridge     | JSON array of points to watch (max 5), see below   |
+| `VESSEL_INFO_LOOKUP`       | No       | `true`                | Set to `false` to skip Wikidata vessel lookups     |
 | `NTFY_SERVER`              | No       | `https://ntfy.sh`     | ntfy server URL                                    |
 | `NTFY_TOKEN`               | No       | -                     | ntfy access token for authentication               |
 | `WS_PROXY_URL`             | No       | `ws://localhost:3001` | WebSocket proxy server URL                         |
@@ -75,12 +77,24 @@ When `WEBHOOK_URL` is set, each passage is POSTed as JSON:
     "courseDeg": 182,
     "headingDeg": 181,
     "navStatus": 0,
-    "navStatusLabel": "Under way using engine"
+    "navStatusLabel": "Under way using engine",
+    "wikidata": {
+      "wikidataId": "Q6719625",
+      "wikidataUrl": "https://www.wikidata.org/wiki/Q6719625",
+      "name": "Indiana Harbor",
+      "description": "self-discharging bulk carrier",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Lakers%20Indiana%20Harbor.jpg?width=480",
+      "imagePageUrl": "https://commons.wikimedia.org/wiki/File:Lakers%20Indiana%20Harbor.jpg",
+      "yearBuilt": 1979,
+      "builder": "Bay Shipbuilding Company",
+      "grossTonnage": 35923,
+      "wikipediaUrl": "https://en.wikipedia.org/wiki/MV_Indiana_Harbor"
+    }
   }
 }
 ```
 
-`closestApproachNM` is how close the track came to the point; `distanceNM` is the distance at the report that triggered the alert. Fields under `vessel` other than `mmsi`, `name`, position, speed and course are only present once the vessel has broadcast them (static data arrives less often than positions).
+`closestApproachNM` is how close the track came to the point; `distanceNM` is the distance at the report that triggered the alert. Fields under `vessel` other than `mmsi`, `name`, position, speed and course are only present once the vessel has broadcast them (static data arrives less often than positions). `vessel.wikidata` is present only when the vessel is on Wikidata and the lookup finished in time; its fields are each optional except the id and URL.
 
 If `WEBHOOK_SECRET` is set, requests carry `X-BridgeView-Signature: sha256=<hex>`, the HMAC-SHA256 of the raw body. Verify it before trusting the payload:
 
@@ -131,7 +145,9 @@ NTFY_TOPIC=my-topic docker compose up vessel-notifier -d
 Notifications include:
 
 - **Title**: `{Vessel Name} passing {Watch Point Name}`
-- **Body**: Direction, speed, MMSI, course, destination (if available), length (if available)
+- **Body**: Direction, speed, MMSI, course, destination (if available), length (if available), plus type, build year/builder, operator and gross tonnage from Wikidata (if found)
+- **Attachment**: Vessel photo from Wikimedia Commons (if found)
+- **Click**: Opens the vessel's Wikipedia article, or its Wikidata page
 - **Tags**: `ship`, `northbound`/`southbound`
 - **Priority**: Default (3)
 
@@ -145,6 +161,9 @@ MMSI: 123456789
 Course: 185°
 Destination: DETROIT
 Length: 225m
+Type: self-discharging bulk carrier
+Built 1979 by Bay Shipbuilding Company
+Gross tonnage: 35,923
 ```
 
 ## Subscribing to Notifications
@@ -169,6 +188,7 @@ AISStream.io → WebSocket Proxy (server/server.js) → Vessel Notifier ─┬�
 - **`watch-points.ts`** - `WATCH_POINTS` parsing and validation
 - **`ntfy-client.ts`** - ntfy HTTP API client
 - **`webhook-client.ts`** - Signed JSON webhook client
+- **`wikidata.ts`** - Cached Wikidata vessel lookup (mirrors `src/utils/wikidata.ts` in the web app)
 - **`notifier.ts`** - Main service orchestrating WebSocket connection, detection, and notifications
 - **`index.ts`** - Entry point with environment variable configuration
 
@@ -179,6 +199,7 @@ Tests cover:
 - Geographic calculations
 - Watch point passage detection and `WATCH_POINTS` parsing
 - ntfy and webhook formatting, signing and HTTP
+- Wikidata query/parsing, caching, timeouts and failure retry
 - Service lifecycle and subscription
 
 ```bash

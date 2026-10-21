@@ -43,6 +43,7 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `WEBHOOK_URL`       | No       | —                 | URL that receives passage webhooks   |
 | `WEBHOOK_SECRET`    | No       | —                 | HMAC secret for signing webhooks     |
 | `WATCH_POINTS`      | No       | Blue Water Bridge | JSON array of points to watch        |
+| `VESSEL_INFO_LOOKUP`| No       | `true`            | Add Wikidata vessel details to alerts|
 
 ## Architecture
 

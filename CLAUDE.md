@@ -67,6 +67,7 @@ services/vessel-notifier/
 │   ├── watch-points.ts       # WATCH_POINTS env parsing/validation
 │   ├── ntfy-client.ts        # ntfy HTTP API client
 │   ├── webhook-client.ts     # Signed JSON webhook client
+│   ├── wikidata.ts           # Cached Wikidata vessel lookup for alert details
 │   ├── geo.ts                # Geographic calculations
 │   ├── types.ts              # TypeScript type definitions
 │   └── __tests__/            # Unit tests
@@ -78,7 +79,7 @@ services/vessel-notifier/
 
 - Connects to the WebSocket proxy as a client
 - Tracks vessel positions and detects vessels passing configurable watch points (default: Blue Water Bridge), firing just after closest approach
-- Sends push notifications via [ntfy](https://ntfy.sh) and/or signed JSON webhooks
+- Sends push notifications via [ntfy](https://ntfy.sh) and/or signed JSON webhooks, enriched with Wikidata vessel details (photo, build year, operator)
 - Per-vessel, per-point cooldown to prevent duplicate notifications
 - See [services/vessel-notifier/README.md](services/vessel-notifier/README.md) for details
 

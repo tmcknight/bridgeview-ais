@@ -26,6 +26,7 @@ services:
       - WEBHOOK_URL=${WEBHOOK_URL:-}
       - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
       - WATCH_POINTS=${WATCH_POINTS:-}
+      - VESSEL_INFO_LOOKUP=${VESSEL_INFO_LOOKUP:-true}
       - WS_PROXY_URL=ws://ws-server:3001
       - WS_AUTH_TOKEN=${WS_AUTH_TOKEN:-}
     depends_on:

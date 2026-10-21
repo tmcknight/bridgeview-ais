@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { NAV_STATUS_LABELS } from "./types.js";
-import type { PassageEvent } from "./types.js";
+import type { PassageEvent, VesselInfo } from "./types.js";
 
 export interface WebhookConfig {
   /** URL to POST passage events to */
@@ -41,6 +41,8 @@ export interface WebhookPayload {
     headingDeg?: number;
     navStatus?: number;
     navStatusLabel?: string;
+    /** Wikidata details, present when the vessel is on Wikidata */
+    wikidata?: VesselInfo;
   };
 }
 
@@ -101,6 +103,7 @@ export class WebhookClient {
         navStatus: event.navStatus,
         navStatusLabel:
           event.navStatus !== undefined ? NAV_STATUS_LABELS[event.navStatus] : undefined,
+        wikidata: event.vesselInfo,
       },
     };
   }
