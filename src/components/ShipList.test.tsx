@@ -4,6 +4,11 @@ import { renderWithProviders, userEvent } from '../test/utils/renderWithProvider
 import ShipList from './ShipList'
 import { mockShip, mockShipNorthbound, mockShipAtAnchor, mockShipCloseToBridge } from '../test/mocks/ships'
 
+// Keep Wikidata lookups for the selected ship offline
+vi.mock('../hooks/useVesselInfo', () => ({
+  useVesselInfo: () => ({ info: null, loading: false }),
+}))
+
 describe('ShipList', () => {
   describe('empty state', () => {
     it('should show "No vessels detected" message when ships map is empty', () => {

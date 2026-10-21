@@ -191,6 +191,7 @@ export function useAISStream(): UseAISStreamReturn {
           shipType: existing?.shipType,
           length: existing?.length,
           width: existing?.width,
+          imo: existing?.imo,
         };
 
         // Check for approach notification
@@ -232,6 +233,7 @@ export function useAISStream(): UseAISStreamReturn {
           length: (staticData.Dimension?.A ?? 0) + (staticData.Dimension?.B ?? 0),
           width: (staticData.Dimension?.C ?? 0) + (staticData.Dimension?.D ?? 0),
           name: staticData.Name?.trim() || existing?.name,
+          imo: staticData.ImoNumber > 0 ? staticData.ImoNumber : existing?.imo,
         };
         dispatchShips({ type: "UPDATE_STATIC_DATA", mmsi, updates });
       }
