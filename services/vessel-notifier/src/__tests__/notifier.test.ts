@@ -85,4 +85,48 @@ describe("VesselNotifier", () => {
       expect(status.cooldownVessels).toBe(0);
     });
   });
+
+  describe("watch points and webhook", () => {
+    interface MockSocket {
+      send: ReturnType<typeof vi.fn>;
+      emit(event: string, data?: unknown): void;
+    }
+
+    function position(lat: number, lon: number) {
+      return JSON.stringify({
+        MessageType: "PositionReport",
+        MetaData: { MMSI: 123456789, MMSI_String: "123456789", ShipName: "TEST", latitude: lat, longitude: lon, time_utc: "" },
+        Message: {
+          PositionReport: { Cog: 180, Latitude: lat, Longitude: lon, NavigationalStatus: 0, Sog: 8, TrueHeading: 180, UserID: 123456789 },
+        },
+      });
+    }
+
+    it("subscribes per watch point and POSTs passages to the webhook", async () => {
+      notifier.stop();
+      notifier = new VesselNotifier({
+        wsProxyUrl: "ws://localhost:3001",
+        webhookUrl: "https://example.com/hook",
+        watchPoints: [
+          { id: "a", name: "Point A", latitude: 43.0, longitude: -82.42, radiusNM: 0.5 },
+          { id: "b", name: "Point B", latitude: 42.5, longitude: -82.9, radiusNM: 1 },
+        ],
+      });
+      notifier.start();
+      await vi.advanceTimersByTimeAsync(0);
+
+      const ws = (notifier as unknown as { ws: MockSocket }).ws;
+      const subscription = JSON.parse(ws.send.mock.calls[0][0]);
+      expect(subscription.BoundingBoxes).toHaveLength(2);
+
+      ws.emit("message", position(43.05, -82.42));
+      ws.emit("message", position(43.0, -82.42));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      const [url, options] = fetchMock.mock.calls[0];
+      expect(url).toBe("https://example.com/hook");
+      expect(JSON.parse(options.body).watchPoint.id).toBe("a");
+    });
+  });
 });

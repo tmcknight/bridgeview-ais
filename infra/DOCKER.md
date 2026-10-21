@@ -40,6 +40,9 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `NTFY_TOPIC`        | No       | `bridgeview-ais`  | ntfy topic for vessel notifications  |
 | `NTFY_SERVER`       | No       | `https://ntfy.sh` | ntfy server URL                      |
 | `NTFY_TOKEN`        | No       | —                 | ntfy access token for authentication |
+| `WEBHOOK_URL`       | No       | —                 | URL that receives passage webhooks   |
+| `WEBHOOK_SECRET`    | No       | —                 | HMAC secret for signing webhooks     |
+| `WATCH_POINTS`      | No       | Blue Water Bridge | JSON array of points to watch        |
 
 ## Architecture
 

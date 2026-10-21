@@ -1,4 +1,4 @@
-import type { BridgeCrossingEvent } from "./types.js";
+import type { PassageEvent } from "./types.js";
 
 export interface NtfyConfig {
   /** ntfy server URL */
@@ -29,14 +29,14 @@ export class NtfyClient {
   }
 
   /**
-   * Format a bridge crossing event into an ntfy message.
+   * Format a passage event into an ntfy message.
    */
-  formatMessage(event: BridgeCrossingEvent): NtfyMessage {
+  formatMessage(event: PassageEvent): NtfyMessage {
     const directionEmoji = event.direction === "northbound" ? "⬆️" : "⬇️";
     const directionLabel =
       event.direction === "northbound" ? "Northbound" : "Southbound";
 
-    const title = `${event.name} passing under Blue Water Bridge`;
+    const title = `${event.name} passing ${event.watchPoint.name}`;
 
     const lines = [
       `${directionEmoji} ${directionLabel} at ${event.speed.toFixed(1)} knots`,
@@ -62,11 +62,9 @@ export class NtfyClient {
   }
 
   /**
-   * Send a bridge crossing notification via ntfy.
+   * Send a passage notification via ntfy.
    */
-  async sendCrossingNotification(
-    event: BridgeCrossingEvent
-  ): Promise<boolean> {
+  async sendPassageNotification(event: PassageEvent): Promise<boolean> {
     const ntfyMessage = this.formatMessage(event);
     return this.send(ntfyMessage);
   }

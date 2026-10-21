@@ -3,6 +3,7 @@ import {
   haversineDistanceNM,
   distanceToBridge,
   getDirection,
+  closestApproach,
   BRIDGE_CENTER,
 } from "../geo.js";
 
@@ -47,6 +48,31 @@ describe("geo utilities", () => {
     it("returns larger distance for far point", () => {
       const distance = distanceToBridge(42.5, -82.0);
       expect(distance).toBeGreaterThan(10);
+    });
+  });
+
+  describe("closestApproach", () => {
+    it("reports t = 1 when the segment ends at the point", () => {
+      const { t, distanceNM } = closestApproach(43.02, -82.423, 43.0, -82.42, 43.0, -82.42);
+      expect(t).toBeCloseTo(1);
+      expect(distanceNM).toBeCloseTo(0);
+    });
+
+    it("reports t > 1 when the point is still ahead", () => {
+      const { t } = closestApproach(43.02, -82.42, 43.01, -82.42, 43.0, -82.42);
+      expect(t).toBeCloseTo(2);
+    });
+
+    it("reports t < 0 when the point is behind", () => {
+      const { t } = closestApproach(43.01, -82.42, 43.02, -82.42, 43.0, -82.42);
+      expect(t).toBeLessThan(0);
+    });
+
+    it("measures the perpendicular distance when passing abeam", () => {
+      // 0.01 deg of longitude at 43N is ~0.44 NM
+      const { t, distanceNM } = closestApproach(43.01, -82.41, 42.99, -82.41, 43.0, -82.42);
+      expect(t).toBeCloseTo(0.5);
+      expect(distanceNM).toBeCloseTo(0.6 * Math.cos(43 * Math.PI / 180), 2);
     });
   });
 

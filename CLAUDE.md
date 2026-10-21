@@ -63,11 +63,13 @@ services/vessel-notifier/
 ├── src/
 │   ├── index.ts              # Entry point with env config
 │   ├── notifier.ts           # Main service (WebSocket client, orchestration)
-│   ├── bridge-detector.ts    # Vessel tracking and bridge crossing detection
+│   ├── watch-point-detector.ts # Vessel tracking and watch point passage detection
+│   ├── watch-points.ts       # WATCH_POINTS env parsing/validation
 │   ├── ntfy-client.ts        # ntfy HTTP API client
+│   ├── webhook-client.ts     # Signed JSON webhook client
 │   ├── geo.ts                # Geographic calculations
 │   ├── types.ts              # TypeScript type definitions
-│   └── __tests__/            # Unit tests (49 tests)
+│   └── __tests__/            # Unit tests
 ├── package.json
 ├── tsconfig.json
 ├── config/vitest.config.ts
@@ -75,9 +77,9 @@ services/vessel-notifier/
 ```
 
 - Connects to the WebSocket proxy as a client
-- Tracks vessel positions and detects bridge crossings (< 0.5 NM)
-- Sends push notifications via [ntfy](https://ntfy.sh)
-- Per-vessel cooldown to prevent duplicate notifications
+- Tracks vessel positions and detects vessels passing configurable watch points (default: Blue Water Bridge), firing just after closest approach
+- Sends push notifications via [ntfy](https://ntfy.sh) and/or signed JSON webhooks
+- Per-vessel, per-point cooldown to prevent duplicate notifications
 - See [services/vessel-notifier/README.md](services/vessel-notifier/README.md) for details
 
 ## Code Conventions

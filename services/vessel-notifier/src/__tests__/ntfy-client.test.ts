@@ -1,16 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NtfyClient } from "../ntfy-client.js";
-import type { BridgeCrossingEvent } from "../types.js";
+import { BLUE_WATER_BRIDGE } from "../watch-point-detector.js";
+import type { PassageEvent } from "../types.js";
 
 function makeCrossingEvent(
-  overrides: Partial<BridgeCrossingEvent> = {}
-): BridgeCrossingEvent {
+  overrides: Partial<PassageEvent> = {}
+): PassageEvent {
   return {
+    watchPoint: BLUE_WATER_BRIDGE,
     mmsi: 123456789,
+    latitude: 42.9982,
+    longitude: -82.423,
     name: "TEST VESSEL",
     speed: 8.5,
     course: 180,
     distance: 0.3,
+    closestApproach: 0.05,
     direction: "southbound",
     timestamp: Date.now(),
     ...overrides,
@@ -52,7 +57,7 @@ describe("NtfyClient", () => {
 
       expect(msg.topic).toBe("test-topic");
       expect(msg.title).toBe(
-        "LAKE FREIGHTER passing under Blue Water Bridge"
+        "LAKE FREIGHTER passing Blue Water Bridge"
       );
       expect(msg.message).toContain("Southbound");
       expect(msg.message).toContain("10.2 knots");
@@ -60,6 +65,16 @@ describe("NtfyClient", () => {
       expect(msg.message).toContain("Course: 185");
       expect(msg.tags).toContain("ship");
       expect(msg.tags).toContain("southbound");
+    });
+
+    it("names the watch point in the title", () => {
+      const event = makeCrossingEvent({
+        name: "LAKE FREIGHTER",
+        watchPoint: { ...BLUE_WATER_BRIDGE, id: "sarnia", name: "Sarnia Harbour" },
+      });
+      expect(client.formatMessage(event).title).toBe(
+        "LAKE FREIGHTER passing Sarnia Harbour"
+      );
     });
 
     it("formats a northbound crossing event", () => {
@@ -162,10 +177,10 @@ describe("NtfyClient", () => {
     });
   });
 
-  describe("sendCrossingNotification", () => {
+  describe("sendPassageNotification", () => {
     it("sends a formatted notification", async () => {
       const event = makeCrossingEvent({ name: "MY SHIP" });
-      const result = await client.sendCrossingNotification(event);
+      const result = await client.sendPassageNotification(event);
 
       expect(result).toBe(true);
       expect(fetchMock).toHaveBeenCalledOnce();

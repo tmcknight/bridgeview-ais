@@ -20,9 +20,12 @@ services:
       dockerfile: infra/Dockerfile
       target: vessel-notifier
     environment:
-      - NTFY_TOPIC=${NTFY_TOPIC:-bridgeview-ais}
+      - NTFY_TOPIC=${NTFY_TOPIC-bridgeview-ais}
       - NTFY_SERVER=${NTFY_SERVER:-https://ntfy.sh}
       - NTFY_TOKEN=${NTFY_TOKEN:-}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      - WATCH_POINTS=${WATCH_POINTS:-}
       - WS_PROXY_URL=ws://ws-server:3001
       - WS_AUTH_TOKEN=${WS_AUTH_TOKEN:-}
     depends_on:

@@ -45,6 +45,18 @@ export interface AISMessage {
   MetaData: AISMetaData;
 }
 
+/** A geographic point to watch for passing vessels */
+export interface WatchPoint {
+  /** Stable identifier (used for cooldown tracking and in webhook payloads) */
+  id: string;
+  /** Human-readable name, e.g. "Blue Water Bridge" */
+  name: string;
+  latitude: number;
+  longitude: number;
+  /** A vessel counts as passing when its track comes within this many NM */
+  radiusNM: number;
+}
+
 /** Tracked vessel state */
 export interface TrackedVessel {
   mmsi: number;
@@ -53,40 +65,61 @@ export interface TrackedVessel {
   longitude: number;
   cog: number;
   sog: number;
-  distanceToBridge: number;
+  heading?: number;
+  navStatus?: number;
   lastUpdate: number;
   destination?: string;
   shipType?: number;
   length?: number;
+  beam?: number;
+  imo?: number;
+  callSign?: string;
 }
 
-/** Bridge crossing event */
-export interface BridgeCrossingEvent {
+/** Fired when a vessel passes a watch point (just after closest approach) */
+export interface PassageEvent {
+  watchPoint: WatchPoint;
   mmsi: number;
   name: string;
+  latitude: number;
+  longitude: number;
   speed: number;
   course: number;
+  heading?: number;
+  navStatus?: number;
+  /** Distance (NM) from the point at the time of the report */
   distance: number;
+  /** Closest the vessel's track came to the point (NM) */
+  closestApproach: number;
   direction: "northbound" | "southbound";
   timestamp: number;
   destination?: string;
   shipType?: number;
   length?: number;
+  beam?: number;
+  imo?: number;
+  callSign?: string;
 }
 
 /** Notifier service configuration */
 export interface NotifierConfig {
   /** ntfy server URL (default: https://ntfy.sh) */
   ntfyServer: string;
-  /** ntfy topic name */
-  ntfyTopic: string;
+  /** ntfy topic name (ntfy disabled when unset) */
+  ntfyTopic?: string;
   /** ntfy access token (optional) */
   ntfyToken?: string;
   /** WebSocket proxy URL to connect to */
   wsProxyUrl: string;
   /** WebSocket auth token (optional) */
   wsAuthToken?: string;
-  /** Distance threshold in NM to trigger "passing under" notification */
+  /** Webhook URL to POST passage events to (optional) */
+  webhookUrl?: string;
+  /** Shared secret used to sign webhook payloads (optional) */
+  webhookSecret?: string;
+  /** Points to watch; defaults to the Blue Water Bridge */
+  watchPoints?: WatchPoint[];
+  /** Default radius in NM for the Blue Water Bridge watch point */
   bridgeThresholdNM: number;
   /** Cooldown in ms before re-notifying about the same vessel */
   notificationCooldownMs: number;
