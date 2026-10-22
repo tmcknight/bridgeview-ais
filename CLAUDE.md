@@ -24,6 +24,7 @@ src/
 │   ├── ShipMap.tsx    # MapLibre GL map with vessel markers (via react-map-gl)
 │   ├── ShipList.tsx   # List view of tracked vessels
 │   ├── NotificationPanel.tsx  # Real-time alerts
+│   ├── UpcomingShips.tsx      # "Coming up" list of ships heading for the bridge
 │   ├── StatusBar.tsx  # Connection status indicator
 │   ├── ErrorBoundary.tsx          # App-level error boundary
 │   └── ComponentErrorBoundary.tsx # Component-level error boundary
@@ -36,6 +37,8 @@ src/
 │   └── bridge.ts      # Blue Water Bridge location data
 ├── utils/
 │   ├── geo.ts         # Geographic calculations (distance, bearing, etc.)
+│   ├── upcoming.ts    # Ships heading for the bridge, with rough ETAs
+│   ├── cargo.ts       # Cargo guesses from AIS destination ports
 │   └── logger.ts      # Logging utility
 ├── test/              # Test infrastructure
 │   ├── setup.ts       # Vitest setup
