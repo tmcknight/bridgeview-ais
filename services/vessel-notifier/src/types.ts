@@ -108,6 +108,8 @@ export interface PassageEvent {
   closestApproach: number;
   /** True when predicted from speed/course; false when observed after the fact */
   predicted: boolean;
+  /** When the vessel is (estimated to be) abeam of the point, ms since epoch */
+  passesAt: number;
   direction: "northbound" | "southbound";
   timestamp: number;
   destination?: string;
@@ -148,6 +150,8 @@ export interface NotifierConfig {
   staleVesselTimeoutMs: number;
   /** How far ahead (s) to predict passages from speed and course */
   predictionHorizonSeconds?: number;
+  /** How many seconds before a predicted passage to send the alert */
+  predictionLeadSeconds?: number;
 }
 
 /** Navigation status labels */

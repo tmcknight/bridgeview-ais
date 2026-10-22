@@ -20,6 +20,7 @@ function makePassageEvent(overrides: Partial<PassageEvent> = {}): PassageEvent {
     predicted: true,
     direction: "southbound",
     timestamp: Date.UTC(2026, 9, 21, 12, 0, 0),
+    passesAt: Date.UTC(2026, 9, 21, 12, 0, 20),
     destination: "DETROIT",
     shipType: 70,
     length: 225,
@@ -50,6 +51,7 @@ describe("WebhookClient", () => {
       expect(payload).toEqual({
         event: "vessel.passage",
         timestamp: "2026-10-21T12:00:00.000Z",
+        passesAt: "2026-10-21T12:00:20.000Z",
         watchPoint: {
           id: "blue-water-bridge",
           name: "Blue Water Bridge",

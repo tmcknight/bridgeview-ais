@@ -435,16 +435,19 @@ describe("WatchPointDetector", () => {
     const approaching = (sog = 6, cog = 180) =>
       makePositionMessage(123456789, BRIDGE_CENTER.lat + 0.1 / 60, BRIDGE_CENTER.lng, cog, sog);
 
-    it("fires at the predicted moment the vessel is abeam", () => {
+    it("fires 20 s before the vessel is predicted to be abeam", () => {
+      const start = Date.now();
       expect(detector.processMessage(approaching())).toEqual([]);
       expect(detector.pendingPredictionCount).toBe(1);
 
-      vi.advanceTimersByTime(59_000);
+      vi.advanceTimersByTime(39_000);
       expect(predicted).toHaveLength(0);
 
       vi.advanceTimersByTime(1_000);
       expect(predicted).toHaveLength(1);
       expect(predicted[0].predicted).toBe(true);
+      expect(predicted[0].passesAt).toBeCloseTo(start + 60_000, -2);
+      expect(predicted[0].passesAt - predicted[0].timestamp).toBeCloseTo(20_000, -2);
       expect(predicted[0].closestApproach).toBeCloseTo(0, 3);
       expect(predicted[0].latitude).toBeCloseTo(BRIDGE_CENTER.lat, 5);
       expect(predicted[0].direction).toBe("southbound");
@@ -454,13 +457,36 @@ describe("WatchPointDetector", () => {
       detector.processMessage(approaching(6));
       vi.advanceTimersByTime(30_000);
 
-      // Same spot (no progress), now 12 kn: abeam in 30 s from now
+      // Same spot (no progress), now 12 kn: abeam in 30 s, alert in 10 s
       detector.processMessage(approaching(12));
-      vi.advanceTimersByTime(29_000);
+      vi.advanceTimersByTime(9_000);
       expect(predicted).toHaveLength(0);
       vi.advanceTimersByTime(1_000);
       expect(predicted).toHaveLength(1);
       expect(detector.pendingPredictionCount).toBe(0);
+    });
+
+    it("fires immediately when the vessel is already within the lead time", () => {
+      // 0.02 NM out at 6 kn: abeam in 12 s
+      detector.processMessage(
+        makePositionMessage(123456789, BRIDGE_CENTER.lat + 0.02 / 60, BRIDGE_CENTER.lng, 180, 6)
+      );
+      vi.advanceTimersByTime(0);
+      expect(predicted).toHaveLength(1);
+    });
+
+    it("fires at the exact estimate with a zero lead", () => {
+      detector.dispose();
+      detector = new WatchPointDetector({
+        watchPoints: [BLUE_WATER_BRIDGE],
+        predictionLeadSeconds: 0,
+        onPredictedPassage: (event) => predicted.push(event),
+      });
+      detector.processMessage(approaching());
+      vi.advanceTimersByTime(59_000);
+      expect(predicted).toHaveLength(0);
+      vi.advanceTimersByTime(1_000);
+      expect(predicted).toHaveLength(1);
     });
 
     it("cancels when the vessel stops", () => {
@@ -503,7 +529,7 @@ describe("WatchPointDetector", () => {
 
     it("suppresses the observed passage after a predicted one", () => {
       detector.processMessage(approaching());
-      vi.advanceTimersByTime(60_000);
+      vi.advanceTimersByTime(40_000);
       expect(predicted).toHaveLength(1);
 
       const observed = detector.processMessage(
@@ -513,9 +539,10 @@ describe("WatchPointDetector", () => {
     });
 
     it("falls back to the observed passage when the prediction runs late", () => {
-      // Predicted 60 s out at 6 kn, but the vessel speeds up and is past at the next report
+      // Predicted 60 s out at 6 kn (alert in 40 s), but the vessel speeds up
+      // and is past at the next report
       detector.processMessage(approaching(6));
-      vi.advanceTimersByTime(20_000);
+      vi.advanceTimersByTime(15_000);
       const [observed] = detector.processMessage(
         makePositionMessage(123456789, BRIDGE_CENTER.lat - 0.05 / 60, BRIDGE_CENTER.lng, 180, 12)
       );

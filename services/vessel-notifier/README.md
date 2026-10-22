@@ -7,7 +7,7 @@ A Node.js service that monitors AIS vessel traffic around one or more watch poin
 1. Connects to the BridgeView AIS WebSocket proxy server
 2. Receives real-time AIS position reports for vessels in the tracking area
 3. Tracks each vessel's distance to every watch point
-4. When a moving vessel is about to pass a point (its course takes it within the point's radius, default 0.5 NM), predicts from its speed and course when it will be abeam and sends an ntfy notification and/or webhook at that moment. Each new report re-predicts or cancels, and predictions look up to 10 minutes ahead (`PREDICTION_HORIZON_SECONDS`). AIS reports in the area can be a minute or more apart, so this keeps alerts live. If a passage could not be predicted (no course broadcast, or the vessel sped up), it is caught on the first report after the vessel is abeam instead
+4. When a moving vessel is about to pass a point (its course takes it within the point's radius, default 0.5 NM), predicts from its speed and course when it will be abeam and sends an ntfy notification and/or webhook 20 seconds before that moment (`PREDICTION_LEAD_SECONDS`). Each new report re-predicts or cancels, and predictions look up to 10 minutes ahead (`PREDICTION_HORIZON_SECONDS`). AIS reports in the area can be a minute or more apart, so this keeps alerts live. If a passage could not be predicted (no course broadcast, or the vessel sped up), it is caught on the first report after the vessel is abeam instead
 5. Looks each vessel up on [Wikidata](https://www.wikidata.org) (by MMSI / IMO) as soon as it is seen, so details like build year, builder, operator, tonnage, photo and Wikipedia link are ready by the time it passes. An alert waits at most 1.5 s for a lookup still in flight, then goes out without the details
 6. Applies a cooldown per vessel and point (default 30 minutes) to prevent duplicate notifications
 
@@ -23,6 +23,7 @@ All configuration is done via environment variables:
 | `WATCH_POINTS`             | No       | Blue Water Bridge     | JSON array of points to watch (max 5), see below   |
 | `VESSEL_INFO_LOOKUP`       | No       | `true`                | Set to `false` to skip Wikidata vessel lookups     |
 | `PREDICTION_HORIZON_SECONDS` | No     | `600` (10 min)        | How far ahead to predict passages; `0` disables    |
+| `PREDICTION_LEAD_SECONDS`  | No       | `20`                  | Send predicted alerts this many seconds early      |
 | `NTFY_SERVER`              | No       | `https://ntfy.sh`     | ntfy server URL                                    |
 | `NTFY_TOKEN`               | No       | -                     | ntfy access token for authentication               |
 | `WS_PROXY_URL`             | No       | `ws://localhost:3001` | WebSocket proxy server URL                         |
@@ -53,6 +54,7 @@ When `WEBHOOK_URL` is set, each passage is POSTed as JSON:
 {
   "event": "vessel.passage",
   "timestamp": "2026-10-21T12:00:00.000Z",
+  "passesAt": "2026-10-21T12:00:20.000Z",
   "watchPoint": {
     "id": "blue-water-bridge",
     "name": "Blue Water Bridge",
@@ -96,7 +98,7 @@ When `WEBHOOK_URL` is set, each passage is POSTed as JSON:
 }
 ```
 
-`timing` is `"predicted"` when the alert fired at the estimated moment of passing (position is then the estimated abeam position) or `"observed"` when it fired on the first report after passing. `closestApproachNM` is how close the track came (or is predicted to come) to the point; `distanceNM` is the distance at the alert position. Fields under `vessel` other than `mmsi`, `name`, position, speed and course are only present once the vessel has broadcast them (static data arrives less often than positions). `vessel.wikidata` is present only when the vessel is on Wikidata and the lookup finished in time; its fields are each optional except the id and URL.
+`timing` is `"predicted"` when the alert fired ahead of the estimated passing (`passesAt`; position is then the estimated abeam position) or `"observed"` when it fired on the first report after passing. `closestApproachNM` is how close the track came (or is predicted to come) to the point; `distanceNM` is the distance at the alert position. Fields under `vessel` other than `mmsi`, `name`, position, speed and course are only present once the vessel has broadcast them (static data arrives less often than positions). `vessel.wikidata` is present only when the vessel is on Wikidata and the lookup finished in time; its fields are each optional except the id and URL.
 
 If `WEBHOOK_SECRET` is set, requests carry `X-BridgeView-Signature: sha256=<hex>`, the HMAC-SHA256 of the raw body. Verify it before trusting the payload:
 
@@ -147,7 +149,7 @@ NTFY_TOPIC=my-topic docker compose up vessel-notifier -d
 Notifications include:
 
 - **Title**: `{Vessel Name} passing {Watch Point Name}`
-- **Body**: Direction, speed, MMSI, course, destination (if available), length (if available), plus type, build year/builder, operator and gross tonnage from Wikidata (if found)
+- **Body**: "Passing in ~20 s" for predicted alerts, then direction, speed, MMSI, course, destination (if available), length (if available), plus type, build year/builder, operator and gross tonnage from Wikidata (if found)
 - **Attachment**: Vessel photo from Wikimedia Commons (if found)
 - **Click**: Opens the vessel's Wikipedia article, or its Wikidata page
 - **Tags**: `ship`, `northbound`/`southbound`

@@ -17,6 +17,8 @@ export interface WatchPointDetectorConfig {
   staleTimeoutMs: number;
   /** How far ahead (s) to predict a passage from speed and course; 0 disables */
   predictionHorizonSeconds: number;
+  /** How many seconds before the predicted passage to fire the alert */
+  predictionLeadSeconds: number;
   /** Receives predicted passages, which fire on a timer between reports */
   onPredictedPassage?: (event: PassageEvent) => void;
 }
@@ -43,6 +45,7 @@ const DEFAULT_CONFIG: WatchPointDetectorConfig = {
   // AIS reports near the bridge can be several minutes apart, so look well ahead;
   // each new report reschedules or cancels the prediction
   predictionHorizonSeconds: 10 * 60, // 10 minutes
+  predictionLeadSeconds: 20,
 };
 
 /**
@@ -51,7 +54,7 @@ const DEFAULT_CONFIG: WatchPointDetectorConfig = {
  * AIS reports can be a minute or more apart, so passages are predicted: each
  * report projects the vessel's speed and course ahead, and if it will come
  * abeam of a point (within the point's radius) inside the prediction horizon,
- * a timer fires `onPredictedPassage` at that moment. Every report reschedules
+ * a timer fires `onPredictedPassage` shortly before that moment (the lead time). Every report reschedules
  * the timer, so the prediction tracks speed and course changes.
  *
  * As a fallback (no course broadcast, or the prediction ran late), a passage
@@ -165,6 +168,7 @@ export class WatchPointDetector {
           closestApproach: approach.distanceNM,
           predicted: false,
           timestamp: now,
+          passesAt: now,
         })
       );
     }
@@ -202,6 +206,9 @@ export class WatchPointDetector {
       `[notifier] Predicting ${vessel.name} abeam of ${point.name} in ${Math.round(secondsToAbeam)}s (${projection.alongNM.toFixed(2)} NM ahead, ${projection.crossNM.toFixed(2)} NM off, ${vessel.sog} kn)`
     );
 
+    const passesAt = Date.now() + secondsToAbeam * 1000;
+    const delayMs = Math.max(0, secondsToAbeam - this.config.predictionLeadSeconds) * 1000;
+
     const timer = setTimeout(() => {
       this.predictions.delete(key);
       const now = Date.now();
@@ -218,9 +225,10 @@ export class WatchPointDetector {
           closestApproach: projection.crossNM,
           predicted: true,
           timestamp: now,
+          passesAt,
         })
       );
-    }, secondsToAbeam * 1000);
+    }, delayMs);
 
     this.predictions.set(key, timer);
   }
@@ -243,7 +251,13 @@ export class WatchPointDetector {
     vessel: TrackedVessel,
     position: Pick<
       PassageEvent,
-      "latitude" | "longitude" | "distance" | "closestApproach" | "predicted" | "timestamp"
+      | "latitude"
+      | "longitude"
+      | "distance"
+      | "closestApproach"
+      | "predicted"
+      | "timestamp"
+      | "passesAt"
     >
   ): PassageEvent {
     return {

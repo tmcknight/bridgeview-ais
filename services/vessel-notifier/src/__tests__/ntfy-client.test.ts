@@ -18,7 +18,8 @@ function makeCrossingEvent(
     closestApproach: 0.05,
     predicted: true,
     direction: "southbound",
-    timestamp: Date.now(),
+    timestamp: 1_000_000,
+    passesAt: 1_000_000,
     ...overrides,
   };
 }
@@ -146,6 +147,16 @@ describe("NtfyClient", () => {
       expect(msg.click).toBeUndefined();
       expect(msg.attach).toBeUndefined();
       expect(msg.message).not.toContain("Built");
+    });
+
+    it("says how soon the vessel passes when alerted early", () => {
+      const msg = client.formatMessage(makeCrossingEvent({ passesAt: 1_020_000 }));
+      expect(msg.message.split("\n")[0]).toBe("Passing in ~20 s");
+    });
+
+    it("omits the countdown once the vessel has passed", () => {
+      const msg = client.formatMessage(makeCrossingEvent());
+      expect(msg.message).not.toContain("Passing in");
     });
 
     it("excludes length when not available", () => {

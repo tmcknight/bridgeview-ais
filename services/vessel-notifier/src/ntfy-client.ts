@@ -39,7 +39,10 @@ export class NtfyClient {
 
     const title = `${event.name} passing ${event.watchPoint.name}`;
 
+    const secondsUntil = Math.round((event.passesAt - event.timestamp) / 1000);
+
     const lines = [
+      ...(secondsUntil > 0 ? [`Passing in ~${secondsUntil} s`] : []),
       `${directionEmoji} ${directionLabel} at ${event.speed.toFixed(1)} knots`,
       `MMSI: ${event.mmsi}`,
       `Course: ${Math.round(event.course)}°`,

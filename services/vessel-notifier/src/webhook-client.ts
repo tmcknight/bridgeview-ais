@@ -15,6 +15,8 @@ export interface WebhookConfig {
 export interface WebhookPayload {
   event: "vessel.passage";
   timestamp: string;
+  /** When the vessel is (estimated to be) abeam of the watch point */
+  passesAt: string;
   watchPoint: {
     id: string;
     name: string;
@@ -24,7 +26,7 @@ export interface WebhookPayload {
   };
   distanceNM: number;
   closestApproachNM: number;
-  /** "predicted" fires at the estimated moment of passing; "observed" after a report confirms it */
+  /** "predicted" fires shortly before the estimated passing; "observed" after a report confirms it */
   timing: "predicted" | "observed";
   direction: "northbound" | "southbound";
   vessel: {
@@ -78,6 +80,7 @@ export class WebhookClient {
     return {
       event: "vessel.passage",
       timestamp: new Date(event.timestamp).toISOString(),
+      passesAt: new Date(event.passesAt).toISOString(),
       watchPoint: {
         id: watchPoint.id,
         name: watchPoint.name,

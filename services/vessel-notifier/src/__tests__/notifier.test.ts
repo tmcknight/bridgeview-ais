@@ -160,10 +160,10 @@ describe("VesselNotifier", () => {
       notifier.start();
       await vi.advanceTimersByTimeAsync(0);
 
-      // 0.1 NM north, heading south at 8 kn: abeam in 45 s
+      // 0.1 NM north, heading south at 8 kn: abeam in 45 s, alert 20 s early
       const ws = (notifier as unknown as { ws: MockSocket }).ws;
       ws.emit("message", position(43.0 + 0.1 / 60, -82.42));
-      await vi.advanceTimersByTimeAsync(44_000);
+      await vi.advanceTimersByTimeAsync(24_000);
       expect(fetchMock).not.toHaveBeenCalled();
 
       await vi.advanceTimersByTimeAsync(1_000);

@@ -47,6 +47,9 @@ export class VesselNotifier {
       ...(this.config.predictionHorizonSeconds !== undefined && {
         predictionHorizonSeconds: this.config.predictionHorizonSeconds,
       }),
+      ...(this.config.predictionLeadSeconds !== undefined && {
+        predictionLeadSeconds: this.config.predictionLeadSeconds,
+      }),
       onPredictedPassage: (event) => void this.dispatch(event),
     });
     if (this.config.ntfyTopic) {
