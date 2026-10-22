@@ -522,6 +522,13 @@ describe("WatchPointDetector", () => {
       expect(detector.pendingPredictionCount).toBe(0);
     });
 
+    it("does not predict when speed is not available (102.3 kn)", () => {
+      detector.processMessage(approaching(102.3));
+      expect(detector.pendingPredictionCount).toBe(0);
+      vi.advanceTimersByTime(60_000);
+      expect(predicted).toHaveLength(0);
+    });
+
     it("does not predict without a course (COG 360)", () => {
       detector.processMessage(approaching(6, 360));
       expect(detector.pendingPredictionCount).toBe(0);

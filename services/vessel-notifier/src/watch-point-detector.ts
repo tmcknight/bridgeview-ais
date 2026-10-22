@@ -29,6 +29,12 @@ const HEADING_NOT_AVAILABLE = 511;
 const COURSE_NOT_AVAILABLE = 360;
 /** Vessels slower than this (kn) are not treated as passing */
 const MIN_PASSING_SPEED_KN = 0.5;
+/** AIS reports SOG 102.3 kn when speed is not available */
+const SPEED_NOT_AVAILABLE_KN = 102.3;
+
+function isUnderWay(sog: number): boolean {
+  return sog >= MIN_PASSING_SPEED_KN && sog < SPEED_NOT_AVAILABLE_KN;
+}
 
 export const BLUE_WATER_BRIDGE: WatchPoint = {
   id: "blue-water-bridge",
@@ -131,7 +137,7 @@ export class WatchPointDetector {
     }
 
     // Need a previous position to know which way it is going, and must be moving
-    if (!existing || report.Sog < MIN_PASSING_SPEED_KN) return [];
+    if (!existing || !isUnderWay(report.Sog)) return [];
 
     const events: PassageEvent[] = [];
 
@@ -186,7 +192,7 @@ export class WatchPointDetector {
 
     const { predictionHorizonSeconds, onPredictedPassage } = this.config;
     if (!onPredictedPassage || predictionHorizonSeconds <= 0) return;
-    if (vessel.sog < MIN_PASSING_SPEED_KN) return;
+    if (!isUnderWay(vessel.sog)) return;
     if (!(vessel.cog >= 0 && vessel.cog < COURSE_NOT_AVAILABLE)) return;
     if (this.isOnCooldown(key, Date.now())) return;
 
