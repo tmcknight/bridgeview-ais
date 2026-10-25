@@ -122,6 +122,22 @@ This application is made possible by [AISStream.io](https://aisstream.io), a fre
 
 Special thanks to AISStream.io for providing free access to live vessel tracking data.
 
+### Local SDR receiver (optional)
+
+The proxy can also take AIS straight off the air from an RTL-SDR dongle (e.g. a Nooelec NESDR SMArt) running [AIS-catcher](https://github.com/jvde-github/AIS-catcher):
+
+```bash
+AIS-catcher -d:0 -gr TUNER auto -S 5012 MSGFORMAT JSON_FULL
+```
+
+Set `AIS_SOURCE` in `.env` to choose the feed:
+
+- `both` (default): merge AISStream.io and the local receiver, dropping duplicate transmissions
+- `local`: local receiver only (no API key needed)
+- `aisstream`: AISStream.io only
+
+`LOCAL_AIS_HOST` / `LOCAL_AIS_PORT` point at AIS-catcher (default `127.0.0.1:5012`). The proxy reconnects automatically if AIS-catcher restarts.
+
 ## ℹ️ About
 
 This project was mostly vibe coded with [Claude](https://claude.ai) - an AI assistant by Anthropic. The development process leveraged AI-assisted coding to rapidly prototype and build features, resulting in a functional maritime tracking application.
