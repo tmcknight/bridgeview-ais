@@ -1,9 +1,22 @@
 import { WebSocketServer, WebSocket } from "ws";
+import {
+  createLocalReceiver,
+  createDeduper,
+  inBoundingBoxes,
+  matchesMessageFilter,
+} from "./local-receiver.js";
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
 const UPSTREAM = "wss://stream.aisstream.io/v0/stream";
 const AUTH_TOKEN = process.env.WS_AUTH_TOKEN; // Optional: set for production
+
+// Data source: "aisstream" (AISStream.io), "local" (AIS-catcher on a local SDR), or "both"
+const AIS_SOURCE = (process.env.AIS_SOURCE || "both").toLowerCase();
+const LOCAL_AIS_HOST = process.env.LOCAL_AIS_HOST || "127.0.0.1";
+const LOCAL_AIS_PORT = Number(process.env.LOCAL_AIS_PORT) || 5012;
+const USE_AISSTREAM = AIS_SOURCE === "aisstream" || AIS_SOURCE === "both";
+const USE_LOCAL = AIS_SOURCE === "local" || AIS_SOURCE === "both";
 
 // Logger utility - keep errors in production, suppress debug logs
 const isDev = process.env.NODE_ENV !== "production";
@@ -30,10 +43,19 @@ const VALID_BOUNDS = {
   MAX_BOUNDING_BOX_AREA: 100, // Limit to ~100 square degrees
 };
 
-if (!API_KEY) {
-  logger.error("[proxy] AISSTREAM_API_KEY environment variable is required");
+if (!USE_AISSTREAM && !USE_LOCAL) {
+  logger.error(`[proxy] invalid AIS_SOURCE "${AIS_SOURCE}" (expected aisstream, local, or both)`);
   process.exit(1);
 }
+
+if (USE_AISSTREAM && !API_KEY) {
+  logger.error("[proxy] AISSTREAM_API_KEY environment variable is required (or set AIS_SOURCE=local)");
+  process.exit(1);
+}
+
+const localReceiver = USE_LOCAL
+  ? createLocalReceiver({ host: LOCAL_AIS_HOST, port: LOCAL_AIS_PORT, logger })
+  : null;
 
 // Rate limiting tracking
 const connectionsByIP = new Map(); // IP -> count
@@ -185,12 +207,14 @@ wss.on("connection", (client, req) => {
   }
 
   let upstream = null;
+  let subscribed = false;
+  let localListener = null;
   let authenticated = !AUTH_TOKEN; // Auto-auth if no token configured
   let subscriptionTimeout = null;
 
   // Set subscription timeout
   subscriptionTimeout = setTimeout(() => {
-    if (!upstream) {
+    if (!subscribed) {
       logger.warn(`[proxy] client ${clientId} did not subscribe in time`);
       client.close(1008, "Subscription timeout");
       releaseIPConnection(clientIP);
@@ -206,7 +230,7 @@ wss.on("connection", (client, req) => {
     }
 
     // First message: handle authentication and subscription
-    if (!upstream) {
+    if (!subscribed) {
       let message;
       try {
         message = JSON.parse(data.toString());
@@ -244,11 +268,31 @@ wss.on("connection", (client, req) => {
 
       // Clear subscription timeout
       clearTimeout(subscriptionTimeout);
+      subscribed = true;
+
+      const subscription = validation.subscription;
+      // With both sources, the same transmission can arrive twice; deliver it once
+      const isFirstSeen = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
+
+      if (localReceiver) {
+        localListener = (message) => {
+          if (
+            client.readyState === WebSocket.OPEN &&
+            inBoundingBoxes(message, subscription.BoundingBoxes) &&
+            matchesMessageFilter(message, subscription.FilterMessageTypes) &&
+            isFirstSeen(message)
+          ) {
+            client.send(JSON.stringify(message));
+          }
+        };
+        localReceiver.on("message", localListener);
+        logger.log(`[proxy] client ${clientId} subscribed to local receiver`);
+      }
+
+      if (!USE_AISSTREAM) return;
 
       // Inject API key into sanitized subscription
-      const subscription = validation.subscription;
-      subscription.Apikey = API_KEY;
-      const subscriptionStr = JSON.stringify(subscription);
+      const subscriptionStr = JSON.stringify({ ...subscription, Apikey: API_KEY });
 
       logger.log(`[proxy] client ${clientId} subscription validated, connecting to upstream`);
 
@@ -260,9 +304,16 @@ wss.on("connection", (client, req) => {
       });
 
       upstream.on("message", (data) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(data.toString());
+        if (client.readyState !== WebSocket.OPEN) return;
+        const text = data.toString();
+        if (USE_LOCAL) {
+          try {
+            if (!isFirstSeen(JSON.parse(text))) return;
+          } catch {
+            // Not a parseable AIS message; pass it through unchanged
+          }
         }
+        client.send(text);
       });
 
       upstream.on("close", (code, reason) => {
@@ -283,7 +334,7 @@ wss.on("connection", (client, req) => {
     }
 
     // Subsequent messages: forward to upstream (with validation)
-    if (upstream.readyState === WebSocket.OPEN) {
+    if (upstream && upstream.readyState === WebSocket.OPEN) {
       // Optional: validate subsequent messages if needed
       upstream.send(data);
     }
@@ -294,6 +345,10 @@ wss.on("connection", (client, req) => {
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
+    if (localListener) {
+      localReceiver.off("message", localListener);
+      localListener = null;
+    }
     if (upstream && upstream.readyState === WebSocket.OPEN) {
       upstream.close();
     }
@@ -304,6 +359,10 @@ wss.on("connection", (client, req) => {
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
+    if (localListener) {
+      localReceiver.off("message", localListener);
+      localListener = null;
+    }
     if (upstream && upstream.readyState === WebSocket.OPEN) {
       upstream.close();
     }
@@ -311,6 +370,7 @@ wss.on("connection", (client, req) => {
 });
 
 logger.info(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
+logger.info(`[proxy] AIS source: ${AIS_SOURCE}${USE_LOCAL ? ` (AIS-catcher at ${LOCAL_AIS_HOST}:${LOCAL_AIS_PORT})` : ""}`);
 if (AUTH_TOKEN) {
   logger.info(`[proxy] Authentication enabled`);
 } else {

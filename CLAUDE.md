@@ -53,6 +53,8 @@ src/
   - Optional authentication token support
   - Input validation and bounding box size limits
   - Subscription timeout protection
+- `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
+  - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
 
 ### Vessel Notification Service
 
@@ -134,8 +136,8 @@ This command:
 ### Environment Variables
 
 - Copy `.example.env` to `.env` for local development
-- Required: `AISSTREAM_API_KEY` for AISStream.io access
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`
+- Required: `AISSTREAM_API_KEY` unless `AIS_SOURCE=local`
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production
