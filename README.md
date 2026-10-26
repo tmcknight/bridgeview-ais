@@ -44,7 +44,7 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 
 ### Prerequisites
 
-- Node.js (v22 or higher)
+- Node.js (v26 or higher)
 - npm
 
 ### Installation

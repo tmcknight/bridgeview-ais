@@ -291,7 +291,7 @@ Key files:
 ## Deployment Considerations
 
 - Build output goes to `dist/` directory
-- Requires Node.js (v22+) server to run WebSocket proxy
+- Requires Node.js (v26+) server to run WebSocket proxy
 - Environment variables must be configured on server
 - Ensure AISStream.io API key is available in production environment
 - Set `WS_AUTH_TOKEN` for production WebSocket authentication
