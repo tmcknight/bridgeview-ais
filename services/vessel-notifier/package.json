@@ -14,7 +14,7 @@
     "lint": "eslint src/"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "ws": "^8.18.0"
@@ -22,10 +22,10 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.0",
-    "@vitest/coverage-v8": "^4.0.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^9.0.0",
     "tsx": "^4.0.0",
     "typescript": "~5.9.3",
-    "vitest": "^4.0.0",
-    "eslint": "^9.0.0"
+    "vitest": "^5.0.5"
   }
 }

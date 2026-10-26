@@ -267,7 +267,7 @@ npm install -D <package>   # Dev dependency
 
 - GitHub Actions workflow in `.github/workflows/test.yml`
 - Runs on push to `main` and PRs targeting `main`
-- Tests on Node.js 20.x and 22.x matrix
+- Tests on Node.js 22.x and 24.x matrix
 - Pipeline: lint → type check → tests with coverage → build
 - Coverage uploaded to Codecov (Node 22.x only)
 
@@ -291,7 +291,7 @@ Key files:
 ## Deployment Considerations
 
 - Build output goes to `dist/` directory
-- Requires Node.js (v20+) server to run WebSocket proxy
+- Requires Node.js (v22+) server to run WebSocket proxy
 - Environment variables must be configured on server
 - Ensure AISStream.io API key is available in production environment
 - Set `WS_AUTH_TOKEN` for production WebSocket authentication
