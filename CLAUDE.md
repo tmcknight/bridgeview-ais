@@ -267,9 +267,9 @@ npm install -D <package>   # Dev dependency
 
 - GitHub Actions workflow in `.github/workflows/test.yml`
 - Runs on push to `main` and PRs targeting `main`
-- Tests on Node.js 22.x and 24.x matrix
+- Tests on Node.js 26.x
 - Pipeline: lint → type check → tests with coverage → build
-- Coverage uploaded to Codecov (Node 22.x only)
+- Coverage uploaded to Codecov
 
 ## Docker
 

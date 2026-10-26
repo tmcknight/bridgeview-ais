@@ -165,15 +165,15 @@ GitHub Actions workflow runs on:
 
 1. **Checkout code** (actions/checkout@v4)
 2. **Setup Node.js** (actions/setup-node@v4)
-   - Matrix: Node 22.x and 24.x
+   - Matrix: Node 26.x
    - npm cache enabled
 3. **Install dependencies** (`npm ci`)
 4. **Lint** (`npm run lint`)
 5. **Type check** (`npx tsc --noEmit`)
 6. **Run tests with coverage** (`npm run test:coverage`)
-7. **Upload coverage to Codecov** (Node 22.x only, optional)
+7. **Upload coverage to Codecov** (optional)
 8. **Build** (`npm run build`)
-9. **Upload build artifacts** (Node 22.x only)
+9. **Upload build artifacts**
 
 All steps must pass for the workflow to succeed.
 
