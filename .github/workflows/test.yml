@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [22.x, 24.x]
+        node-version: [26.x]
 
     steps:
       - name: Checkout code
@@ -37,8 +37,7 @@ jobs:
       - name: Run tests
         run: npm run test:coverage
 
-      - name: Upload coverage reports to Codecov (Node 22.x only)
-        if: matrix.node-version == '22.x'
+      - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -60,8 +59,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload build artifacts (Node 22.x only)
-        if: matrix.node-version == '22.x'
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: dist
