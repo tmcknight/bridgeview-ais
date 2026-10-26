@@ -116,10 +116,17 @@ export function formatETA(minutes: number | null): string {
 }
 
 /**
+ * Whole seconds elapsed since a timestamp
+ */
+export function secondsSince(timestamp: string): number {
+  return Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+}
+
+/**
  * Format a timestamp as a relative time string (e.g., "just now", "2m ago", "1h ago")
  */
 export function formatRelativeTime(timestamp: string): string {
-  const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000);
+  const seconds = secondsSince(timestamp);
   if (seconds < 60) return "< 1m ago";
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;

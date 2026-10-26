@@ -125,6 +125,42 @@ describe('ShipList', () => {
 
       expect(screen.getByText('Seen 5m ago')).toBeInTheDocument()
     })
+
+    it('should display when the ship last went under the bridge', () => {
+      const ship = mockShip({ mmsi: 367123456 })
+      const log = new Map([
+        [
+          ship.mmsi,
+          {
+            mmsi: ship.mmsi,
+            name: ship.name,
+            passages: [
+              { time: new Date(Date.now() - 2 * 3_600_000).toISOString(), direction: 'upbound' as const },
+              { time: new Date(Date.now() - 30 * 3_600_000).toISOString(), direction: 'downbound' as const },
+            ],
+            lastSeen: ship.lastUpdate,
+          },
+        ],
+      ])
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} log={log} />)
+
+      expect(screen.getByText('Passed under 2h ago')).toBeInTheDocument()
+      expect(screen.getByTitle(/^Last went under the bridge upbound/)).toBeInTheDocument()
+    })
+
+    it('should not display a passage for a ship not in the log', () => {
+      const ship = mockShip()
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} log={new Map()} />)
+
+      expect(screen.queryByText(/^Passed under/)).not.toBeInTheDocument()
+    })
+
+    it('should not display last seen for a ship heard in the last minute', () => {
+      const ship = mockShip({ lastUpdate: new Date(Date.now() - 10_000).toISOString() })
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
+
+      expect(screen.queryByText(/^Seen /)).not.toBeInTheDocument()
+    })
   })
 
   describe('sorting', () => {

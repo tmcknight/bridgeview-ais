@@ -8,14 +8,25 @@ import {
   estimatedTimeToBridge,
   formatETA,
   formatRelativeTime,
+  secondsSince,
 } from "../utils/geo"
-import { BoltIcon, MapPinIcon, ClockIcon, EyeIcon } from "@heroicons/react/20/solid"
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  BoltIcon,
+  MapPinIcon,
+  ClockIcon,
+  EyeIcon,
+} from "@heroicons/react/20/solid"
+import type { ShipLog } from "../utils/shipLog"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 import VesselInfoCard from "./VesselInfoCard"
 import SourceBadge from "./SourceBadge"
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>
+  /** Bridge passages from the server's ship log */
+  log?: ShipLog
   selectedShip?: TrackedShip | null
   onSelectShip?: (ship: TrackedShip) => void
   hidden?: boolean
@@ -24,6 +35,7 @@ interface ShipListProps {
 
 export default function ShipList({
   ships,
+  log,
   selectedShip,
   onSelectShip,
   hidden = false,
@@ -92,6 +104,9 @@ export default function ShipList({
           const headingDeg =
             ship.trueHeading !== 511 ? ship.trueHeading : ship.cog
           const isSelected = selectedShip?.mmsi === ship.mmsi
+          // Only worth showing once a ship has gone quiet
+          const seenRecently = secondsSince(ship.lastUpdate) < 60
+          const lastPassage = log?.get(ship.mmsi)?.passages[0]
           return (
             <div
               key={ship.mmsi}
@@ -242,15 +257,32 @@ export default function ShipList({
                     </span>
                   </div>
                 )}
-                <div
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 whitespace-nowrap"
-                  title={`Last seen ${new Date(ship.lastUpdate).toLocaleTimeString()}`}
-                >
-                  <EyeIcon className="shrink-0 w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
-                  <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
-                    Seen {formatRelativeTime(ship.lastUpdate)}
-                  </span>
-                </div>
+                {lastPassage && (
+                  <div
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800/40 whitespace-nowrap"
+                    title={`Last went under the bridge ${lastPassage.direction} ${new Date(lastPassage.time).toLocaleString()}`}
+                  >
+                    {lastPassage.direction === "upbound" ? (
+                      <ArrowUpIcon className="shrink-0 w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+                    ) : (
+                      <ArrowDownIcon className="shrink-0 w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+                    )}
+                    <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
+                      Passed under {formatRelativeTime(lastPassage.time)}
+                    </span>
+                  </div>
+                )}
+                {!seenRecently && (
+                  <div
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 whitespace-nowrap"
+                    title={`Last seen ${new Date(ship.lastUpdate).toLocaleTimeString()}`}
+                  >
+                    <EyeIcon className="shrink-0 w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
+                    <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+                      Seen {formatRelativeTime(ship.lastUpdate)}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {isSelected && (
