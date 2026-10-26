@@ -25,6 +25,7 @@ src/
 │   ├── ShipList.tsx   # List view of tracked vessels
 │   ├── NotificationPanel.tsx  # Real-time alerts
 │   ├── UpcomingShips.tsx      # "Coming up" list of ships heading for the bridge
+│   ├── ShipLog.tsx    # Log of ships that have gone under the bridge
 │   ├── StatusBar.tsx  # Connection status indicator
 │   ├── ErrorBoundary.tsx          # App-level error boundary
 │   └── ComponentErrorBoundary.tsx # Component-level error boundary
@@ -39,6 +40,7 @@ src/
 │   ├── geo.ts         # Geographic calculations (distance, bearing, etc.)
 │   ├── upcoming.ts    # Ships heading for the bridge, with rough ETAs
 │   ├── cargo.ts       # Cargo guesses from AIS destination ports
+│   ├── shipLog.ts     # Ship log types and server message handling
 │   └── logger.ts      # Logging utility
 ├── test/              # Test infrastructure
 │   ├── setup.ts       # Vitest setup
@@ -56,6 +58,12 @@ src/
   - Optional authentication token support
   - Input validation and bounding box size limits
   - Subscription timeout protection
+- `server/upstream.js`: One AISStream.io connection shared by all clients (AISStream allows only 3 per account/IP)
+  - Subscribes to the union of every client's area, re-subscribing at most once a second; the server filters messages per client
+- `server/ship-log.js`: Shared log of ships passing under the bridge
+  - Fed by the server's own AIS connection, so passages are logged with no browser open
+  - Saved to `SHIP_LOG_FILE` (default `data/ship-log.json`; Docker `ship-log` volume)
+  - Sends `{type: "shipLog", entries}` on subscribe and `{type: "shipLogEntry", entry}` on each change
 - `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
   - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
 
@@ -143,7 +151,7 @@ This command:
 
 - Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` unless `AIS_SOURCE=local`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012)
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `SHIP_LOG_FILE` (default: `data/ship-log.json`)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production

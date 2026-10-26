@@ -4,6 +4,7 @@ import { SunIcon, MoonIcon } from "@heroicons/react/24/outline"
 import ShipMap from "./components/ShipMap"
 import ShipList from "./components/ShipList"
 import UpcomingShips from "./components/UpcomingShips"
+import ShipLog from "./components/ShipLog"
 import NotificationPanel from "./components/NotificationPanel"
 import StatusBar from "./components/StatusBar"
 import ComponentErrorBoundary from "./components/ComponentErrorBoundary"
@@ -17,6 +18,7 @@ function App() {
     ships,
     notifications,
     connectionStatus,
+    shipLog,
     dismissNotification,
     clearNotifications,
   } = useAISStream()
@@ -125,6 +127,15 @@ function App() {
         <aside className={`ship-list-panel absolute top-0 right-0 bottom-0 w-95 md:w-115 overflow-y-auto bg-slate-200/30 dark:bg-slate-800/30 backdrop-blur-sm z-10 max-md:w-full max-md:top-auto max-md:h-[50vh] max-md:border-t max-md:border-slate-300/50 dark:max-md:border-slate-600/50 transition-transform duration-300 ease-in-out ${showShipList ? "translate-x-0" : "translate-x-full"}`}>
           <ComponentErrorBoundary componentName="Coming Up">
             <UpcomingShips
+              ships={ships}
+              selectedShip={selectedShip}
+              onSelectShip={handleSelectShip}
+              hidden={!showShipList}
+            />
+          </ComponentErrorBoundary>
+          <ComponentErrorBoundary componentName="Ship Log">
+            <ShipLog
+              log={shipLog}
               ships={ships}
               selectedShip={selectedShip}
               onSelectShip={handleSelectShip}

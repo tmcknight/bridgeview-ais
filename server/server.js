@@ -5,10 +5,11 @@ import {
   inBoundingBoxes,
   matchesMessageFilter,
 } from "./local-receiver.js";
+import { createShipLog, SHIP_LOG_BOUNDING_BOX } from "./ship-log.js";
+import { createUpstream, mergeSubscriptions } from "./upstream.js";
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
-const UPSTREAM = "wss://stream.aisstream.io/v0/stream";
 const AUTH_TOKEN = process.env.WS_AUTH_TOKEN; // Optional: set for production
 
 // Data source: "aisstream" (AISStream.io), "local" (AIS-catcher on a local SDR), or "both"
@@ -17,6 +18,7 @@ const LOCAL_AIS_HOST = process.env.LOCAL_AIS_HOST || "127.0.0.1";
 const LOCAL_AIS_PORT = Number(process.env.LOCAL_AIS_PORT) || 5012;
 const USE_AISSTREAM = AIS_SOURCE === "aisstream" || AIS_SOURCE === "both";
 const USE_LOCAL = AIS_SOURCE === "local" || AIS_SOURCE === "both";
+const SHIP_LOG_FILE = process.env.SHIP_LOG_FILE || "data/ship-log.json";
 
 // Logger utility - keep errors in production, suppress debug logs
 const isDev = process.env.NODE_ENV !== "production";
@@ -56,6 +58,56 @@ if (USE_AISSTREAM && !API_KEY) {
 const localReceiver = USE_LOCAL
   ? createLocalReceiver({ host: LOCAL_AIS_HOST, port: LOCAL_AIS_PORT, logger })
   : null;
+
+// Shared ship log: fed by the server's own connection to the AIS sources, so
+// passages are logged whether or not any browser is connected
+const shipLog = createShipLog({ file: SHIP_LOG_FILE, logger });
+const shipLogClients = new Set();
+const isFirstSeenByShipLog = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
+
+function feedShipLog(message) {
+  if (inBoundingBoxes(message, [SHIP_LOG_BOUNDING_BOX]) && isFirstSeenByShipLog(message)) {
+    shipLog.handleMessage(message);
+  }
+}
+
+shipLog.on("entry", (entry) => {
+  const text = JSON.stringify({ type: "shipLogEntry", entry });
+  for (const client of shipLogClients) {
+    if (client.readyState === WebSocket.OPEN) client.send(text);
+  }
+});
+
+if (localReceiver) {
+  localReceiver.on("message", feedShipLog);
+}
+
+// One AISStream connection shared by every client and the ship log
+const SHIP_LOG_SUBSCRIPTION = {
+  BoundingBoxes: [SHIP_LOG_BOUNDING_BOX],
+  FilterMessageTypes: ["PositionReport", "ShipStaticData"],
+};
+const clientSubscriptions = new Map(); // client -> sanitized subscription
+const upstream = USE_AISSTREAM ? createUpstream({ apiKey: API_KEY, logger }) : null;
+
+function updateUpstreamSubscription() {
+  upstream?.setSubscription(
+    mergeSubscriptions([SHIP_LOG_SUBSCRIPTION, ...clientSubscriptions.values()])
+  );
+}
+
+if (upstream) {
+  upstream.on("message", feedShipLog);
+  updateUpstreamSubscription();
+}
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.on(signal, () => {
+    shipLog.flush();
+    upstream?.stop();
+    process.exit(0);
+  });
+}
 
 // Rate limiting tracking
 const connectionsByIP = new Map(); // IP -> count
@@ -206,9 +258,9 @@ wss.on("connection", (client, req) => {
     return;
   }
 
-  let upstream = null;
   let subscribed = false;
   let localListener = null;
+  let upstreamListener = null;
   let authenticated = !AUTH_TOKEN; // Auto-auth if no token configured
   let subscriptionTimeout = null;
 
@@ -270,74 +322,59 @@ wss.on("connection", (client, req) => {
       clearTimeout(subscriptionTimeout);
       subscribed = true;
 
-      const subscription = validation.subscription;
+      clientSubscriptions.set(client, validation.subscription);
+      updateUpstreamSubscription();
+
+      shipLogClients.add(client);
+      client.send(JSON.stringify({ type: "shipLog", entries: shipLog.entries() }));
+
       // With both sources, the same transmission can arrive twice; deliver it once
       const isFirstSeen = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
+      // Read the subscription on each message, so updates from the client apply
+      const wants = (message) => {
+        const subscription = clientSubscriptions.get(client);
+        return (
+          client.readyState === WebSocket.OPEN &&
+          subscription !== undefined &&
+          inBoundingBoxes(message, subscription.BoundingBoxes) &&
+          matchesMessageFilter(message, subscription.FilterMessageTypes) &&
+          isFirstSeen(message)
+        );
+      };
 
       if (localReceiver) {
         localListener = (message) => {
-          if (
-            client.readyState === WebSocket.OPEN &&
-            inBoundingBoxes(message, subscription.BoundingBoxes) &&
-            matchesMessageFilter(message, subscription.FilterMessageTypes) &&
-            isFirstSeen(message)
-          ) {
-            client.send(JSON.stringify(message));
-          }
+          if (wants(message)) client.send(JSON.stringify(message));
         };
         localReceiver.on("message", localListener);
         logger.log(`[proxy] client ${clientId} subscribed to local receiver`);
       }
 
-      if (!USE_AISSTREAM) return;
-
-      // Inject API key into sanitized subscription
-      const subscriptionStr = JSON.stringify({ ...subscription, Apikey: API_KEY });
-
-      logger.log(`[proxy] client ${clientId} subscription validated, connecting to upstream`);
-
-      upstream = new WebSocket(UPSTREAM);
-
-      upstream.on("open", () => {
-        logger.log(`[proxy] client ${clientId} upstream connected`);
-        upstream.send(subscriptionStr);
-      });
-
-      upstream.on("message", (data) => {
-        if (client.readyState !== WebSocket.OPEN) return;
-        const text = data.toString();
-        if (USE_LOCAL) {
-          try {
-            if (!isFirstSeen(JSON.parse(text))) return;
-          } catch {
-            // Not a parseable AIS message; pass it through unchanged
-          }
-        }
-        client.send(text);
-      });
-
-      upstream.on("close", (code, reason) => {
-        logger.log(`[proxy] client ${clientId} upstream closed — code: ${code}, reason: ${reason.toString()}`);
-        if (client.readyState === WebSocket.OPEN) {
-          client.close();
-        }
-      });
-
-      upstream.on("error", (err) => {
-        logger.error(`[proxy] client ${clientId} upstream error: ${err.message}`);
-        if (client.readyState === WebSocket.OPEN) {
-          client.close();
-        }
-      });
+      if (upstream) {
+        upstreamListener = (message, text) => {
+          if (wants(message)) client.send(text);
+        };
+        upstream.on("message", upstreamListener);
+        logger.log(`[proxy] client ${clientId} subscribed to shared upstream`);
+      }
 
       return;
     }
 
-    // Subsequent messages: forward to upstream (with validation)
-    if (upstream && upstream.readyState === WebSocket.OPEN) {
-      // Optional: validate subsequent messages if needed
-      upstream.send(data);
+    // Subsequent messages: a new subscription replaces the client's current one
+    let message;
+    try {
+      message = JSON.parse(data.toString());
+    } catch {
+      return;
     }
+    const validation = validateSubscription(message);
+    if (!validation.valid) {
+      logger.warn(`[proxy] client ${clientId} invalid subscription update: ${validation.error}`);
+      return;
+    }
+    clientSubscriptions.set(client, validation.subscription);
+    updateUpstreamSubscription();
   });
 
   client.on("close", () => {
@@ -345,12 +382,17 @@ wss.on("connection", (client, req) => {
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
+    shipLogClients.delete(client);
     if (localListener) {
       localReceiver.off("message", localListener);
       localListener = null;
     }
-    if (upstream && upstream.readyState === WebSocket.OPEN) {
-      upstream.close();
+    if (upstreamListener) {
+      upstream.off("message", upstreamListener);
+      upstreamListener = null;
+    }
+    if (clientSubscriptions.delete(client)) {
+      updateUpstreamSubscription();
     }
   });
 
@@ -359,12 +401,17 @@ wss.on("connection", (client, req) => {
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
+    shipLogClients.delete(client);
     if (localListener) {
       localReceiver.off("message", localListener);
       localListener = null;
     }
-    if (upstream && upstream.readyState === WebSocket.OPEN) {
-      upstream.close();
+    if (upstreamListener) {
+      upstream.off("message", upstreamListener);
+      upstreamListener = null;
+    }
+    if (clientSubscriptions.delete(client)) {
+      updateUpstreamSubscription();
     }
   });
 });

@@ -56,6 +56,8 @@ Browser  -->  Nginx (:80)  --/ws-->  ws-server (:3001)  -->  AISStream.io
 
 Nginx serves the production-built frontend and proxies WebSocket connections on `/ws` to the Node.js backend. The frontend is built with `VITE_WS_PROXY_URL=ws://localhost/ws` so it connects through the nginx proxy.
 
+The ws-server keeps a shared log of ships that have gone under the bridge. It saves the log to `/app/data/ship-log.json` on the `ship-log` named volume, so the log survives rebuilds and restarts. `docker compose down -v` deletes the volume and the log with it.
+
 ## Commands
 
 ```bash
