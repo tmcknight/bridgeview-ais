@@ -1,15 +1,12 @@
 import { BRIDGE_CENTER } from "../constants/bridge";
 import type { TrackedShip } from "../types/ais";
-import { haversineDistanceNM } from "./geo";
+import { haversineDistanceNM, isSpeedAvailable } from "./geo";
 import { guessCargo, type CargoGuess } from "./cargo";
 
 const DEG_TO_RAD = Math.PI / 180;
 
 /** Ships slower than this (kn) aren't treated as under way */
 const MIN_SPEED_KN = 0.5;
-
-/** AIS reports SOG 102.3 kn when speed is not available */
-const SPEED_NOT_AVAILABLE_KN = 102.3;
 
 /**
  * Minimum north/south component of the course (cosine of COG) for a ship to
@@ -44,7 +41,7 @@ export interface UpcomingPassage {
  * river route from the south) divided by current speed.
  */
 export function getUpcomingPassage(ship: TrackedShip): UpcomingPassage | null {
-  if (ship.sog < MIN_SPEED_KN || ship.sog >= SPEED_NOT_AVAILABLE_KN) return null;
+  if (ship.sog < MIN_SPEED_KN || !isSpeedAvailable(ship.sog)) return null;
   // At anchor or moored
   if (ship.navStatus === 1 || ship.navStatus === 5) return null;
   if (!(ship.cog >= 0 && ship.cog < 360)) return null;
