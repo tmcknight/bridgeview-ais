@@ -145,6 +145,7 @@ function App() {
           <ComponentErrorBoundary componentName="Vessel List">
             <ShipList
               ships={nearbyShips}
+              log={shipLog}
               selectedShip={selectedShip}
               onSelectShip={handleSelectShip}
               hidden={!showShipList}
