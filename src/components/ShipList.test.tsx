@@ -51,6 +51,20 @@ describe('ShipList', () => {
       expect(screen.getByText('TEST VESSEL NAME')).toBeInTheDocument()
     })
 
+    it('should show AISStream as the source by default', () => {
+      const ship = mockShip()
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
+
+      expect(screen.getByText('AISStream')).toBeInTheDocument()
+    })
+
+    it('should show the local antenna and signal level as the source', () => {
+      const ship = mockShip({ source: 'local', signalPower: -16.1 })
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
+
+      expect(screen.getByText('Antenna · -16.1 dB')).toBeInTheDocument()
+    })
+
     it('should display distance to bridge', () => {
       const ship = mockShip({ distanceToBridge: 5.5 })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)

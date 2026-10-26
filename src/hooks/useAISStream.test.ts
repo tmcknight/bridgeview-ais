@@ -72,6 +72,28 @@ describe('useAISStream', () => {
       expect(ship!.name).toBe('TEST VESSEL')
       expect(ship!.cog).toBe(180)
       expect(ship!.sog).toBe(10.5)
+      expect(ship!.source).toBe('aisstream')
+      expect(ship!.signalPower).toBeUndefined()
+    })
+
+    it('records the local antenna as source, with signal level', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const message = mockAISPositionMessage(367123456, 43.05, -82.42, 180, 10.5)
+      message.MetaData.Source = 'local'
+      message.MetaData.SignalPower = -16.1
+      act(() => {
+        mockServer.sendPositionReport(message)
+      })
+
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)?.source).toBe('local')
+      })
+      expect(result.current.ships.get(367123456)!.signalPower).toBe(-16.1)
     })
 
     it('updates an existing ship with new position data', async () => {

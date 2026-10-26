@@ -11,6 +11,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import React, { useEffect, memo, useState, useCallback, useMemo } from "react";
 import type { TrackedShip } from "../types/ais";
 import type { Theme } from "../hooks/useTheme";
+import SourceBadge from "./SourceBadge";
 import {
   BRIDGE_CENTER,
   DEFAULT_ZOOM,
@@ -58,6 +59,9 @@ function ShipPopupContent({ ship }: { ship: TrackedShip }) {
       <h3 className="m-0! text-xs font-bold text-slate-800 leading-tight">
         {ship.name}
       </h3>
+      <div className="mt-0.5 text-[0.65rem] text-slate-500">
+        <SourceBadge source={ship.source} signalPower={ship.signalPower} />
+      </div>
     </div>
   );
 }

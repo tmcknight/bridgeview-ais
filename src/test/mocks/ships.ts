@@ -13,6 +13,7 @@ export const mockShip = (overrides?: Partial<TrackedShip>): TrackedShip => ({
   trueHeading: 180,
   navStatus: 0,
   lastUpdate: new Date().toISOString(),
+  source: 'aisstream',
   distanceToBridge: 5.0,
   approaching: true,
   notified: false,

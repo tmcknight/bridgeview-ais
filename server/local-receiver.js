@@ -25,6 +25,13 @@ function toTimeUtc(rxuxtime) {
   return new Date(ms).toISOString();
 }
 
+// Marks a message as heard by the local antenna, with AIS-catcher's signal level in dB when present.
+function localSource(json) {
+  return typeof json.signalpower === "number"
+    ? { Source: "local", SignalPower: Math.round(json.signalpower * 10) / 10 }
+    : { Source: "local" };
+}
+
 // Convert one AIS-catcher JSON_FULL object to an AISStream-style message.
 // `vessels` caches name and last position per MMSI, since AIS splits them across message types.
 // Returns null for message types the app doesn't use.
@@ -48,6 +55,7 @@ export function toAISStreamMessage(json, vessels) {
         latitude: json.lat,
         longitude: json.lon,
         time_utc,
+        ...localSource(json),
       },
       Message: {
         PositionReport: {
@@ -86,6 +94,7 @@ export function toAISStreamMessage(json, vessels) {
         latitude: known.latitude ?? 0,
         longitude: known.longitude ?? 0,
         time_utc,
+        ...localSource(json),
       },
       Message: {
         ShipStaticData: {

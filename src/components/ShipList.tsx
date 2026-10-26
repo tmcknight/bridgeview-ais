@@ -12,6 +12,7 @@ import {
 import { BoltIcon, MapPinIcon, ClockIcon } from "@heroicons/react/20/solid"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 import VesselInfoCard from "./VesselInfoCard"
+import SourceBadge from "./SourceBadge"
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>
@@ -261,6 +262,7 @@ export default function ShipList({
                 >
                   {ship.mmsi}
                 </a>
+                <SourceBadge source={ship.source} signalPower={ship.signalPower} />
                 <span className="whitespace-nowrap" title={`Last updated ${new Date(ship.lastUpdate).toLocaleTimeString()}`}>
                   {formatRelativeTime(ship.lastUpdate)}
                 </span>
