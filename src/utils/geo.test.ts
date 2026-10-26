@@ -114,6 +114,10 @@ describe('isApproaching', () => {
       expect(result).toBe(true)
     })
 
+    it('should return false when speed is not available (102.3 knots)', () => {
+      expect(isApproaching(northOfBridge, BRIDGE_CENTER.lng, 180, 102.3)).toBe(false)
+    })
+
     it('should return true when north of bridge, heading 135° (SE)', () => {
       const result = isApproaching(northOfBridge, BRIDGE_CENTER.lng, 135, 10)
       expect(result).toBe(false) // 135 is at the edge, but not > 135
@@ -362,6 +366,10 @@ describe('estimatedTimeToBridge', () => {
 
   it('should return null when SOG is 0 (division by zero)', () => {
     expect(estimatedTimeToBridge(5, 0)).toBeNull()
+  })
+
+  it('should return null when SOG is not available (102.3 knots)', () => {
+    expect(estimatedTimeToBridge(5, 102.3)).toBeNull()
   })
 
   it('should calculate 120 minutes for 10 NM at 5 knots', () => {

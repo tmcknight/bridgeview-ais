@@ -8,6 +8,7 @@ import {
   estimatedTimeToBridge,
   formatETA,
   formatRelativeTime,
+  isSpeedAvailable,
   secondsSince,
 } from "../utils/geo"
 import {
@@ -235,7 +236,7 @@ export default function ShipList({
                     {formatDistance(ship.distanceToBridge)}
                   </span>
                 </div>
-                {ship.sog > 0 && (
+                {ship.sog > 0 && isSpeedAvailable(ship.sog) && (
                   <div
                     className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 whitespace-nowrap"
                     title="Speed over ground"

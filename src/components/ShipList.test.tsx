@@ -86,6 +86,13 @@ describe('ShipList', () => {
       expect(screen.queryByText('0.0 kn')).not.toBeInTheDocument()
     })
 
+    it('should not display speed when it is not available (102.3 kn)', () => {
+      const ship = mockShip({ sog: 102.3 })
+      renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
+
+      expect(screen.queryByText('102.3 kn')).not.toBeInTheDocument()
+    })
+
     it('should include navigation status in title attribute', () => {
       const ship = mockShip({ navStatus: 0 })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)

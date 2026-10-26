@@ -51,7 +51,7 @@ export function isApproaching(
   sog: number,
   distanceToBridgeNM?: number
 ): boolean {
-  if (sog < 0.5) return false; // Ship is essentially stationary
+  if (sog < 0.5 || !isSpeedAvailable(sog)) return false; // Stationary, or speed unknown
 
   // Use pre-calculated distance if provided, otherwise calculate
   const dist = distanceToBridgeNM ?? haversineDistanceNM(lat, lon, BRIDGE_CENTER.lat, BRIDGE_CENTER.lng);
@@ -77,6 +77,16 @@ export function formatDistance(distanceNM: number): string {
   return `${distanceNM.toFixed(1)} NM`;
 }
 
+/** AIS reports SOG 102.3 kn when speed is not available */
+export const SPEED_NOT_AVAILABLE_KN = 102.3;
+
+/**
+ * Whether a reported SOG is a real speed rather than "not available"
+ */
+export function isSpeedAvailable(sog: number): boolean {
+  return sog < SPEED_NOT_AVAILABLE_KN;
+}
+
 /**
  * Format speed for display
  */
@@ -99,7 +109,7 @@ export function estimatedTimeToBridge(
   distanceNM: number,
   sogKnots: number
 ): number | null {
-  if (sogKnots < 0.5) return null;
+  if (sogKnots < 0.5 || !isSpeedAvailable(sogKnots)) return null;
   return (distanceNM / sogKnots) * 60;
 }
 
