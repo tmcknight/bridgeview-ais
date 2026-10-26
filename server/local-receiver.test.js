@@ -22,6 +22,7 @@ const position = {
   second: 11,
   maneuver: 0,
   raim: false,
+  signalpower: -16.0734,
   rxuxtime: 1793049431,
 };
 
@@ -85,6 +86,20 @@ describe("toAISStreamMessage", () => {
       Dimension: { A: 150, B: 75, C: 12, D: 12 },
       Eta: { Month: 10, Day: 26, Hour: 14, Minute: 30 },
     });
+  });
+
+  it("tags messages as heard by the local antenna, with signal level", () => {
+    const msg = toAISStreamMessage(position, new Map());
+
+    expect(msg.MetaData.Source).toBe("local");
+    expect(msg.MetaData.SignalPower).toBe(-16.1);
+  });
+
+  it("omits SignalPower when AIS-catcher doesn't report it", () => {
+    const msg = toAISStreamMessage(staticData, new Map());
+
+    expect(msg.MetaData.Source).toBe("local");
+    expect(msg.MetaData).not.toHaveProperty("SignalPower");
   });
 
   it("fills ShipName on position reports from earlier static data", () => {

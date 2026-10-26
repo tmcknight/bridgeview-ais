@@ -184,6 +184,8 @@ export function useAISStream(): UseAISStreamReturn {
           trueHeading: pos.TrueHeading,
           navStatus: pos.NavigationalStatus,
           lastUpdate: parseTimeUtc(MetaData.time_utc),
+          source: MetaData.Source ?? "aisstream",
+          signalPower: MetaData.SignalPower,
           distanceToBridge: dist,
           approaching,
           notified: existing?.notified ?? false,

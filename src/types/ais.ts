@@ -7,6 +7,9 @@ export interface AISSubscription {
   FiltersShipMMSI?: string[];
 }
 
+// Where a message came from: the local SDR antenna (via AIS-catcher) or AISStream.io
+export type AISSource = "local" | "aisstream";
+
 export interface AISMetaData {
   MMSI: number;
   MMSI_String: string;
@@ -14,6 +17,10 @@ export interface AISMetaData {
   latitude: number;
   longitude: number;
   time_utc: string;
+  // Set by the proxy on local antenna messages; absent on AISStream.io messages
+  Source?: AISSource;
+  // Received signal level in dB (local antenna only)
+  SignalPower?: number;
 }
 
 export interface PositionReport {
@@ -84,6 +91,8 @@ export interface TrackedShip {
   trueHeading: number;
   navStatus: number;
   lastUpdate: string;
+  source: AISSource;
+  signalPower?: number;
   distanceToBridge: number;
   approaching: boolean;
   notified: boolean;
