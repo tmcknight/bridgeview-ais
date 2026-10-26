@@ -1,13 +1,15 @@
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Button } from "@headlessui/react"
 import { SunIcon, MoonIcon } from "@heroicons/react/24/outline"
 import ShipMap from "./components/ShipMap"
 import ShipList from "./components/ShipList"
+import UpcomingShips from "./components/UpcomingShips"
 import NotificationPanel from "./components/NotificationPanel"
 import StatusBar from "./components/StatusBar"
 import ComponentErrorBoundary from "./components/ComponentErrorBoundary"
 import { useAISStream } from "./hooks/useAISStream"
 import { useTheme } from "./hooks/useTheme"
+import { isInTrackingBounds } from "./utils/geo"
 import type { TrackedShip } from "./types/ais"
 
 function App() {
@@ -18,6 +20,18 @@ function App() {
     dismissNotification,
     clearNotifications,
   } = useAISStream()
+
+  // The subscription covers a wide area for "Coming up"; the vessel list
+  // sticks to ships around the bridge
+  const nearbyShips = useMemo(
+    () =>
+      new Map(
+        Array.from(ships).filter(([, ship]) =>
+          isInTrackingBounds(ship.latitude, ship.longitude),
+        ),
+      ),
+    [ships],
+  )
 
   const { theme, toggleTheme } = useTheme()
   const [selectedShip, setSelectedShip] = useState<TrackedShip | null>(null)
@@ -109,9 +123,17 @@ function App() {
           )}
         </div>
         <aside className={`ship-list-panel absolute top-0 right-0 bottom-0 w-95 md:w-115 overflow-y-auto bg-slate-200/30 dark:bg-slate-800/30 backdrop-blur-sm z-10 max-md:w-full max-md:top-auto max-md:h-[50vh] max-md:border-t max-md:border-slate-300/50 dark:max-md:border-slate-600/50 transition-transform duration-300 ease-in-out ${showShipList ? "translate-x-0" : "translate-x-full"}`}>
+          <ComponentErrorBoundary componentName="Coming Up">
+            <UpcomingShips
+              ships={ships}
+              selectedShip={selectedShip}
+              onSelectShip={handleSelectShip}
+              hidden={!showShipList}
+            />
+          </ComponentErrorBoundary>
           <ComponentErrorBoundary componentName="Vessel List">
             <ShipList
-              ships={ships}
+              ships={nearbyShips}
               selectedShip={selectedShip}
               onSelectShip={handleSelectShip}
               hidden={!showShipList}

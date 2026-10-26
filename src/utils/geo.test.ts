@@ -8,6 +8,7 @@ import {
   formatHeading,
   estimatedTimeToBridge,
   formatETA,
+  isInTrackingBounds,
 } from './geo'
 import { BRIDGE_CENTER } from '../constants/bridge'
 
@@ -407,5 +408,13 @@ describe('formatETA', () => {
 
   it('should handle large ETAs (10+ hours)', () => {
     expect(formatETA(650)).toBe('~10h 50m')
+  })
+})
+
+describe('isInTrackingBounds', () => {
+  it('includes the bridge and excludes ships far up the lake or downriver', () => {
+    expect(isInTrackingBounds(BRIDGE_CENTER.lat, BRIDGE_CENTER.lng)).toBe(true)
+    expect(isInTrackingBounds(43.5, -82.4)).toBe(false)
+    expect(isInTrackingBounds(42.33, -83.05)).toBe(false)
   })
 })

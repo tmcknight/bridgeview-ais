@@ -15,10 +15,18 @@ export const TRACKING_BOUNDS = {
   northEast: { lat: 43.10, lng: -82.30 },
 };
 
+// Wider area for spotting ships that will reach the bridge later: southern
+// Lake Huron down through Lake St. Clair to the Detroit River (~4 sq degrees)
+export const UPCOMING_BOUNDS = {
+  southWest: { lat: 42.0, lng: -83.3 },
+  northEast: { lat: 44.3, lng: -81.6 },
+};
+
 // AIS Stream bounding box format: [[lat_min, lon_min], [lat_max, lon_max]]
+// Subscribes to the wider upcoming area, which contains TRACKING_BOUNDS
 export const AIS_BOUNDING_BOX: [[number, number], [number, number]] = [
-  [TRACKING_BOUNDS.southWest.lat, TRACKING_BOUNDS.southWest.lng],
-  [TRACKING_BOUNDS.northEast.lat, TRACKING_BOUNDS.northEast.lng],
+  [UPCOMING_BOUNDS.southWest.lat, UPCOMING_BOUNDS.southWest.lng],
+  [UPCOMING_BOUNDS.northEast.lat, UPCOMING_BOUNDS.northEast.lng],
 ];
 
 // Distance thresholds in nautical miles

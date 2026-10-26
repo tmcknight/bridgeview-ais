@@ -1,4 +1,4 @@
-import { BRIDGE_CENTER, MAX_TRACKING_DISTANCE_NM } from "../constants/bridge";
+import { BRIDGE_CENTER, MAX_TRACKING_DISTANCE_NM, TRACKING_BOUNDS } from "../constants/bridge";
 
 const DEG_TO_RAD = Math.PI / 180;
 const EARTH_RADIUS_NM = 3440.065; // Earth radius in nautical miles
@@ -127,4 +127,17 @@ export function formatRelativeTime(timestamp: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+/**
+ * Whether a position is inside the local tracking area around the bridge
+ */
+export function isInTrackingBounds(lat: number, lon: number): boolean {
+  const { southWest, northEast } = TRACKING_BOUNDS;
+  return (
+    lat >= southWest.lat &&
+    lat <= northEast.lat &&
+    lon >= southWest.lng &&
+    lon <= northEast.lng
+  );
 }

@@ -1,4 +1,6 @@
 import { VesselNotifier } from "./notifier.js";
+import { parseWatchPoints } from "./watch-points.js";
+import { CLOSE_APPROACH_DISTANCE_NM } from "./geo.js";
 import type { NotifierConfig } from "./types.js";
 
 function loadConfig(): Partial<NotifierConfig> {
@@ -9,6 +11,10 @@ function loadConfig(): Partial<NotifierConfig> {
   if (process.env.NTFY_TOKEN) config.ntfyToken = process.env.NTFY_TOKEN;
   if (process.env.WS_PROXY_URL) config.wsProxyUrl = process.env.WS_PROXY_URL;
   if (process.env.WS_AUTH_TOKEN) config.wsAuthToken = process.env.WS_AUTH_TOKEN;
+  if (process.env.WEBHOOK_URL) config.webhookUrl = process.env.WEBHOOK_URL;
+  if (process.env.WEBHOOK_SECRET) config.webhookSecret = process.env.WEBHOOK_SECRET;
+  if (process.env.VESSEL_INFO_LOOKUP)
+    config.vesselInfoLookup = process.env.VESSEL_INFO_LOOKUP !== "false";
   if (process.env.BRIDGE_THRESHOLD_NM)
     config.bridgeThresholdNM = parseFloat(process.env.BRIDGE_THRESHOLD_NM);
   if (process.env.NOTIFICATION_COOLDOWN_MS)
@@ -16,15 +22,30 @@ function loadConfig(): Partial<NotifierConfig> {
       process.env.NOTIFICATION_COOLDOWN_MS,
       10
     );
+  if (process.env.PREDICTION_HORIZON_SECONDS)
+    config.predictionHorizonSeconds = parseInt(process.env.PREDICTION_HORIZON_SECONDS, 10);
+  if (process.env.PREDICTION_LEAD_SECONDS)
+    config.predictionLeadSeconds = parseInt(process.env.PREDICTION_LEAD_SECONDS, 10);
+  if (process.env.WATCH_POINTS)
+    config.watchPoints = parseWatchPoints(
+      process.env.WATCH_POINTS,
+      config.bridgeThresholdNM ?? CLOSE_APPROACH_DISTANCE_NM
+    );
 
   return config;
 }
 
-const config = loadConfig();
+let config: Partial<NotifierConfig>;
+try {
+  config = loadConfig();
+} catch (error) {
+  console.error(`[notifier] ${error instanceof Error ? error.message : error}`);
+  process.exit(1);
+}
 
-if (!config.ntfyTopic) {
+if (!config.ntfyTopic && !config.webhookUrl) {
   console.error(
-    "[notifier] NTFY_TOPIC environment variable is required"
+    "[notifier] Set NTFY_TOPIC and/or WEBHOOK_URL so passages have somewhere to go"
   );
   process.exit(1);
 }

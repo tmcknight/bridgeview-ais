@@ -1,21 +1,41 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NtfyClient } from "../ntfy-client.js";
-import type { BridgeCrossingEvent } from "../types.js";
+import { BLUE_WATER_BRIDGE } from "../watch-point-detector.js";
+import type { PassageEvent } from "../types.js";
 
 function makeCrossingEvent(
-  overrides: Partial<BridgeCrossingEvent> = {}
-): BridgeCrossingEvent {
+  overrides: Partial<PassageEvent> = {}
+): PassageEvent {
   return {
+    watchPoint: BLUE_WATER_BRIDGE,
     mmsi: 123456789,
+    latitude: 42.9982,
+    longitude: -82.423,
     name: "TEST VESSEL",
     speed: 8.5,
     course: 180,
     distance: 0.3,
+    closestApproach: 0.05,
+    predicted: true,
     direction: "southbound",
-    timestamp: Date.now(),
+    timestamp: 1_000_000,
+    passesAt: 1_000_000,
     ...overrides,
   };
 }
+
+const VESSEL_INFO = {
+  wikidataId: "Q6719625",
+  wikidataUrl: "https://www.wikidata.org/wiki/Q6719625",
+  name: "Indiana Harbor",
+  description: "self-discharging bulk carrier",
+  imageUrl: "https://commons.wikimedia.org/wiki/Special:FilePath/Lakers%20Indiana%20Harbor.jpg?width=480",
+  yearBuilt: 1979,
+  builder: "Bay Shipbuilding Company",
+  operator: "American Steamship Company",
+  grossTonnage: 35923,
+  wikipediaUrl: "https://en.wikipedia.org/wiki/MV_Indiana_Harbor",
+};
 
 describe("NtfyClient", () => {
   let client: NtfyClient;
@@ -52,7 +72,7 @@ describe("NtfyClient", () => {
 
       expect(msg.topic).toBe("test-topic");
       expect(msg.title).toBe(
-        "LAKE FREIGHTER passing under Blue Water Bridge"
+        "LAKE FREIGHTER passing Blue Water Bridge"
       );
       expect(msg.message).toContain("Southbound");
       expect(msg.message).toContain("10.2 knots");
@@ -60,6 +80,16 @@ describe("NtfyClient", () => {
       expect(msg.message).toContain("Course: 185");
       expect(msg.tags).toContain("ship");
       expect(msg.tags).toContain("southbound");
+    });
+
+    it("names the watch point in the title", () => {
+      const event = makeCrossingEvent({
+        name: "LAKE FREIGHTER",
+        watchPoint: { ...BLUE_WATER_BRIDGE, id: "sarnia", name: "Sarnia Harbour" },
+      });
+      expect(client.formatMessage(event).title).toBe(
+        "LAKE FREIGHTER passing Sarnia Harbour"
+      );
     });
 
     it("formats a northbound crossing event", () => {
@@ -90,6 +120,43 @@ describe("NtfyClient", () => {
       const event = makeCrossingEvent({ destination: undefined });
       const msg = client.formatMessage(event);
       expect(msg.message).not.toContain("Destination");
+    });
+
+    it("adds Wikidata details, photo and link when available", () => {
+      const msg = client.formatMessage(makeCrossingEvent({ vesselInfo: VESSEL_INFO }));
+      expect(msg.message).toContain("Type: self-discharging bulk carrier");
+      expect(msg.message).toContain("Built 1979 by Bay Shipbuilding Company");
+      expect(msg.message).toContain("Operator: American Steamship Company");
+      expect(msg.message).toContain("Gross tonnage: 35,923");
+      expect(msg.attach).toBe(VESSEL_INFO.imageUrl);
+      expect(msg.click).toBe(VESSEL_INFO.wikipediaUrl);
+    });
+
+    it("links to Wikidata when there is no Wikipedia article", () => {
+      const msg = client.formatMessage(
+        makeCrossingEvent({
+          vesselInfo: { wikidataId: "Q1", wikidataUrl: "https://www.wikidata.org/wiki/Q1" },
+        })
+      );
+      expect(msg.click).toBe("https://www.wikidata.org/wiki/Q1");
+      expect(msg.attach).toBeUndefined();
+    });
+
+    it("omits Wikidata fields without vessel info", () => {
+      const msg = client.formatMessage(makeCrossingEvent());
+      expect(msg.click).toBeUndefined();
+      expect(msg.attach).toBeUndefined();
+      expect(msg.message).not.toContain("Built");
+    });
+
+    it("says how soon the vessel passes when alerted early", () => {
+      const msg = client.formatMessage(makeCrossingEvent({ passesAt: 1_020_000 }));
+      expect(msg.message.split("\n")[0]).toBe("Passing in ~20 s");
+    });
+
+    it("omits the countdown once the vessel has passed", () => {
+      const msg = client.formatMessage(makeCrossingEvent());
+      expect(msg.message).not.toContain("Passing in");
     });
 
     it("excludes length when not available", () => {
@@ -162,10 +229,10 @@ describe("NtfyClient", () => {
     });
   });
 
-  describe("sendCrossingNotification", () => {
+  describe("sendPassageNotification", () => {
     it("sends a formatted notification", async () => {
       const event = makeCrossingEvent({ name: "MY SHIP" });
-      const result = await client.sendCrossingNotification(event);
+      const result = await client.sendPassageNotification(event);
 
       expect(result).toBe(true);
       expect(fetchMock).toHaveBeenCalledOnce();
