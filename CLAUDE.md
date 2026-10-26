@@ -24,6 +24,7 @@ src/
 │   ├── ShipMap.tsx    # MapLibre GL map with vessel markers (via react-map-gl)
 │   ├── ShipList.tsx   # List view of tracked vessels
 │   ├── NotificationPanel.tsx  # Real-time alerts
+│   ├── UpcomingShips.tsx      # "Coming up" list of ships heading for the bridge
 │   ├── StatusBar.tsx  # Connection status indicator
 │   ├── ErrorBoundary.tsx          # App-level error boundary
 │   └── ComponentErrorBoundary.tsx # Component-level error boundary
@@ -36,6 +37,8 @@ src/
 │   └── bridge.ts      # Blue Water Bridge location data
 ├── utils/
 │   ├── geo.ts         # Geographic calculations (distance, bearing, etc.)
+│   ├── upcoming.ts    # Ships heading for the bridge, with rough ETAs
+│   ├── cargo.ts       # Cargo guesses from AIS destination ports
 │   └── logger.ts      # Logging utility
 ├── test/              # Test infrastructure
 │   ├── setup.ts       # Vitest setup
@@ -53,6 +56,8 @@ src/
   - Optional authentication token support
   - Input validation and bounding box size limits
   - Subscription timeout protection
+- `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
+  - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
 
 ### Vessel Notification Service
 
@@ -61,11 +66,14 @@ services/vessel-notifier/
 ├── src/
 │   ├── index.ts              # Entry point with env config
 │   ├── notifier.ts           # Main service (WebSocket client, orchestration)
-│   ├── bridge-detector.ts    # Vessel tracking and bridge crossing detection
+│   ├── watch-point-detector.ts # Vessel tracking and watch point passage detection
+│   ├── watch-points.ts       # WATCH_POINTS env parsing/validation
 │   ├── ntfy-client.ts        # ntfy HTTP API client
+│   ├── webhook-client.ts     # Signed JSON webhook client
+│   ├── wikidata.ts           # Cached Wikidata vessel lookup for alert details
 │   ├── geo.ts                # Geographic calculations
 │   ├── types.ts              # TypeScript type definitions
-│   └── __tests__/            # Unit tests (49 tests)
+│   └── __tests__/            # Unit tests
 ├── package.json
 ├── tsconfig.json
 ├── config/vitest.config.ts
@@ -73,9 +81,9 @@ services/vessel-notifier/
 ```
 
 - Connects to the WebSocket proxy as a client
-- Tracks vessel positions and detects bridge crossings (< 0.5 NM)
-- Sends push notifications via [ntfy](https://ntfy.sh)
-- Per-vessel cooldown to prevent duplicate notifications
+- Tracks vessel positions and detects vessels passing configurable watch points (default: Blue Water Bridge), firing at the predicted moment of closest approach
+- Sends push notifications via [ntfy](https://ntfy.sh) and/or signed JSON webhooks, enriched with Wikidata vessel details (photo, build year, operator)
+- Per-vessel, per-point cooldown to prevent duplicate notifications
 - See [services/vessel-notifier/README.md](services/vessel-notifier/README.md) for details
 
 ## Code Conventions
@@ -134,8 +142,8 @@ This command:
 ### Environment Variables
 
 - Copy `.example.env` to `.env` for local development
-- Required: `AISSTREAM_API_KEY` for AISStream.io access
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`
+- Required: `AISSTREAM_API_KEY` unless `AIS_SOURCE=local`
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production

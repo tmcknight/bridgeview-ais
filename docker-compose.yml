@@ -7,7 +7,12 @@ services:
       - AISSTREAM_API_KEY=${AISSTREAM_API_KEY}
       - PORT=3001
       - WS_AUTH_TOKEN=${WS_AUTH_TOKEN:-}
+      - AIS_SOURCE=${AIS_SOURCE:-both}
+      - LOCAL_AIS_HOST=${LOCAL_AIS_HOST:-host.docker.internal}
+      - LOCAL_AIS_PORT=${LOCAL_AIS_PORT:-5012}
       - NODE_ENV=production
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   vessel-notifier:
@@ -15,9 +20,13 @@ services:
       dockerfile: infra/Dockerfile
       target: vessel-notifier
     environment:
-      - NTFY_TOPIC=${NTFY_TOPIC:-bridgeview-ais}
+      - NTFY_TOPIC=${NTFY_TOPIC-bridgeview-ais}
       - NTFY_SERVER=${NTFY_SERVER:-https://ntfy.sh}
       - NTFY_TOKEN=${NTFY_TOKEN:-}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET:-}
+      - WATCH_POINTS=${WATCH_POINTS:-}
+      - VESSEL_INFO_LOOKUP=${VESSEL_INFO_LOOKUP:-true}
       - WS_PROXY_URL=ws://ws-server:3001
       - WS_AUTH_TOKEN=${WS_AUTH_TOKEN:-}
     depends_on:

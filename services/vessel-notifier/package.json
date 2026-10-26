@@ -1,7 +1,7 @@
 {
   "name": "vessel-notifier",
   "version": "1.0.0",
-  "description": "Vessel notification service for BridgeView AIS - sends ntfy alerts when vessels pass under the Blue Water Bridge",
+  "description": "Vessel notification service for BridgeView AIS - sends ntfy alerts and webhooks when vessels pass watch points",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {

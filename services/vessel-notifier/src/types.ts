@@ -45,6 +45,18 @@ export interface AISMessage {
   MetaData: AISMetaData;
 }
 
+/** A geographic point to watch for passing vessels */
+export interface WatchPoint {
+  /** Stable identifier (used for cooldown tracking and in webhook payloads) */
+  id: string;
+  /** Human-readable name, e.g. "Blue Water Bridge" */
+  name: string;
+  latitude: number;
+  longitude: number;
+  /** A vessel counts as passing when its track comes within this many NM */
+  radiusNM: number;
+}
+
 /** Tracked vessel state */
 export interface TrackedVessel {
   mmsi: number;
@@ -53,45 +65,93 @@ export interface TrackedVessel {
   longitude: number;
   cog: number;
   sog: number;
-  distanceToBridge: number;
+  heading?: number;
+  navStatus?: number;
   lastUpdate: number;
   destination?: string;
   shipType?: number;
   length?: number;
+  beam?: number;
+  imo?: number;
+  callSign?: string;
 }
 
-/** Bridge crossing event */
-export interface BridgeCrossingEvent {
+/** Supplementary vessel details looked up from Wikidata by MMSI / IMO */
+export interface VesselInfo {
+  wikidataId: string;
+  wikidataUrl: string;
+  name?: string;
+  description?: string;
+  imageUrl?: string;
+  imagePageUrl?: string;
+  yearBuilt?: number;
+  builder?: string;
+  operator?: string;
+  grossTonnage?: number;
+  wikipediaUrl?: string;
+}
+
+/** Fired when a vessel passes a watch point (at or just after closest approach) */
+export interface PassageEvent {
+  watchPoint: WatchPoint;
   mmsi: number;
   name: string;
+  latitude: number;
+  longitude: number;
   speed: number;
   course: number;
+  heading?: number;
+  navStatus?: number;
+  /** Distance (NM) from the point at the time of the report */
   distance: number;
+  /** Closest the vessel's track came (or is predicted to come) to the point (NM) */
+  closestApproach: number;
+  /** True when predicted from speed/course; false when observed after the fact */
+  predicted: boolean;
+  /** When the vessel is (estimated to be) abeam of the point, ms since epoch */
+  passesAt: number;
   direction: "northbound" | "southbound";
   timestamp: number;
   destination?: string;
   shipType?: number;
   length?: number;
+  beam?: number;
+  imo?: number;
+  callSign?: string;
+  /** Wikidata details, when the vessel is on Wikidata and the lookup finished in time */
+  vesselInfo?: VesselInfo;
 }
 
 /** Notifier service configuration */
 export interface NotifierConfig {
   /** ntfy server URL (default: https://ntfy.sh) */
   ntfyServer: string;
-  /** ntfy topic name */
-  ntfyTopic: string;
+  /** ntfy topic name (ntfy disabled when unset) */
+  ntfyTopic?: string;
   /** ntfy access token (optional) */
   ntfyToken?: string;
   /** WebSocket proxy URL to connect to */
   wsProxyUrl: string;
   /** WebSocket auth token (optional) */
   wsAuthToken?: string;
-  /** Distance threshold in NM to trigger "passing under" notification */
+  /** Webhook URL to POST passage events to (optional) */
+  webhookUrl?: string;
+  /** Shared secret used to sign webhook payloads (optional) */
+  webhookSecret?: string;
+  /** Look up vessel details on Wikidata (default: true) */
+  vesselInfoLookup: boolean;
+  /** Points to watch; defaults to the Blue Water Bridge */
+  watchPoints?: WatchPoint[];
+  /** Default radius in NM for the Blue Water Bridge watch point */
   bridgeThresholdNM: number;
   /** Cooldown in ms before re-notifying about the same vessel */
   notificationCooldownMs: number;
   /** How long to keep stale vessels in tracker (ms) */
   staleVesselTimeoutMs: number;
+  /** How far ahead (s) to predict passages from speed and course */
+  predictionHorizonSeconds?: number;
+  /** How many seconds before a predicted passage to send the alert */
+  predictionLeadSeconds?: number;
 }
 
 /** Navigation status labels */
