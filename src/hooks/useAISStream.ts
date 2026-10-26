@@ -10,6 +10,7 @@ import {
 } from "../constants/bridge";
 import { distanceToBridge, isApproaching } from "../utils/geo";
 import { logger } from "../utils/logger";
+import { applyShipLogMessage, type ShipLog } from "../utils/shipLog";
 
 const WS_URL = import.meta.env.VITE_WS_PROXY_URL || "ws://localhost:3001";
 const WS_AUTH_TOKEN = import.meta.env.VITE_WS_AUTH_TOKEN; // Optional authentication token
@@ -39,6 +40,7 @@ interface UseAISStreamReturn {
   ships: Map<number, TrackedShip>;
   notifications: Notification[];
   connectionStatus: ConnectionStatus;
+  shipLog: ShipLog;
   dismissNotification: (id: string) => void;
   clearNotifications: () => void;
 }
@@ -96,6 +98,7 @@ export function useAISStream(): UseAISStreamReturn {
   const [ships, dispatchShips] = useReducer(shipsReducer, new Map());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
+  const [shipLog, setShipLog] = useState<ShipLog>(() => new Map());
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const shipsRef = useRef<Map<number, TrackedShip>>(new Map());
@@ -299,6 +302,12 @@ export function useAISStream(): UseAISStreamReturn {
             return;
           }
 
+          // Shared ship log, kept by the server
+          if (data.type === "shipLog" || data.type === "shipLogEntry") {
+            setShipLog((prev) => applyShipLogMessage(prev, data) ?? prev);
+            return;
+          }
+
           // Handle AIS messages
           const aisMessage = data as AISMessage;
           if (!shipsRef.current.has(aisMessage.MetaData.MMSI)) {
@@ -343,6 +352,7 @@ export function useAISStream(): UseAISStreamReturn {
     ships,
     notifications,
     connectionStatus,
+    shipLog,
     dismissNotification,
     clearNotifications,
   };

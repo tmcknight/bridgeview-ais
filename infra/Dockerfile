@@ -23,7 +23,11 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY server/server.js ./
+COPY server/server.js server/local-receiver.js server/ship-log.js server/upstream.js ./
+
+# Shared ship log; mount a volume here to keep it across container restarts
+ENV SHIP_LOG_FILE=/app/data/ship-log.json
+VOLUME /app/data
 
 EXPOSE 3001
 CMD ["node", "server.js"]

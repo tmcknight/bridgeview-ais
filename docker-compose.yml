@@ -11,6 +11,8 @@ services:
       - LOCAL_AIS_HOST=${LOCAL_AIS_HOST:-host.docker.internal}
       - LOCAL_AIS_PORT=${LOCAL_AIS_PORT:-5012}
       - NODE_ENV=production
+    volumes:
+      - ship-log:/app/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped
@@ -44,3 +46,6 @@ services:
     depends_on:
       - ws-server
     restart: unless-stopped
+
+volumes:
+  ship-log:

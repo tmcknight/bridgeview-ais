@@ -9,7 +9,7 @@ import {
   formatETA,
   formatRelativeTime,
 } from "../utils/geo"
-import { BoltIcon, MapPinIcon, ClockIcon } from "@heroicons/react/20/solid"
+import { BoltIcon, MapPinIcon, ClockIcon, EyeIcon } from "@heroicons/react/20/solid"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 import VesselInfoCard from "./VesselInfoCard"
 import SourceBadge from "./SourceBadge"
@@ -242,6 +242,15 @@ export default function ShipList({
                     </span>
                   </div>
                 )}
+                <div
+                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 whitespace-nowrap"
+                  title={`Last seen ${new Date(ship.lastUpdate).toLocaleTimeString()}`}
+                >
+                  <EyeIcon className="shrink-0 w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
+                  <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+                    Seen {formatRelativeTime(ship.lastUpdate)}
+                  </span>
+                </div>
               </div>
 
               {isSelected && (
@@ -263,9 +272,6 @@ export default function ShipList({
                   {ship.mmsi}
                 </a>
                 <SourceBadge source={ship.source} signalPower={ship.signalPower} />
-                <span className="whitespace-nowrap" title={`Last updated ${new Date(ship.lastUpdate).toLocaleTimeString()}`}>
-                  {formatRelativeTime(ship.lastUpdate)}
-                </span>
               </div>
             </div>
           )

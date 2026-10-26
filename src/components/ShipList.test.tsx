@@ -119,12 +119,11 @@ describe('ShipList', () => {
       expect(mmsiLink).toHaveAttribute('href', 'https://www.vesselfinder.com/vessels/details/367123456')
     })
 
-    it('should display relative time for last update', () => {
-      const ship = mockShip({ lastUpdate: new Date().toISOString() })
+    it('should display when the ship was last seen', () => {
+      const ship = mockShip({ lastUpdate: new Date(Date.now() - 5 * 60_000).toISOString() })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      // Shows relative time like "< 1m ago"
-      expect(screen.getByText('< 1m ago')).toBeInTheDocument()
+      expect(screen.getByText('Seen 5m ago')).toBeInTheDocument()
     })
   })
 
