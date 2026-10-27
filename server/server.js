@@ -14,6 +14,8 @@ import { fetchVesselInfo } from "./wikidata.js";
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
 const AUTH_TOKEN = process.env.WS_AUTH_TOKEN; // Optional: set for production
+// Take the client's address from the reverse proxy's X-Real-IP header (Docker/nginx only)
+const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 
 // Data source: "aisstream" (AISStream.io), "local" (AIS-catcher on a local SDR), or "both"
 const AIS_SOURCE = (process.env.AIS_SOURCE || "both").toLowerCase();
@@ -164,7 +166,13 @@ const connectionsByIP = new Map(); // IP -> count
 const messageRateLimits = new Map(); // clientId -> { count, resetTime }
 
 // Helper: Extract client IP
+// Behind nginx every client arrives from nginx's address, so with TRUST_PROXY set use the
+// X-Real-IP it passes on. Only set it when nothing but the proxy can reach this port.
 function getClientIP(req) {
+  if (TRUST_PROXY) {
+    const realIP = req.headers["x-real-ip"];
+    if (typeof realIP === "string" && realIP) return realIP;
+  }
   return req.socket.remoteAddress || "unknown";
 }
 
