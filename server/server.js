@@ -39,9 +39,11 @@ const logger = {
 
 // Security configuration
 const RATE_LIMITS = {
-  MAX_CONNECTIONS_PER_IP: 5,
+  // Everyone behind one office or home router shares an IP, so leave room for several tabs each
+  MAX_CONNECTIONS_PER_IP: Number(process.env.MAX_CONNECTIONS_PER_IP) || 20,
   MAX_MESSAGES_PER_MINUTE: 60,
   SUBSCRIPTION_TIMEOUT_MS: 10000, // Must subscribe within 10s
+  HEARTBEAT_INTERVAL_MS: 30000, // Drop clients that miss a ping, so dead links free their IP slot
 };
 
 // Validation bounds for AISStream.io subscription
@@ -303,6 +305,13 @@ function validateSubscription(subscription) {
 
 const wss = new WebSocketServer({ port: PORT });
 
+// client -> heartbeat check. A link that dies without a close (a sleeping laptop, a dropped
+// tunnel) would otherwise hold its IP's connection slot until TCP gives up, hours later.
+const heartbeats = new Map();
+setInterval(() => {
+  for (const beat of heartbeats.values()) beat();
+}, RATE_LIMITS.HEARTBEAT_INTERVAL_MS);
+
 wss.on("connection", (client, req) => {
   const clientIP = getClientIP(req);
   const clientId = Math.random().toString(36).substring(7);
@@ -316,6 +325,21 @@ wss.on("connection", (client, req) => {
     return;
   }
 
+  // Answered pings keep the connection; see the heartbeat below
+  let alive = true;
+  client.on("pong", () => {
+    alive = true;
+  });
+  heartbeats.set(client, () => {
+    if (!alive) {
+      logger.warn(`[proxy] client ${clientId} missed a heartbeat, dropping it`);
+      client.terminate();
+      return;
+    }
+    alive = false;
+    client.ping();
+  });
+
   let subscribed = false;
   let localListener = null;
   let upstreamListener = null;
@@ -327,7 +351,6 @@ wss.on("connection", (client, req) => {
     if (!subscribed) {
       logger.warn(`[proxy] client ${clientId} did not subscribe in time`);
       client.close(1008, "Subscription timeout");
-      releaseIPConnection(clientIP);
     }
   }, RATE_LIMITS.SUBSCRIPTION_TIMEOUT_MS);
 
@@ -348,7 +371,6 @@ wss.on("connection", (client, req) => {
         logger.error(`[proxy] client ${clientId} sent invalid JSON`);
         client.close(1007, "Invalid JSON");
         clearTimeout(subscriptionTimeout);
-        releaseIPConnection(clientIP);
         return;
       }
 
@@ -358,7 +380,6 @@ wss.on("connection", (client, req) => {
           logger.warn(`[proxy] client ${clientId} failed authentication`);
           client.close(1008, "Authentication failed");
           clearTimeout(subscriptionTimeout);
-          releaseIPConnection(clientIP);
           return;
         }
         authenticated = true;
@@ -372,7 +393,6 @@ wss.on("connection", (client, req) => {
         logger.error(`[proxy] client ${clientId} invalid subscription: ${validation.error}`);
         client.close(1007, validation.error);
         clearTimeout(subscriptionTimeout);
-        releaseIPConnection(clientIP);
         return;
       }
 
@@ -461,6 +481,7 @@ wss.on("connection", (client, req) => {
     logger.log(`[proxy] client ${clientId} disconnected`);
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
+    heartbeats.delete(client);
     messageRateLimits.delete(clientId);
     subscribedClients.delete(client);
     shipsSentToClient.delete(client);
@@ -477,24 +498,9 @@ wss.on("connection", (client, req) => {
     }
   });
 
+  // ws always emits "close" after "error", and the close handler cleans up
   client.on("error", (err) => {
     logger.error(`[proxy] client ${clientId} error: ${err.message}`);
-    clearTimeout(subscriptionTimeout);
-    releaseIPConnection(clientIP);
-    messageRateLimits.delete(clientId);
-    subscribedClients.delete(client);
-    shipsSentToClient.delete(client);
-    if (localListener) {
-      localReceiver.off("message", localListener);
-      localListener = null;
-    }
-    if (upstreamListener) {
-      upstream.off("message", upstreamListener);
-      upstreamListener = null;
-    }
-    if (clientSubscriptions.delete(client)) {
-      updateUpstreamSubscription();
-    }
   });
 });
 
