@@ -14,7 +14,12 @@ import { applyShipLogMessage, type ShipLog } from "../utils/shipLog";
 import { parseFeedStatusMessage, type FeedStatus } from "../utils/feedStatus";
 import { parseVesselInfoMessage } from "../utils/vesselInfo";
 
-const WS_URL = import.meta.env.VITE_WS_PROXY_URL || "ws://localhost:3001";
+// Unset in a production build, connect to /ws on the host that served the page (nginx proxies it)
+const WS_URL =
+  import.meta.env.VITE_WS_PROXY_URL ||
+  (import.meta.env.DEV
+    ? "ws://localhost:3001"
+    : `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`);
 const WS_AUTH_TOKEN = import.meta.env.VITE_WS_AUTH_TOKEN; // Optional authentication token
 
 /** Parse aisstream.io time_utc into an ISO string that Date can handle.
