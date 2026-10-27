@@ -1,11 +1,13 @@
 import { useCallback, useMemo, useState } from "react"
 import { Button } from "@headlessui/react"
-import { SunIcon, MoonIcon } from "@heroicons/react/24/outline"
+import { SunIcon, MoonIcon, VideoCameraIcon } from "@heroicons/react/24/outline"
 import ShipMap from "./components/ShipMap"
 import ShipList from "./components/ShipList"
 import UpcomingShips from "./components/UpcomingShips"
 import ShipLog from "./components/ShipLog"
 import NotificationPanel from "./components/NotificationPanel"
+import ShipCam from "./components/ShipCam"
+import type { ShipCamSize } from "./components/ShipCam"
 import StatusBar from "./components/StatusBar"
 import ComponentErrorBoundary from "./components/ComponentErrorBoundary"
 import { useAISStream } from "./hooks/useAISStream"
@@ -39,6 +41,14 @@ function App() {
   const { theme, toggleTheme } = useTheme()
   const [selectedShip, setSelectedShip] = useState<TrackedShip | null>(null)
   const [showShipList, setShowShipList] = useState(true)
+  const [showShipCam, setShowShipCam] = useState(false)
+  const [shipCamSize, setShipCamSize] = useState<ShipCamSize | null>(null)
+
+  const handleShipCamResize = useCallback((size: ShipCamSize | null) => {
+    setShipCamSize((prev) =>
+      prev?.width === size?.width && prev?.height === size?.height ? prev : size,
+    )
+  }, [])
 
   const [notifPermission, setNotifPermission] = useState(() => {
     if (!("Notification" in window)) return "unsupported"
@@ -78,6 +88,15 @@ function App() {
             </Button>
           )}
           <Button
+            className={`p-2 rounded-md transition-colors ${showShipCam ? "bg-slate-200 dark:bg-slate-700" : "bg-transparent"} hover:bg-slate-200 dark:hover:bg-slate-700`}
+            onClick={() => setShowShipCam((v) => !v)}
+            aria-label={showShipCam ? "Hide ship cam" : "Show ship cam"}
+            aria-pressed={showShipCam}
+            title={showShipCam ? "Hide ship cam" : "Show Port Huron ship cam"}
+          >
+            <VideoCameraIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+          </Button>
+          <Button
             className="p-2 rounded-md transition-colors bg-transparent hover:bg-slate-200 dark:hover:bg-slate-700"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
@@ -103,8 +122,18 @@ function App() {
               theme={theme}
               showShipList={showShipList}
               onToggleShipList={() => setShowShipList((v) => !v)}
+              shipCamSize={shipCamSize}
             />
           </ComponentErrorBoundary>
+          {/* Above the map controls; alerts after it stay on top */}
+          {showShipCam && (
+            <ComponentErrorBoundary componentName="Ship Cam">
+              <ShipCam
+                onClose={() => setShowShipCam(false)}
+                onResize={handleShipCamResize}
+              />
+            </ComponentErrorBoundary>
+          )}
           <NotificationPanel
             notifications={notifications}
             onDismiss={dismissNotification}

@@ -27,6 +27,7 @@ src/
 │   ├── UpcomingShips.tsx      # "Coming up" list of ships heading for the bridge
 │   ├── ShipLog.tsx    # Log of ships that have gone under the bridge
 │   ├── StatusBar.tsx  # Connection status indicator
+│   ├── ShipCam.tsx    # Port Huron YouTube ship cams, toggled from the header
 │   ├── ErrorBoundary.tsx          # App-level error boundary
 │   └── ComponentErrorBoundary.tsx # Component-level error boundary
 ├── hooks/
@@ -35,7 +36,8 @@ src/
 ├── types/
 │   └── ais.ts         # AIS data type definitions
 ├── constants/
-│   └── bridge.ts      # Blue Water Bridge location data
+│   ├── bridge.ts      # Blue Water Bridge location data
+│   └── shipCams.ts    # Ship cam list (YouTube video IDs)
 ├── utils/
 │   ├── geo.ts         # Geographic calculations (distance, bearing, etc.)
 │   ├── upcoming.ts    # Ships heading for the bridge, with rough ETAs

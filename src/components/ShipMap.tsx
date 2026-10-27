@@ -4,7 +4,7 @@ import Map, {
   NavigationControl,
   useMap,
 } from "react-map-gl/maplibre";
-import type { MarkerEvent, ErrorEvent as MapErrorEvent, StyleSpecification, LayerSpecification } from "react-map-gl/maplibre";
+import type { MapRef, MarkerEvent, ErrorEvent as MapErrorEvent, StyleSpecification, LayerSpecification } from "react-map-gl/maplibre";
 import type { AddLayerObject } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -12,6 +12,7 @@ import React, { useEffect, memo, useState, useCallback, useMemo } from "react";
 import type { TrackedShip } from "../types/ais";
 import type { Theme } from "../hooks/useTheme";
 import SourceBadge from "./SourceBadge";
+import type { ShipCamSize } from "./ShipCam";
 import {
   BRIDGE_CENTER,
   DEFAULT_ZOOM,
@@ -220,15 +221,48 @@ function BridgeMarker({
 }
 
 // Padding to offset map center for the ship list panel overlay
-function getMapPadding(showShipList: boolean) {
-  if (!showShipList) {
-    return { top: 0, bottom: 0, left: 0, right: 0 };
+// Space between the ship cam and the map's centre area: its 10px inset plus
+// breathing room
+const SHIP_CAM_GAP = 20;
+// Smallest open strip of map to keep when the panels crowd a phone screen
+const MIN_OPEN_HEIGHT = 100;
+
+function getMapPadding(
+  map: MapRef | undefined,
+  showShipList: boolean,
+  shipCam: ShipCamSize | null,
+) {
+  const padding = { top: 0, bottom: 0, left: 0, right: 0 };
+  const desktop = window.innerWidth >= 768;
+  if (showShipList) {
+    // w-95 = 380px on md+ screens; bottom half on mobile
+    if (desktop) padding.right = 460;
+    else padding.bottom = window.innerHeight * 0.5;
   }
-  // w-95 = 380px on md+ screens; bottom half on mobile
-  if (window.innerWidth >= 768) {
-    return { top: 0, bottom: 0, left: 0, right: 460 };
+  if (!shipCam || !map) return padding;
+
+  const container = map.getContainer();
+  const width = container.clientWidth;
+  const height = container.clientHeight;
+  if (!desktop) {
+    // Full width along the top on phones
+    padding.top = Math.max(
+      0,
+      Math.min(shipCam.height + SHIP_CAM_GAP, height - padding.bottom - MIN_OPEN_HEIGHT),
+    );
+    return padding;
   }
-  return { top: 0, bottom: window.innerHeight * 0.5, left: 0, right: 0 };
+  // The cam sits in the bottom-left corner: keep clear of it on whichever
+  // side leaves more of the map open
+  const camWidth = shipCam.width + SHIP_CAM_GAP;
+  const camHeight = shipCam.height + SHIP_CAM_GAP;
+  const openWidth = width - padding.right;
+  if ((openWidth - camWidth) * height > openWidth * (height - camHeight)) {
+    padding.left = Math.min(camWidth, Math.max(0, openWidth - MIN_OPEN_HEIGHT));
+  } else {
+    padding.bottom = Math.min(camHeight, Math.max(0, height - MIN_OPEN_HEIGHT));
+  }
+  return padding;
 }
 
 // Tile providers configuration
@@ -332,6 +366,7 @@ function MapControlGroup({
   bearing,
   showShipList,
   onToggleShipList,
+  shipCamSize,
 }: {
   theme: Theme;
   is3D: boolean;
@@ -339,6 +374,7 @@ function MapControlGroup({
   bearing: number;
   showShipList: boolean;
   onToggleShipList: () => void;
+  shipCamSize: ShipCamSize | null;
 }) {
   const { current: map } = useMap();
 
@@ -348,7 +384,7 @@ function MapControlGroup({
         center: [BRIDGE_CENTER.lng, BRIDGE_CENTER.lat],
         zoom: DEFAULT_ZOOM,
         duration: 500,
-        padding: getMapPadding(showShipList),
+        padding: getMapPadding(map, showShipList, shipCamSize),
       });
     }
   };
@@ -470,6 +506,7 @@ interface ShipMapProps {
   theme: Theme;
   showShipList: boolean;
   onToggleShipList: () => void;
+  shipCamSize?: ShipCamSize | null;
 }
 
 function MapController({
@@ -477,11 +514,13 @@ function MapController({
   ships,
   isBridgeSelected,
   showShipList,
+  shipCamSize,
 }: {
   selectedShip?: TrackedShip | null;
   ships: Map<number, TrackedShip>;
   isBridgeSelected: boolean;
   showShipList: boolean;
+  shipCamSize: ShipCamSize | null;
 }) {
   const { current: map } = useMap();
   const liveShip = selectedShip ? ships.get(selectedShip.mmsi) : null;
@@ -494,10 +533,10 @@ function MapController({
         zoom: Math.max(currentZoom, 13),
         duration: 500,
         essential: true,
-        padding: getMapPadding(showShipList),
+        padding: getMapPadding(map, showShipList, shipCamSize),
       });
     }
-  }, [map, liveShip, liveShip?.latitude, liveShip?.longitude, showShipList]);
+  }, [map, liveShip, liveShip?.latitude, liveShip?.longitude, showShipList, shipCamSize]);
 
   useEffect(() => {
     if (isBridgeSelected && map) {
@@ -506,25 +545,25 @@ function MapController({
         zoom: DEFAULT_ZOOM,
         duration: 800,
         essential: true,
-        padding: getMapPadding(showShipList),
+        padding: getMapPadding(map, showShipList, shipCamSize),
       });
     }
-  }, [map, isBridgeSelected, showShipList]);
+  }, [map, isBridgeSelected, showShipList, shipCamSize]);
 
-  // Adjust map padding when ship list visibility changes
+  // Adjust map padding when the ship list or ship cam opens, closes or resizes
   useEffect(() => {
     if (map) {
       map.easeTo({
-        padding: getMapPadding(showShipList),
+        padding: getMapPadding(map, showShipList, shipCamSize),
         duration: 300,
       });
     }
-  }, [map, showShipList]);
+  }, [map, showShipList, shipCamSize]);
 
   return null;
 }
 
-export default function ShipMap({ ships, selectedShip, onSelectShip, theme, showShipList, onToggleShipList }: ShipMapProps) {
+export default function ShipMap({ ships, selectedShip, onSelectShip, theme, showShipList, onToggleShipList, shipCamSize = null }: ShipMapProps) {
   const [errorCount, setErrorCount] = useState(0);
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
   const [is3D, setIs3D] = useState(false);
@@ -633,8 +672,9 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           ships={ships}
           isBridgeSelected={openPopupId === "bridge"}
           showShipList={showShipList}
+          shipCamSize={shipCamSize}
         />
-        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} />
+        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} />
       </Map>
       <AttributionToggle theme={theme} showShipList={showShipList} />
     </div>
