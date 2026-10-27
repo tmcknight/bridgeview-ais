@@ -1,9 +1,11 @@
-import { describe, it, expect } from "vitest";
+import net from "node:net";
+import { describe, it, expect, vi } from "vitest";
 import {
   toAISStreamMessage,
   inBoundingBoxes,
   matchesMessageFilter,
   createDeduper,
+  createLocalReceiver,
 } from "./local-receiver.js";
 
 const position = {
@@ -131,6 +133,15 @@ describe("toAISStreamMessage", () => {
   });
 });
 
+describe("toAISStreamMessage names", () => {
+  it("uses a name heard elsewhere until the antenna hears the ship's details", () => {
+    const vessels = new Map();
+    const nameFor = (mmsi) => (mmsi === 316002213 ? "ALGOMA EQUINOX" : undefined);
+    expect(toAISStreamMessage(position, vessels, nameFor).MetaData.ShipName).toBe("ALGOMA EQUINOX");
+    expect(toAISStreamMessage(position, vessels).MetaData.ShipName).toBe("");
+  });
+});
+
 describe("inBoundingBoxes", () => {
   it("accepts positions inside a box and rejects those outside", () => {
     const inside = toAISStreamMessage(position, new Map());
@@ -189,5 +200,39 @@ describe("createDeduper", () => {
 
     expect(isFirstSeen(first)).toBe(true);
     expect(isFirstSeen(next)).toBe(true);
+  });
+});
+
+describe("createLocalReceiver", () => {
+  const logger = { info: vi.fn(), warn: vi.fn(), log: vi.fn(), error: vi.fn() };
+
+  it("reports the link and every message as activity", async () => {
+    const server = net.createServer((socket) => {
+      socket.write(JSON.stringify({ type: 21, mmsi: 1 }) + "\n");
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const receiver = createLocalReceiver({ host: "127.0.0.1", port: server.address().port, logger });
+    const links = [];
+    receiver.on("link", (...args) => links.push(args));
+
+    await new Promise((resolve) => receiver.once("activity", resolve));
+    expect(links).toEqual([["connecting"], ["up"]]);
+
+    receiver.stop();
+    await new Promise((resolve) => server.close(resolve));
+  });
+
+  it("reports the link down when AIS-catcher is not running", async () => {
+    const server = net.createServer();
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const port = server.address().port;
+    await new Promise((resolve) => server.close(resolve));
+
+    const receiver = createLocalReceiver({ host: "127.0.0.1", port, logger });
+    const down = await new Promise((resolve) =>
+      receiver.on("link", (link, detail) => link === "down" && resolve(detail))
+    );
+    expect(down).toMatch(/^AIS-catcher unavailable \(.*ECONNREFUSED/);
+    receiver.stop();
   });
 });

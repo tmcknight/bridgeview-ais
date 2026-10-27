@@ -61,7 +61,8 @@ export function mergeSubscriptions(subscriptions) {
   return merged;
 }
 
-// Emits "message" (parsed AIS message, raw text) for each AIS message.
+// Emits "message" (parsed AIS message, raw text) for each AIS message, and
+// "link" ("connecting" | "up" | "down", detail) as the connection changes.
 // Call setSubscription() whenever the merged subscription changes.
 export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketImpl = WebSocket }) {
   const emitter = new EventEmitter();
@@ -75,6 +76,8 @@ export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketIm
   let retryTimer = null;
   let retryMs = MIN_RETRY_MS;
   let stopped = false;
+  let retrying = false;
+  let lastError = null;
 
   function send() {
     clearTimeout(sendTimer);
@@ -95,11 +98,16 @@ export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketIm
     retryTimer = null;
     if (stopped || !wanted) return;
     sent = null;
+    lastError = null;
+    // While retrying, stay "down" rather than flickering back to "connecting"
+    if (!retrying) emitter.emit("link", "connecting");
     const socket = new WebSocketImpl(url);
     ws = socket;
 
     socket.on("open", () => {
       logger.log("[upstream] connected");
+      retrying = false;
+      emitter.emit("link", "up");
       send();
     });
 
@@ -114,6 +122,8 @@ export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketIm
       }
       if (message.error) {
         logger.error(`[upstream] error from AISStream: ${message.error}`);
+        lastError = `AISStream error: ${message.error}`;
+        emitter.emit("link", "down", lastError);
         return;
       }
       // Skip SubscriptionConfirmation and anything else without a position
@@ -123,7 +133,13 @@ export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketIm
 
     socket.on("close", (code) => {
       if (ws === socket) ws = null;
-      if (stopped || !wanted) return;
+      if (stopped) return;
+      if (!wanted) {
+        emitter.emit("link", "connecting");
+        return;
+      }
+      retrying = true;
+      emitter.emit("link", "down", lastError ?? `AISStream connection closed (code ${code})`);
       logger.warn(`[upstream] closed (code ${code}), reconnecting in ${retryMs / 1000}s`);
       retryTimer = setTimeout(connect, retryMs);
       retryMs = Math.min(retryMs * 2, MAX_RETRY_MS);
@@ -131,6 +147,7 @@ export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketIm
 
     socket.on("error", (err) => {
       logger.error(`[upstream] error: ${err.message}`);
+      lastError ??= `AISStream unreachable (${err.message})`;
     });
   }
 

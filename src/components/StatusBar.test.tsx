@@ -2,10 +2,48 @@ import { describe, it, expect } from 'vitest'
 import { renderWithProviders } from '../test/utils/renderWithProviders'
 import StatusBar from './StatusBar'
 import type { ConnectionStatus } from '../hooks/useAISStream'
+import type { FeedStatus } from '../utils/feedStatus'
 
 describe('StatusBar', () => {
   const renderStatusBar = (status: ConnectionStatus) =>
     renderWithProviders(<StatusBar connectionStatus={status} />)
+
+  describe('feeds', () => {
+    const renderFeeds = (feeds: FeedStatus[] | null) =>
+      renderWithProviders(<StatusBar connectionStatus="connected" feeds={feeds} />)
+
+    it('credits aisstream.io without a health dot before the server reports feeds', () => {
+      const { getByText, queryByText } = renderFeeds(null)
+      expect(getByText('aisstream.io').closest('[title]')).toBeNull()
+      expect(queryByText('local antenna')).not.toBeInTheDocument()
+    })
+
+    it('shows each configured feed with its own health dot', () => {
+      const { getByTitle } = renderFeeds([
+        { source: 'aisstream', status: 'live' },
+        { source: 'local', status: 'down', detail: 'AIS-catcher unavailable (ECONNREFUSED)' },
+      ])
+      const aisstream = getByTitle('AISStream.io: live')
+      expect(aisstream.querySelector('.animate-ping')).toBeInTheDocument()
+      const antenna = getByTitle('Local antenna: down (AIS-catcher unavailable (ECONNREFUSED))')
+      expect(antenna.querySelector('.bg-red-500')).toBeInTheDocument()
+      expect(antenna.querySelector('.animate-ping')).not.toBeInTheDocument()
+    })
+
+    it('shows a quiet feed in amber with when it was last heard', () => {
+      const { getByTitle } = renderFeeds([
+        { source: 'local', status: 'quiet', lastMessageAt: '2026-10-26T12:00:00Z' },
+      ])
+      const antenna = getByTitle(/^Local antenna: connected, but no messages lately\. Last message /)
+      expect(antenna.querySelector('.bg-amber-500')).toBeInTheDocument()
+    })
+
+    it('leaves out feeds the server does not use', () => {
+      const { queryByText, getByText } = renderFeeds([{ source: 'local', status: 'live' }])
+      expect(getByText('local antenna')).toBeInTheDocument()
+      expect(queryByText('aisstream.io')).not.toBeInTheDocument()
+    })
+  })
 
   describe('connected state', () => {
     it('renders "Connected" label', () => {

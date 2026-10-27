@@ -18,6 +18,7 @@ function App() {
     ships,
     notifications,
     connectionStatus,
+    feeds,
     shipLog,
     dismissNotification,
     clearNotifications,
@@ -88,7 +89,7 @@ function App() {
               <MoonIcon className="w-5 h-5 text-slate-600 dark:text-slate-400" />
             )}
           </Button>
-          <StatusBar connectionStatus={connectionStatus} />
+          <StatusBar connectionStatus={connectionStatus} feeds={feeds} />
         </div>
       </header>
 

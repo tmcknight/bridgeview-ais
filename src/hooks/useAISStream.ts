@@ -11,6 +11,8 @@ import {
 import { distanceToBridge, isApproaching } from "../utils/geo";
 import { logger } from "../utils/logger";
 import { applyShipLogMessage, type ShipLog } from "../utils/shipLog";
+import { parseFeedStatusMessage, type FeedStatus } from "../utils/feedStatus";
+import { parseVesselInfoMessage } from "../utils/vesselInfo";
 
 const WS_URL = import.meta.env.VITE_WS_PROXY_URL || "ws://localhost:3001";
 const WS_AUTH_TOKEN = import.meta.env.VITE_WS_AUTH_TOKEN; // Optional authentication token
@@ -34,12 +36,16 @@ function parseTimeUtc(raw: string): string {
   return new Date(0).toISOString(); // Unix epoch (1970-01-01) signals invalid data
 }
 
+const MAX_PENDING_DETAILS = 2000;
+
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
 interface UseAISStreamReturn {
   ships: Map<number, TrackedShip>;
   notifications: Notification[];
   connectionStatus: ConnectionStatus;
+  /** Health of each feed the server uses; null until the server reports it */
+  feeds: FeedStatus[] | null;
   shipLog: ShipLog;
   dismissNotification: (id: string) => void;
   clearNotifications: () => void;
@@ -99,9 +105,12 @@ export function useAISStream(): UseAISStreamReturn {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [shipLog, setShipLog] = useState<ShipLog>(() => new Map());
+  const [feeds, setFeeds] = useState<FeedStatus[] | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const shipsRef = useRef<Map<number, TrackedShip>>(new Map());
+  // Details that arrived before the ship's first position, applied when it shows up
+  const pendingDetailsRef = useRef<Map<number, Partial<TrackedShip>>>(new Map());
 
   // Keep ref in sync with reducer state
   useEffect(() => {
@@ -148,6 +157,29 @@ export function useAISStream(): UseAISStreamReturn {
     setNotifications([]);
   }, []);
 
+  // Apply details to a tracked ship, or hold them until its first position arrives
+  const applyDetails = useCallback(
+    (mmsi: number, updates: Partial<TrackedShip>, currentShips: Map<number, TrackedShip>) => {
+      if (currentShips.has(mmsi)) {
+        dispatchShips({ type: "UPDATE_STATIC_DATA", mmsi, updates });
+        return;
+      }
+      const pendingDetails = pendingDetailsRef.current;
+      const earlier = pendingDetails.get(mmsi);
+      pendingDetails.delete(mmsi);
+      // Drop missing fields so they can't blank out details the ship gains meanwhile
+      pendingDetails.set(mmsi, {
+        ...earlier,
+        ...Object.fromEntries(Object.entries(updates).filter(([, value]) => value !== undefined)),
+      });
+      // Ships whose position never arrives (e.g. outside the area) shouldn't pile up
+      if (pendingDetails.size > MAX_PENDING_DETAILS) {
+        pendingDetails.delete(pendingDetails.keys().next().value!);
+      }
+    },
+    []
+  );
+
   const processMessage = useCallback(
     (msg: AISMessage, currentShips: Map<number, TrackedShip>) => {
       const { MetaData, MessageType, Message } = msg;
@@ -156,6 +188,9 @@ export function useAISStream(): UseAISStreamReturn {
 
       if (MessageType === "PositionReport" && Message.PositionReport) {
         const pos = Message.PositionReport;
+        const pending = pendingDetailsRef.current.get(mmsi);
+        pendingDetailsRef.current.delete(mmsi);
+        const details = { ...existing, ...pending };
         const dist = distanceToBridge(MetaData.latitude, MetaData.longitude);
         let approaching = isApproaching(
           MetaData.latitude,
@@ -166,7 +201,7 @@ export function useAISStream(): UseAISStreamReturn {
         );
 
         // Filter out vessels that shouldn't be considered approaching
-        const destination = existing?.destination?.toUpperCase() ?? "";
+        const destination = details.destination?.toUpperCase() ?? "";
         const heading = ((pos.Cog % 360) + 360) % 360;
         const isNorthbound = heading > 315 || heading < 45;
         const isSouthOfBridge = MetaData.latitude < BRIDGE_CENTER.lat;
@@ -179,7 +214,8 @@ export function useAISStream(): UseAISStreamReturn {
 
         const ship: TrackedShip = {
           mmsi,
-          name: MetaData.ShipName?.trim() || `MMSI ${mmsi}`,
+          // The antenna's reports carry no name until it has heard the ship's details
+          name: MetaData.ShipName?.trim() || details.name || `MMSI ${mmsi}`,
           latitude: MetaData.latitude,
           longitude: MetaData.longitude,
           cog: pos.Cog,
@@ -192,11 +228,12 @@ export function useAISStream(): UseAISStreamReturn {
           distanceToBridge: dist,
           approaching,
           notified: existing?.notified ?? false,
-          destination: existing?.destination,
-          shipType: existing?.shipType,
-          length: existing?.length,
-          width: existing?.width,
-          imo: existing?.imo,
+          destination: details.destination,
+          shipType: details.shipType,
+          length: details.length,
+          width: details.width,
+          imo: details.imo,
+          vesselInfo: details.vesselInfo,
         };
 
         // Check for approach notification
@@ -240,13 +277,13 @@ export function useAISStream(): UseAISStreamReturn {
           name: staticData.Name?.trim() || existing?.name,
           imo: staticData.ImoNumber > 0 ? staticData.ImoNumber : existing?.imo,
         };
-        dispatchShips({ type: "UPDATE_STATIC_DATA", mmsi, updates });
+        applyDetails(mmsi, updates, currentShips);
       }
 
       // Purge stale ships
       dispatchShips({ type: "PURGE_STALE", staleTimeout: STALE_SHIP_TIMEOUT_MS });
     },
-    [addNotification]
+    [addNotification, applyDetails]
   );
 
   // Use a ref for processMessage so the WebSocket effect doesn't re-run on callback changes
@@ -308,6 +345,20 @@ export function useAISStream(): UseAISStreamReturn {
             return;
           }
 
+          // Wikidata details (photo, build year) the server looked up for a ship
+          const vesselInfo = parseVesselInfoMessage(data);
+          if (vesselInfo) {
+            applyDetails(vesselInfo.mmsi, { vesselInfo: vesselInfo.info }, shipsRef.current);
+            return;
+          }
+
+          // Health of the server's AIS feeds
+          const feedStatus = parseFeedStatusMessage(data);
+          if (feedStatus) {
+            setFeeds(feedStatus);
+            return;
+          }
+
           // Handle AIS messages
           const aisMessage = data as AISMessage;
           if (!shipsRef.current.has(aisMessage.MetaData.MMSI)) {
@@ -329,6 +380,8 @@ export function useAISStream(): UseAISStreamReturn {
         logger.log("[AIS] WebSocket closed — code:", event.code, "reason:", event.reason, "clean:", event.wasClean);
         if (isCleanedUp) return;
         setConnectionStatus("disconnected");
+        // Feed health is unknown until the server reports it again
+        setFeeds(null);
         logger.log("[AIS] reconnecting in 2s...");
         reconnectTimeoutRef.current = setTimeout(connect, 2000);
       };
@@ -346,12 +399,13 @@ export function useAISStream(): UseAISStreamReturn {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, [applyDetails]);
 
   return {
     ships,
     notifications,
     connectionStatus,
+    feeds,
     shipLog,
     dismissNotification,
     clearNotifications,
