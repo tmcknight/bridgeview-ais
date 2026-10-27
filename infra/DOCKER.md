@@ -2,7 +2,7 @@
 
 BridgeView AIS can be run in Docker using `docker compose` from the repo root. The setup uses three containers:
 
-- **frontend**: Nginx serving the built React app and proxying WebSocket connections
+- **bridgeview-ais-frontend**: Nginx serving the built React app and proxying WebSocket connections
 - **ws-server**: Node.js WebSocket proxy server connecting to AISStream.io
 - **vessel-notifier**: Node.js service that sends push notifications via [ntfy](https://ntfy.sh) when vessels pass under the bridge
 
@@ -70,7 +70,7 @@ docker compose logs -f
 
 # View logs for a specific service
 docker compose logs -f ws-server
-docker compose logs -f frontend
+docker compose logs -f bridgeview-ais-frontend
 docker compose logs -f vessel-notifier
 
 # Stop
