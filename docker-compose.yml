@@ -37,7 +37,8 @@ services:
       - ws-server
     restart: unless-stopped
 
-  frontend:
+  # Named after the app so the name stays unique on a Docker network shared with other stacks
+  bridgeview-ais-frontend:
     build:
       dockerfile: infra/Dockerfile
       target: frontend
