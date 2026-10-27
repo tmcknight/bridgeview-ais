@@ -1,11 +1,14 @@
 import Map, {
   Marker,
   Popup,
+  Source,
+  Layer,
   NavigationControl,
   useMap,
 } from "react-map-gl/maplibre";
-import type { MapRef, MarkerEvent, ErrorEvent as MapErrorEvent, StyleSpecification, LayerSpecification } from "react-map-gl/maplibre";
+import type { MapRef, MarkerEvent, MapLayerMouseEvent, ErrorEvent as MapErrorEvent, StyleSpecification, LayerSpecification } from "react-map-gl/maplibre";
 import type { AddLayerObject } from "maplibre-gl";
+import type { FeatureCollection, Point, Polygon } from "geojson";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import React, { useEffect, memo, useState, useCallback, useMemo } from "react";
@@ -13,6 +16,7 @@ import type { TrackedShip } from "../types/ais";
 import type { Theme } from "../hooks/useTheme";
 import SourceBadge from "./SourceBadge";
 import type { ShipCamSize } from "./ShipCam";
+import { hullOutline, hasHull, metresPerPixel } from "../utils/hull";
 import {
   BRIDGE_CENTER,
   DEFAULT_ZOOM,
@@ -34,9 +38,13 @@ function getShipRotation(ship: TrackedShip): number {
   return ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
 }
 
-function createShipIconElement(ship: TrackedShip): React.JSX.Element {
+function getShipColor(ship: TrackedShip): string {
   const isStationary = ship.navStatus === 1 || ship.navStatus === 5; // anchored or moored
-  const color = ship.approaching ? "#ef4444" : isStationary ? "#9ca3af" : "#3b82f6";
+  return ship.approaching ? "#ef4444" : isStationary ? "#9ca3af" : "#3b82f6";
+}
+
+function createShipIconElement(ship: TrackedShip): React.JSX.Element {
+  const color = getShipColor(ship);
   const size = 24;
 
   return (
@@ -67,6 +75,163 @@ function ShipPopupContent({ ship }: { ship: TrackedShip }) {
   );
 }
 
+// Closer than this, ships whose measurements are known are drawn as hulls instead of arrows
+const HULL_MIN_ZOOM = 11;
+// Hulls never shrink below the arrow's size, so small or distant ships stay visible
+const HULL_MIN_LENGTH_PX = 24;
+const HULL_MIN_BEAM_PX = 6;
+
+function showsHull(ship: TrackedShip, zoom: number): boolean {
+  return zoom >= HULL_MIN_ZOOM && hasHull(ship.dimensions);
+}
+
+interface HullFeatures {
+  hulls: FeatureCollection<Polygon>;
+  /** The selected ship's centre, with the ripple's starting radius in pixels */
+  ripple: FeatureCollection<Point>;
+}
+
+// Hull outlines: true to scale when zoomed in, blown up to a minimum size further out
+function buildHullFeatures(
+  ships: Map<number, TrackedShip>,
+  zoom: number,
+  selectedMmsi?: number
+): HullFeatures {
+  const hulls: FeatureCollection<Polygon>["features"] = [];
+  const ripple: FeatureCollection<Point>["features"] = [];
+  for (const ship of ships.values()) {
+    if (!showsHull(ship, zoom)) continue;
+    const mpp = metresPerPixel(zoom, ship.latitude);
+    const outline = hullOutline(
+      ship.latitude,
+      ship.longitude,
+      getShipRotation(ship),
+      ship.dimensions!,
+      HULL_MIN_LENGTH_PX * mpp,
+      HULL_MIN_BEAM_PX * mpp
+    );
+    if (!outline) continue;
+    hulls.push({
+      type: "Feature",
+      properties: { mmsi: ship.mmsi, color: getShipColor(ship) },
+      geometry: { type: "Polygon", coordinates: [outline] },
+    });
+    if (ship.mmsi === selectedMmsi) {
+      // Halfway between the middle of the stern and the bow tip
+      const [sternPort, sternStarboard, , bow] = outline;
+      const centre: [number, number] = [
+        ((sternPort[0] + sternStarboard[0]) / 2 + bow[0]) / 2,
+        ((sternPort[1] + sternStarboard[1]) / 2 + bow[1]) / 2,
+      ];
+      const { toBow, toStern } = ship.dimensions!;
+      const lengthPx = Math.max((toBow + toStern) / mpp, HULL_MIN_LENGTH_PX);
+      ripple.push({
+        type: "Feature",
+        properties: { baseRadius: lengthPx / 2 },
+        geometry: { type: "Point", coordinates: centre },
+      });
+    }
+  }
+  return {
+    hulls: { type: "FeatureCollection", features: hulls },
+    ripple: { type: "FeatureCollection", features: ripple },
+  };
+}
+
+const HULL_FILL_LAYER = "ship-hulls-fill";
+// Invisible band around each hull, so thin hulls are easy to click
+const HULL_HIT_LAYER = "ship-hulls-hit";
+const HULL_INTERACTIVE_LAYERS = [HULL_FILL_LAYER, HULL_HIT_LAYER];
+const HULL_RIPPLE_LAYER = "ship-hulls-ripple";
+// Same rhythm as the selected arrow's pulse-selected animation
+const HULL_RIPPLE_MS = 1500;
+// How far past the hull the ring travels before it fades out
+const HULL_RIPPLE_SPREAD_PX = 20;
+
+// A ring that grows out from the selected hull and fades, over and over
+function useHullRipple(active: boolean): void {
+  const { current: map } = useMap();
+
+  useEffect(() => {
+    if (!map || !active) return;
+    const mapInstance = map.getMap();
+    let frame = requestAnimationFrame(function step(now) {
+      const t = (now % HULL_RIPPLE_MS) / HULL_RIPPLE_MS;
+      const eased = 1 - (1 - t) ** 2; // fast out, slowing as it fades
+      // The layer is briefly missing while the map style reloads
+      if (mapInstance.getLayer(HULL_RIPPLE_LAYER)) {
+        mapInstance.setPaintProperty(HULL_RIPPLE_LAYER, "circle-radius", [
+          "+",
+          ["get", "baseRadius"],
+          4 + HULL_RIPPLE_SPREAD_PX * eased,
+        ]);
+        mapInstance.setPaintProperty(HULL_RIPPLE_LAYER, "circle-stroke-opacity", 1 - t);
+      }
+      frame = requestAnimationFrame(step);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [map, active]);
+}
+
+function ShipHulls({
+  ships,
+  zoom,
+  selectedMmsi,
+}: {
+  ships: Map<number, TrackedShip>;
+  zoom: number;
+  selectedMmsi?: number;
+}) {
+  const { hulls, ripple } = useMemo(
+    () => buildHullFeatures(ships, zoom, selectedMmsi),
+    [ships, zoom, selectedMmsi]
+  );
+  useHullRipple(ripple.features.length > 0);
+  return (
+    <>
+      <Source id="ship-hulls" type="geojson" data={hulls}>
+        <Layer
+          id={HULL_FILL_LAYER}
+          type="fill"
+          paint={{
+            "fill-color": ["get", "color"],
+            "fill-opacity": 0.85,
+          }}
+        />
+        <Layer
+          id="ship-hulls-outline"
+          type="line"
+          paint={{
+            "line-color": "#fff",
+            "line-width": 1.5,
+          }}
+        />
+        <Layer
+          id={HULL_HIT_LAYER}
+          type="line"
+          paint={{
+            "line-color": "transparent",
+            "line-width": 16,
+          }}
+        />
+      </Source>
+      <Source id="ship-hull-ripple" type="geojson" data={ripple}>
+        <Layer
+          id={HULL_RIPPLE_LAYER}
+          type="circle"
+          paint={{
+            "circle-color": "transparent",
+            "circle-radius": ["get", "baseRadius"],
+            "circle-stroke-color": "#3b82f6",
+            "circle-stroke-width": 2,
+            "circle-pitch-alignment": "map",
+          }}
+        />
+      </Source>
+    </>
+  );
+}
+
 // Memoize ShipMarker to prevent re-renders when ship data hasn't changed
 const ShipMarker = memo(
   ({
@@ -76,6 +241,7 @@ const ShipMarker = memo(
     onSelectShip,
     isSelected,
     is3D,
+    showArrow,
   }: {
     ship: TrackedShip;
     isPopupOpen: boolean;
@@ -83,6 +249,8 @@ const ShipMarker = memo(
     onSelectShip?: (ship: TrackedShip) => void;
     isSelected: boolean;
     is3D: boolean;
+    /** False while the ship is drawn as a hull; the marker then only anchors its popup */
+    showArrow: boolean;
   }) => {
     const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
       e.originalEvent.stopPropagation();
@@ -102,7 +270,8 @@ const ShipMarker = memo(
           rotationAlignment="map"
           pitchAlignment={is3D ? "map" : "viewport"}
         >
-          {createShipIconElement(ship)}
+          {/* An empty Marker would fall back to MapLibre's default pin */}
+          {showArrow ? createShipIconElement(ship) : <div />}
         </Marker>
         {isPopupOpen && (
           <Popup
@@ -126,7 +295,8 @@ const ShipMarker = memo(
       prevProps.ship.lastUpdate === nextProps.ship.lastUpdate &&
       prevProps.isPopupOpen === nextProps.isPopupOpen &&
       prevProps.isSelected === nextProps.isSelected &&
-      prevProps.is3D === nextProps.is3D
+      prevProps.is3D === nextProps.is3D &&
+      prevProps.showArrow === nextProps.showArrow
     );
   }
 );
@@ -568,6 +738,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
   const [is3D, setIs3D] = useState(false);
   const [bearing, setBearing] = useState(0);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
   // Reset error count when theme changes (React recommended pattern for adjusting state on prop change)
   const [prevTheme, setPrevTheme] = useState(theme);
@@ -606,12 +777,26 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
     setErrorCount(0);
   }, []);
 
-  const handleMapClick = useCallback(() => {
-    setOpenPopupId(null);
-  }, []);
+  // Map events for the interactive hull layers only
+  const [hoveringHull, setHoveringHull] = useState(false);
+  const handleHullEnter = useCallback(() => setHoveringHull(true), []);
+  const handleHullLeave = useCallback(() => setHoveringHull(false), []);
 
-  const handleMove = useCallback((e: { viewState: { pitch: number; bearing: number } }) => {
+  // Hulls are map features rather than markers, so clicks on them arrive here
+  const handleMapClick = useCallback((e: MapLayerMouseEvent) => {
+    const mmsi = e.features?.[0]?.properties?.mmsi as number | undefined;
+    const ship = mmsi !== undefined ? ships.get(mmsi) : undefined;
+    if (!ship) {
+      setOpenPopupId(null);
+      return;
+    }
+    setOpenPopupId((open) => (open === ship.mmsi ? null : ship.mmsi));
+    onSelectShip?.(ship);
+  }, [ships, onSelectShip]);
+
+  const handleMove = useCallback((e: { viewState: { pitch: number; bearing: number; zoom: number } }) => {
     setBearing(e.viewState.bearing);
+    setZoom(e.viewState.zoom);
   }, []);
 
   const handleMoveEnd = useCallback((e: { viewState: { pitch: number; bearing: number } }) => {
@@ -641,12 +826,17 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
         onError={handleMapError}
         onLoad={handleStyleLoad}
         onClick={handleMapClick}
+        interactiveLayerIds={HULL_INTERACTIVE_LAYERS}
+        onMouseEnter={handleHullEnter}
+        onMouseLeave={handleHullLeave}
+        cursor={hoveringHull ? "pointer" : undefined}
         onMove={handleMove}
         onMoveEnd={handleMoveEnd}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
       >
         <NavigationControl position="top-right" showCompass={false} />
+        <ShipHulls ships={ships} zoom={zoom} selectedMmsi={selectedShip?.mmsi} />
         <BridgeMarker
           isPopupOpen={openPopupId === "bridge"}
           onTogglePopup={() =>
@@ -665,6 +855,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
             }
             onSelectShip={onSelectShip}
             is3D={is3D}
+            showArrow={!showsHull(ship, zoom)}
           />
         ))}
         <MapController

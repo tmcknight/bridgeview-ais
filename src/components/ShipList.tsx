@@ -23,6 +23,7 @@ import type { ShipLog } from "../utils/shipLog"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 import VesselInfoCard from "./VesselInfoCard"
 import SourceBadge from "./SourceBadge"
+import ShipShape from "./ShipShape"
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>
@@ -284,6 +285,7 @@ export default function ShipList({
                     </span>
                   </div>
                 )}
+                <ShipShape length={ship.length} width={ship.width} />
               </div>
 
               {isSelected && (

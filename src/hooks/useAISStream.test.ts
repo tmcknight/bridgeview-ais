@@ -204,6 +204,38 @@ describe('useAISStream', () => {
       expect(result.current.ships.get(367123456)!.imo).toBe(1234567)
     })
 
+    it('keeps hull dimensions from static data across position updates', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      act(() => {
+        mockServer.sendPositionReport(mockAISPositionMessage(367123456))
+      })
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+
+      act(() => {
+        mockServer.sendStaticData(mockAISStaticDataMessage(367123456))
+      })
+
+      const dimensions = { toBow: 150, toStern: 50, toPort: 15, toStarboard: 15 }
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)!.dimensions).toEqual(dimensions)
+      })
+
+      act(() => {
+        mockServer.sendPositionReport(mockAISPositionMessage(367123456))
+      })
+
+      await vi.advanceTimersByTimeAsync(100)
+      expect(result.current.ships.get(367123456)!.dimensions).toEqual(dimensions)
+    })
+
     it('ignores static data for unknown ships', async () => {
       const { result } = renderHook(() => useAISStream())
 

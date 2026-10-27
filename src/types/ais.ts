@@ -83,6 +83,14 @@ export interface AISMessage {
   MetaData: AISMetaData;
 }
 
+/** Distances in metres from the ship's AIS antenna to each side of the hull (AIS Dimension A–D) */
+export interface ShipDimensions {
+  toBow: number;
+  toStern: number;
+  toPort: number;
+  toStarboard: number;
+}
+
 export interface TrackedShip {
   mmsi: number;
   name: string;
@@ -102,6 +110,7 @@ export interface TrackedShip {
   shipType?: number;
   length?: number;
   width?: number;
+  dimensions?: ShipDimensions;
   imo?: number;
   /** Wikidata details stored by the server: null for no match, undefined if not looked up yet */
   vesselInfo?: VesselInfo | null;

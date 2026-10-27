@@ -232,6 +232,7 @@ export function useAISStream(): UseAISStreamReturn {
           shipType: details.shipType,
           length: details.length,
           width: details.width,
+          dimensions: details.dimensions,
           imo: details.imo,
           vesselInfo: details.vesselInfo,
         };
@@ -274,6 +275,12 @@ export function useAISStream(): UseAISStreamReturn {
           shipType: staticData.Type,
           length: (staticData.Dimension?.A ?? 0) + (staticData.Dimension?.B ?? 0),
           width: (staticData.Dimension?.C ?? 0) + (staticData.Dimension?.D ?? 0),
+          dimensions: staticData.Dimension && {
+            toBow: staticData.Dimension.A,
+            toStern: staticData.Dimension.B,
+            toPort: staticData.Dimension.C,
+            toStarboard: staticData.Dimension.D,
+          },
           name: staticData.Name?.trim() || existing?.name,
           imo: staticData.ImoNumber > 0 ? staticData.ImoNumber : existing?.imo,
         };
