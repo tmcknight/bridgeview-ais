@@ -8,6 +8,7 @@ services:
       - PORT=3001
       - WS_AUTH_TOKEN=${WS_AUTH_TOKEN:-}
       - TRUST_PROXY=true
+      - MAX_CONNECTIONS_PER_IP=${MAX_CONNECTIONS_PER_IP:-20}
       - AIS_SOURCE=${AIS_SOURCE:-both}
       - LOCAL_AIS_HOST=${LOCAL_AIS_HOST:-host.docker.internal}
       - LOCAL_AIS_PORT=${LOCAL_AIS_PORT:-5012}

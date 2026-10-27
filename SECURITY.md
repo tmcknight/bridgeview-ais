@@ -28,9 +28,10 @@ Multiple rate limiting mechanisms protect against abuse:
 
 #### Connection Rate Limiting (Per IP)
 
-- **Limit:** 5 concurrent connections per IP address
+- **Limit:** 20 concurrent connections per IP address by default (everyone behind one router shares an IP)
 - **Scope:** Prevents a single client from monopolizing server resources
-- **Configuration:** `RATE_LIMITS.MAX_CONNECTIONS_PER_IP` in [server/server.js:16](server/server.js#L16)
+- **Configuration:** `MAX_CONNECTIONS_PER_IP` environment variable
+- **Heartbeat:** The server pings each client every 30s and drops any that missed the previous ping, so dead connections free their slot
 
 #### Message Rate Limiting (Per Client)
 
@@ -136,13 +137,14 @@ The server will log:
 
 ### Adjusting Rate Limits
 
-Edit [server/server.js:14-19](server/server.js#L14-L19) to adjust limits:
+Edit `RATE_LIMITS` in [server/server.js](server/server.js) to adjust limits:
 
 ```javascript
 const RATE_LIMITS = {
-  MAX_CONNECTIONS_PER_IP: 5, // Concurrent connections per IP
+  MAX_CONNECTIONS_PER_IP: Number(process.env.MAX_CONNECTIONS_PER_IP) || 20, // Concurrent connections per IP
   MAX_MESSAGES_PER_MINUTE: 60, // Messages per client per minute
   SUBSCRIPTION_TIMEOUT_MS: 10000, // Time to send subscription (ms)
+  HEARTBEAT_INTERVAL_MS: 30000, // Ping interval; clients that miss a ping are dropped
 }
 ```
 
@@ -224,9 +226,9 @@ grep "client connected" server.log | wc -l
 
 ```javascript
 // Test connection limit
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < 25; i++) {
   const ws = new WebSocket("ws://localhost:3001")
-  // After 5 connections, subsequent ones should be rejected
+  // After 20 connections, subsequent ones should be rejected
 }
 
 // Test message rate limit

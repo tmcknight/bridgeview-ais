@@ -57,7 +57,7 @@ src/
 ### Backend
 
 - `server/server.js`: Secure WebSocket proxy server that connects to AISStream.io and relays messages to clients
-  - Rate limiting (5 connections per IP, 60 messages per minute)
+  - Rate limiting (20 connections per IP by default, 60 messages per minute); a 30s ping drops dead connections
   - Optional authentication token support
   - Input validation and bounding box size limits
   - Subscription timeout protection
@@ -160,7 +160,7 @@ This command:
 
 - Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` unless `AIS_SOURCE=local`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`)
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production

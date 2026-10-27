@@ -42,6 +42,8 @@ function parseTimeUtc(raw: string): string {
 }
 
 const MAX_PENDING_DETAILS = 2000;
+const MIN_RECONNECT_DELAY_MS = 2000;
+const MAX_RECONNECT_DELAY_MS = 60000;
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -306,6 +308,9 @@ export function useAISStream(): UseAISStreamReturn {
 
   useEffect(() => {
     let isCleanedUp = false;
+    // Doubles after each connection that closes before the server sends anything (such as one
+    // refused for too many connections from this IP), so a refusal isn't retried every 2s
+    let reconnectDelay = MIN_RECONNECT_DELAY_MS;
 
     function connect() {
       if (isCleanedUp) {
@@ -342,6 +347,7 @@ export function useAISStream(): UseAISStreamReturn {
       };
 
       ws.onmessage = (event) => {
+        reconnectDelay = MIN_RECONNECT_DELAY_MS;
         try {
           const data = JSON.parse(event.data);
 
@@ -394,8 +400,9 @@ export function useAISStream(): UseAISStreamReturn {
         setConnectionStatus("disconnected");
         // Feed health is unknown until the server reports it again
         setFeeds(null);
-        logger.log("[AIS] reconnecting in 2s...");
-        reconnectTimeoutRef.current = setTimeout(connect, 2000);
+        logger.log(`[AIS] reconnecting in ${reconnectDelay / 1000}s...`);
+        reconnectTimeoutRef.current = setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
       };
     }
 
