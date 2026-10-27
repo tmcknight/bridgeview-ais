@@ -70,6 +70,8 @@ src/
 - `server/vessel-details.js`: Each ship's latest details from either feed, stored in SQLite (`node:sqlite`) at `DB_FILE` (default `data/bridgeview.db`; Docker `ship-log` volume)
   - Also looks each ship up on Wikidata (`server/wikidata.js`; photo link, build year, operator) and stores the result; `VESSEL_INFO_LOOKUP=false` turns this off
   - Sends a ship's stored details and `{type: "vesselInfo", mmsi, info}` to a client just before its first position, and new lookups as they finish; fills in names on antenna reports
+- `server/latest-positions.js`: Each ship's latest position report (in memory, dropped after 10 minutes unheard)
+  - Replayed to a client on subscribe, so the map fills in at once instead of waiting for each ship's next report
 - `server/feed-status.js`: Health of each configured feed (AISStream, local antenna)
   - `connecting`, `live`, `quiet` (link up, no messages lately) or `down` (with the reason)
   - Sends `{type: "feedStatus", feeds}` on subscribe and whenever a feed's status changes; shown in the top bar

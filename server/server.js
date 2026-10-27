@@ -6,6 +6,7 @@ import {
   matchesMessageFilter,
 } from "./local-receiver.js";
 import { createFeedStatus } from "./feed-status.js";
+import { createLatestPositions } from "./latest-positions.js";
 import { createShipLog, SHIP_LOG_BOUNDING_BOX } from "./ship-log.js";
 import { createUpstream, mergeSubscriptions } from "./upstream.js";
 import { createVesselDetails } from "./vessel-details.js";
@@ -71,6 +72,8 @@ const vesselDetails = createVesselDetails({
   logger,
   fetchInfo: VESSEL_INFO_LOOKUP ? fetchVesselInfo : null,
 });
+// Each ship's latest position, replayed to a client when it subscribes
+const latestPositions = createLatestPositions();
 // client -> MMSIs it has been sent, so new Wikidata details reach clients showing that ship
 const shipsSentToClient = new Map();
 
@@ -129,6 +132,7 @@ shipLog.on("entry", (entry) => {
 
 if (localReceiver) {
   localReceiver.on("message", (message) => vesselDetails.handleMessage(message));
+  localReceiver.on("message", (message) => latestPositions.handleMessage(message));
   localReceiver.on("message", feedShipLog);
 }
 
@@ -150,6 +154,7 @@ if (upstream) {
   upstream.on("link", (link, detail) => feedStatus.setLink("aisstream", link, detail));
   upstream.on("message", () => feedStatus.messageReceived("aisstream"));
   upstream.on("message", (message) => vesselDetails.handleMessage(message));
+  upstream.on("message", (message) => latestPositions.handleMessage(message));
   upstream.on("message", feedShipLog);
   updateUpstreamSubscription();
 }
@@ -437,6 +442,13 @@ wss.on("connection", (client, req) => {
         const info = vesselDetails.vesselInfo(mmsi);
         if (info !== undefined) client.send(JSON.stringify({ type: "vesselInfo", mmsi, info }));
       };
+
+      // Every ship already being tracked, so the map fills in at once
+      for (const message of latestPositions.messages()) {
+        if (!wants(message)) continue;
+        sendStoredDetails(message);
+        client.send(JSON.stringify(message));
+      }
 
       if (localReceiver) {
         localListener = (message) => {
