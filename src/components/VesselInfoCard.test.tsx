@@ -45,7 +45,7 @@ describe('VesselInfoCard', () => {
     })
     renderWithProviders(<VesselInfoCard mmsi={366938730} imo={7514701} />)
 
-    expect(mockedUseVesselInfo).toHaveBeenCalledWith(366938730, 7514701)
+    expect(mockedUseVesselInfo).toHaveBeenCalledWith(366938730, 7514701, true)
     expect(screen.getByAltText('Indiana Harbor')).toHaveAttribute(
       'src',
       'https://commons.wikimedia.org/wiki/Special:FilePath/x.jpg?width=480',
@@ -60,5 +60,29 @@ describe('VesselInfoCard', () => {
       'href',
       'https://www.wikidata.org/wiki/Q6719625',
     )
+  })
+
+  it('uses details the server stored instead of looking the ship up', () => {
+    mockedUseVesselInfo.mockReturnValue({ info: null, loading: true })
+    renderWithProviders(
+      <VesselInfoCard
+        mmsi={366938730}
+        storedInfo={{
+          wikidataId: 'Q6719625',
+          wikidataUrl: 'https://www.wikidata.org/wiki/Q6719625',
+          name: 'Indiana Harbor',
+          imageUrl: 'https://commons.wikimedia.org/wiki/Special:FilePath/x.jpg?width=480',
+        }}
+      />,
+    )
+    expect(mockedUseVesselInfo).toHaveBeenCalledWith(366938730, undefined, false)
+    expect(screen.queryByText('Looking up vessel details…')).not.toBeInTheDocument()
+    expect(screen.getByAltText('Indiana Harbor')).toBeInTheDocument()
+  })
+
+  it('renders nothing when the server found no match', () => {
+    mockedUseVesselInfo.mockReturnValue({ info: null, loading: true })
+    const { container } = renderWithProviders(<VesselInfoCard mmsi={366938730} storedInfo={null} />)
+    expect(container).toBeEmptyDOMElement()
   })
 })

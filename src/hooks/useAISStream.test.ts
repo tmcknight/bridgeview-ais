@@ -219,6 +219,103 @@ describe('useAISStream', () => {
       await vi.advanceTimersByTimeAsync(100)
       expect(result.current.ships.size).toBe(0)
     })
+
+    it('applies static data that arrived before the first position', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      act(() => {
+        mockServer.sendStaticData(mockAISStaticDataMessage(367123456, 'BIG FREIGHTER', 'PORT HURON'))
+      })
+      await vi.advanceTimersByTimeAsync(100)
+
+      const position = mockAISPositionMessage(367123456)
+      position.MetaData.ShipName = ''
+      act(() => {
+        mockServer.sendPositionReport(position)
+      })
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(367123456)
+        expect(ship!.name).toBe('BIG FREIGHTER')
+        expect(ship!.destination).toBe('PORT HURON')
+        expect(ship!.imo).toBe(1234567)
+      })
+    })
+
+    it('applies stored details and Wikidata info sent before the first position', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const info = { wikidataId: 'Q1', wikidataUrl: 'https://www.wikidata.org/wiki/Q1', imageUrl: 'https://x/ship.jpg' }
+      act(() => {
+        mockServer.sendStaticData(mockAISStaticDataMessage(367123456, 'BIG FREIGHTER', 'PORT HURON'))
+        mockServer.sendRawMessage(JSON.stringify({ type: 'vesselInfo', mmsi: 367123456, info }))
+        mockServer.sendPositionReport(mockAISPositionMessage(367123456))
+      })
+
+      await waitFor(() => {
+        const ship = result.current.ships.get(367123456)
+        expect(ship!.vesselInfo).toEqual(info)
+        expect(ship!.destination).toBe('PORT HURON')
+      })
+    })
+
+    it('records when the server found no Wikidata match', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      act(() => {
+        mockServer.sendPositionReport(mockAISPositionMessage(367123456))
+      })
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(1)
+      })
+      expect(result.current.ships.get(367123456)!.vesselInfo).toBeUndefined()
+
+      act(() => {
+        mockServer.sendRawMessage(JSON.stringify({ type: 'vesselInfo', mmsi: 367123456, info: null }))
+      })
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)!.vesselInfo).toBeNull()
+      })
+    })
+
+    it('keeps the known name when a position report has none', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      act(() => {
+        mockServer.sendPositionReport(mockAISPositionMessage(367123456))
+      })
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)!.name).toBe('TEST VESSEL')
+      })
+
+      // The antenna's reports have no name until it hears the ship's details
+      const antennaReport = mockAISPositionMessage(367123456, 43.04)
+      antennaReport.MetaData.ShipName = ''
+      act(() => {
+        mockServer.sendPositionReport(antennaReport)
+      })
+
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)!.latitude).toBe(43.04)
+      })
+      expect(result.current.ships.get(367123456)!.name).toBe('TEST VESSEL')
+    })
   })
 
   describe('time parsing', () => {
@@ -354,6 +451,30 @@ describe('useAISStream', () => {
         const ship = result.current.ships.get(367123456)
         expect(ship!.approaching).toBe(false)
       })
+    })
+  })
+
+  describe('feed status', () => {
+    it('starts unknown and takes the feeds the server reports', async () => {
+      const { result } = renderHook(() => useAISStream())
+      expect(result.current.feeds).toBeNull()
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const feeds = [
+        { source: 'aisstream', status: 'live' },
+        { source: 'local', status: 'down', detail: 'AIS-catcher unavailable (ECONNREFUSED)' },
+      ]
+      act(() => {
+        mockServer.sendRawMessage(JSON.stringify({ type: 'feedStatus', feeds }))
+      })
+
+      await waitFor(() => {
+        expect(result.current.feeds).toEqual(feeds)
+      })
+      expect(result.current.ships.size).toBe(0)
     })
   })
 

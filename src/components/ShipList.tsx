@@ -287,7 +287,7 @@ export default function ShipList({
               </div>
 
               {isSelected && (
-                <VesselInfoCard mmsi={ship.mmsi} imo={ship.imo} hidden={hidden} />
+                <VesselInfoCard mmsi={ship.mmsi} imo={ship.imo} storedInfo={ship.vesselInfo} hidden={hidden} />
               )}
 
               {/* Footer */}

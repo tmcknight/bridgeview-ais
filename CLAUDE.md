@@ -41,6 +41,7 @@ src/
 │   ├── upcoming.ts    # Ships heading for the bridge, with rough ETAs
 │   ├── cargo.ts       # Cargo guesses from AIS destination ports
 │   ├── shipLog.ts     # Ship log types and server message handling
+│   ├── feedStatus.ts  # Feed health types and server message handling
 │   └── logger.ts      # Logging utility
 ├── test/              # Test infrastructure
 │   ├── setup.ts       # Vitest setup
@@ -64,6 +65,12 @@ src/
   - Fed by the server's own AIS connection, so passages are logged with no browser open
   - Saved to `SHIP_LOG_FILE` (default `data/ship-log.json`; Docker `ship-log` volume)
   - Sends `{type: "shipLog", entries}` on subscribe and `{type: "shipLogEntry", entry}` on each change
+- `server/vessel-details.js`: Each ship's latest details from either feed, stored in SQLite (`node:sqlite`) at `DB_FILE` (default `data/bridgeview.db`; Docker `ship-log` volume)
+  - Also looks each ship up on Wikidata (`server/wikidata.js`; photo link, build year, operator) and stores the result; `VESSEL_INFO_LOOKUP=false` turns this off
+  - Sends a ship's stored details and `{type: "vesselInfo", mmsi, info}` to a client just before its first position, and new lookups as they finish; fills in names on antenna reports
+- `server/feed-status.js`: Health of each configured feed (AISStream, local antenna)
+  - `connecting`, `live`, `quiet` (link up, no messages lately) or `down` (with the reason)
+  - Sends `{type: "feedStatus", feeds}` on subscribe and whenever a feed's status changes; shown in the top bar
 - `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
   - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
 
@@ -151,7 +158,7 @@ This command:
 
 - Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` unless `AIS_SOURCE=local`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `SHIP_LOG_FILE` (default: `data/ship-log.json`)
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production

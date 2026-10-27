@@ -1,9 +1,12 @@
 import type { MouseEvent } from "react"
 import { useVesselInfo } from "../hooks/useVesselInfo"
+import type { VesselInfo } from "../types/vessel"
 
 interface VesselInfoCardProps {
   mmsi: number
   imo?: number
+  /** Details the server stored; undefined when it hasn't looked the ship up yet */
+  storedInfo?: VesselInfo | null
   hidden?: boolean
 }
 
@@ -14,8 +17,10 @@ const linkClassName =
  * Wikidata details (photo, build year, builder, tonnage) for the selected ship.
  * Renders nothing when Wikidata has no matching vessel.
  */
-export default function VesselInfoCard({ mmsi, imo, hidden = false }: VesselInfoCardProps) {
-  const { info, loading } = useVesselInfo(mmsi, imo)
+export default function VesselInfoCard({ mmsi, imo, storedInfo, hidden = false }: VesselInfoCardProps) {
+  // Look the ship up from the browser only when the server has nothing stored
+  const lookup = useVesselInfo(mmsi, imo, storedInfo === undefined)
+  const { info, loading } = storedInfo === undefined ? lookup : { info: storedInfo, loading: false }
 
   if (loading) {
     return (

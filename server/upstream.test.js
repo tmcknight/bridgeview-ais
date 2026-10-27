@@ -135,6 +135,29 @@ describe("createUpstream", () => {
     expect(FakeSocket.instances[2].sent).toEqual([{ BoundingBoxes: [WIDE], Apikey: "KEY" }]);
   });
 
+  it("reports the link as connecting, up, then down with the reason", () => {
+    const onLink = vi.fn();
+    upstream.on("link", onLink);
+    upstream.setSubscription({ BoundingBoxes: [WIDE] });
+    const socket = FakeSocket.instances[0];
+    socket.open();
+    socket.emit("message", Buffer.from(JSON.stringify({ error: "Api Key Is Not Valid" })));
+    socket.close();
+
+    expect(onLink.mock.calls).toEqual([
+      ["connecting"],
+      ["up"],
+      ["down", "AISStream error: Api Key Is Not Valid"],
+      ["down", "AISStream error: Api Key Is Not Valid"],
+    ]);
+
+    // Retrying stays down until the connection opens again
+    vi.advanceTimersByTime(1000);
+    expect(onLink).toHaveBeenCalledTimes(4);
+    FakeSocket.instances[1].open();
+    expect(onLink).toHaveBeenLastCalledWith("up");
+  });
+
   it("disconnects when nothing needs data", () => {
     upstream.setSubscription({ BoundingBoxes: [WIDE] });
     FakeSocket.instances[0].open();

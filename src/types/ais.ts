@@ -1,3 +1,5 @@
+import type { VesselInfo } from "./vessel";
+
 // AIS Stream API types
 
 export interface AISSubscription {
@@ -101,6 +103,8 @@ export interface TrackedShip {
   length?: number;
   width?: number;
   imo?: number;
+  /** Wikidata details stored by the server: null for no match, undefined if not looked up yet */
+  vesselInfo?: VesselInfo | null;
 }
 
 export const NAV_STATUS_LABELS: Record<number, string> = {

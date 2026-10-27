@@ -5,8 +5,11 @@ import {
   inBoundingBoxes,
   matchesMessageFilter,
 } from "./local-receiver.js";
+import { createFeedStatus } from "./feed-status.js";
 import { createShipLog, SHIP_LOG_BOUNDING_BOX } from "./ship-log.js";
 import { createUpstream, mergeSubscriptions } from "./upstream.js";
+import { createVesselDetails } from "./vessel-details.js";
+import { fetchVesselInfo } from "./wikidata.js";
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
@@ -19,6 +22,9 @@ const LOCAL_AIS_PORT = Number(process.env.LOCAL_AIS_PORT) || 5012;
 const USE_AISSTREAM = AIS_SOURCE === "aisstream" || AIS_SOURCE === "both";
 const USE_LOCAL = AIS_SOURCE === "local" || AIS_SOURCE === "both";
 const SHIP_LOG_FILE = process.env.SHIP_LOG_FILE || "data/ship-log.json";
+const DB_FILE = process.env.DB_FILE || "data/bridgeview.db";
+// Look ships up on Wikidata (photo, build year, operator) and store the result
+const VESSEL_INFO_LOOKUP = process.env.VESSEL_INFO_LOOKUP !== "false";
 
 // Logger utility - keep errors in production, suppress debug logs
 const isDev = process.env.NODE_ENV !== "production";
@@ -55,14 +61,56 @@ if (USE_AISSTREAM && !API_KEY) {
   process.exit(1);
 }
 
+// Each ship's latest details from both feeds, and its Wikidata details, stored in SQLite at DB_FILE
+const vesselDetails = createVesselDetails({
+  file: DB_FILE,
+  logger,
+  fetchInfo: VESSEL_INFO_LOOKUP ? fetchVesselInfo : null,
+});
+// client -> MMSIs it has been sent, so new Wikidata details reach clients showing that ship
+const shipsSentToClient = new Map();
+
+vesselDetails.on("info", (mmsi, info) => {
+  const text = JSON.stringify({ type: "vesselInfo", mmsi, info });
+  for (const [client, sent] of shipsSentToClient) {
+    if (sent.has(mmsi) && client.readyState === WebSocket.OPEN) client.send(text);
+  }
+});
+
 const localReceiver = USE_LOCAL
-  ? createLocalReceiver({ host: LOCAL_AIS_HOST, port: LOCAL_AIS_PORT, logger })
+  ? createLocalReceiver({
+      host: LOCAL_AIS_HOST,
+      port: LOCAL_AIS_PORT,
+      logger,
+      nameFor: (mmsi) => vesselDetails.name(mmsi),
+    })
   : null;
+
+// Health of each configured feed, pushed to every subscribed client
+const feedStatus = createFeedStatus({
+  sources: [...(USE_AISSTREAM ? ["aisstream"] : []), ...(USE_LOCAL ? ["local"] : [])],
+});
+const subscribedClients = new Set();
+
+function broadcast(text) {
+  for (const client of subscribedClients) {
+    if (client.readyState === WebSocket.OPEN) client.send(text);
+  }
+}
+
+feedStatus.on("change", (feeds) => {
+  logger.log(`[proxy] feed status: ${feeds.map((f) => `${f.source}=${f.status}`).join(", ")}`);
+  broadcast(JSON.stringify({ type: "feedStatus", feeds }));
+});
+
+if (localReceiver) {
+  localReceiver.on("link", (link, detail) => feedStatus.setLink("local", link, detail));
+  localReceiver.on("activity", () => feedStatus.messageReceived("local"));
+}
 
 // Shared ship log: fed by the server's own connection to the AIS sources, so
 // passages are logged whether or not any browser is connected
 const shipLog = createShipLog({ file: SHIP_LOG_FILE, logger });
-const shipLogClients = new Set();
 const isFirstSeenByShipLog = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
 
 function feedShipLog(message) {
@@ -72,13 +120,11 @@ function feedShipLog(message) {
 }
 
 shipLog.on("entry", (entry) => {
-  const text = JSON.stringify({ type: "shipLogEntry", entry });
-  for (const client of shipLogClients) {
-    if (client.readyState === WebSocket.OPEN) client.send(text);
-  }
+  broadcast(JSON.stringify({ type: "shipLogEntry", entry }));
 });
 
 if (localReceiver) {
+  localReceiver.on("message", (message) => vesselDetails.handleMessage(message));
   localReceiver.on("message", feedShipLog);
 }
 
@@ -97,6 +143,9 @@ function updateUpstreamSubscription() {
 }
 
 if (upstream) {
+  upstream.on("link", (link, detail) => feedStatus.setLink("aisstream", link, detail));
+  upstream.on("message", () => feedStatus.messageReceived("aisstream"));
+  upstream.on("message", (message) => vesselDetails.handleMessage(message));
   upstream.on("message", feedShipLog);
   updateUpstreamSubscription();
 }
@@ -104,6 +153,7 @@ if (upstream) {
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     shipLog.flush();
+    vesselDetails.close();
     upstream?.stop();
     process.exit(0);
   });
@@ -325,8 +375,9 @@ wss.on("connection", (client, req) => {
       clientSubscriptions.set(client, validation.subscription);
       updateUpstreamSubscription();
 
-      shipLogClients.add(client);
+      subscribedClients.add(client);
       client.send(JSON.stringify({ type: "shipLog", entries: shipLog.entries() }));
+      client.send(JSON.stringify({ type: "feedStatus", feeds: feedStatus.snapshot() }));
 
       // With both sources, the same transmission can arrive twice; deliver it once
       const isFirstSeen = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
@@ -342,9 +393,28 @@ wss.on("connection", (client, req) => {
         );
       };
 
+      // Send each ship's stored details just before its first position, so the
+      // client needn't wait for the ship's next broadcast
+      const detailsSent = new Set();
+      shipsSentToClient.set(client, detailsSent);
+      const sendStoredDetails = (message) => {
+        const mmsi = message.MetaData.MMSI;
+        if (message.MessageType !== "PositionReport" || detailsSent.has(mmsi)) return;
+        detailsSent.add(mmsi);
+        const details = vesselDetails.detailsMessage(mmsi);
+        const subscription = clientSubscriptions.get(client);
+        if (details && matchesMessageFilter(details, subscription?.FilterMessageTypes)) {
+          client.send(JSON.stringify(details));
+        }
+        const info = vesselDetails.vesselInfo(mmsi);
+        if (info !== undefined) client.send(JSON.stringify({ type: "vesselInfo", mmsi, info }));
+      };
+
       if (localReceiver) {
         localListener = (message) => {
-          if (wants(message)) client.send(JSON.stringify(message));
+          if (!wants(message)) return;
+          sendStoredDetails(message);
+          client.send(JSON.stringify(message));
         };
         localReceiver.on("message", localListener);
         logger.log(`[proxy] client ${clientId} subscribed to local receiver`);
@@ -352,7 +422,9 @@ wss.on("connection", (client, req) => {
 
       if (upstream) {
         upstreamListener = (message, text) => {
-          if (wants(message)) client.send(text);
+          if (!wants(message)) return;
+          sendStoredDetails(message);
+          client.send(text);
         };
         upstream.on("message", upstreamListener);
         logger.log(`[proxy] client ${clientId} subscribed to shared upstream`);
@@ -382,7 +454,8 @@ wss.on("connection", (client, req) => {
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
-    shipLogClients.delete(client);
+    subscribedClients.delete(client);
+    shipsSentToClient.delete(client);
     if (localListener) {
       localReceiver.off("message", localListener);
       localListener = null;
@@ -401,7 +474,8 @@ wss.on("connection", (client, req) => {
     clearTimeout(subscriptionTimeout);
     releaseIPConnection(clientIP);
     messageRateLimits.delete(clientId);
-    shipLogClients.delete(client);
+    subscribedClients.delete(client);
+    shipsSentToClient.delete(client);
     if (localListener) {
       localReceiver.off("message", localListener);
       localListener = null;

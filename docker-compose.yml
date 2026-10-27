@@ -10,6 +10,7 @@ services:
       - AIS_SOURCE=${AIS_SOURCE:-both}
       - LOCAL_AIS_HOST=${LOCAL_AIS_HOST:-host.docker.internal}
       - LOCAL_AIS_PORT=${LOCAL_AIS_PORT:-5012}
+      - VESSEL_INFO_LOOKUP=${VESSEL_INFO_LOOKUP:-true}
       - NODE_ENV=production
     volumes:
       - ship-log:/app/data

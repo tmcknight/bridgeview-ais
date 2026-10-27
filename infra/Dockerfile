@@ -23,10 +23,11 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY server/server.js server/local-receiver.js server/ship-log.js server/upstream.js ./
+COPY server/server.js server/local-receiver.js server/ship-log.js server/upstream.js server/feed-status.js server/vessel-details.js server/wikidata.js ./
 
-# Shared ship log; mount a volume here to keep it across container restarts
+# Shared ship log and ship details database; mount a volume here to keep them across container restarts
 ENV SHIP_LOG_FILE=/app/data/ship-log.json
+ENV DB_FILE=/app/data/bridgeview.db
 VOLUME /app/data
 
 EXPOSE 3001

@@ -34,8 +34,10 @@ function localSource(json) {
 
 // Convert one AIS-catcher JSON_FULL object to an AISStream-style message.
 // `vessels` caches name and last position per MMSI, since AIS splits them across message types.
+// `nameFor` looks up a name heard elsewhere (e.g. from AISStream) for ships the
+// antenna hasn't heard details from yet.
 // Returns null for message types the app doesn't use.
-export function toAISStreamMessage(json, vessels) {
+export function toAISStreamMessage(json, vessels, nameFor = () => undefined) {
   if (!json || typeof json.mmsi !== "number") return null;
 
   const mmsi = json.mmsi;
@@ -51,7 +53,7 @@ export function toAISStreamMessage(json, vessels) {
       MetaData: {
         MMSI: mmsi,
         MMSI_String: String(mmsi),
-        ShipName: known.name || "",
+        ShipName: known.name || nameFor(mmsi) || "",
         latitude: json.lat,
         longitude: json.lon,
         time_utc,
@@ -193,7 +195,9 @@ export function createDeduper(ttlMs = DEDUP_TTL_MS, now = Date.now) {
 
 // Connect to AIS-catcher's TCP JSON stream and emit "message" events with
 // AISStream-shaped messages. Reconnects automatically if AIS-catcher restarts.
-export function createLocalReceiver({ host, port, logger }) {
+// Also emits "link" ("connecting" | "up" | "down", detail) as the connection
+// changes, and "activity" for every message AIS-catcher sends, used or not.
+export function createLocalReceiver({ host, port, logger, nameFor }) {
   const emitter = new EventEmitter();
   emitter.setMaxListeners(0); // one listener per browser client
   const vessels = new Map();
@@ -203,6 +207,8 @@ export function createLocalReceiver({ host, port, logger }) {
   let connected = false;
   let warnedUnavailable = false;
   let reconnectTimer = null;
+  let lastError = null;
+  let retrying = false;
 
   function handleLine(line) {
     if (!line.trim()) return;
@@ -213,18 +219,24 @@ export function createLocalReceiver({ host, port, logger }) {
       logger.warn("[local] ignoring non-JSON line (is AIS-catcher using MSGFORMAT JSON_FULL?)");
       return;
     }
-    const message = toAISStreamMessage(json, vessels);
+    emitter.emit("activity");
+    const message = toAISStreamMessage(json, vessels, nameFor);
     if (message) emitter.emit("message", message);
   }
 
   function connect() {
     if (stopped) return;
     buffer = "";
+    lastError = null;
+    // While retrying, stay "down" rather than flickering back to "connecting"
+    if (!retrying) emitter.emit("link", "connecting");
     socket = net.connect({ host, port });
 
     socket.on("connect", () => {
       connected = true;
       warnedUnavailable = false;
+      retrying = false;
+      emitter.emit("link", "up");
       logger.info(`[local] connected to AIS-catcher at ${host}:${port}`);
     });
 
@@ -238,6 +250,7 @@ export function createLocalReceiver({ host, port, logger }) {
     });
 
     socket.on("error", (err) => {
+      lastError = err.message;
       if (!warnedUnavailable) {
         logger.warn(`[local] AIS-catcher unavailable at ${host}:${port} (${err.message}), retrying every ${RECONNECT_DELAY_MS / 1000}s`);
         warnedUnavailable = true;
@@ -249,11 +262,16 @@ export function createLocalReceiver({ host, port, logger }) {
         logger.warn("[local] AIS-catcher connection closed, reconnecting");
         connected = false;
       }
-      if (!stopped) reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
+      if (!stopped) {
+        emitter.emit("link", "down", lastError ? `AIS-catcher unavailable (${lastError})` : "AIS-catcher connection closed");
+        retrying = true;
+        reconnectTimer = setTimeout(connect, RECONNECT_DELAY_MS);
+      }
     });
   }
 
-  connect();
+  // Let callers attach listeners before the first "link" event
+  process.nextTick(connect);
 
   emitter.stop = () => {
     stopped = true;
