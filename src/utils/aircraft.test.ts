@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { aircraftLabel, formatAltitude, parseAircraftMessage, verticalTrend } from "./aircraft";
+import { aircraftLabel, formatAltitude, isRotorcraft, parseAircraftMessage, verticalTrend } from "./aircraft";
 
 describe("parseAircraftMessage", () => {
   it("returns the aircraft in an aircraft message", () => {
@@ -27,6 +27,14 @@ describe("formatAltitude", () => {
     expect(formatAltitude({ hex: "a", lat: 0, lon: 0, altitude: 32000 })).toBe("32,000 ft");
     expect(formatAltitude({ hex: "a", lat: 0, lon: 0, onGround: true })).toBe("On ground");
     expect(formatAltitude({ hex: "a", lat: 0, lon: 0 })).toBeNull();
+  });
+});
+
+describe("isRotorcraft", () => {
+  it("is true only for emitter category A7", () => {
+    expect(isRotorcraft({ hex: "a", lat: 0, lon: 0, category: "A7" })).toBe(true);
+    expect(isRotorcraft({ hex: "a", lat: 0, lon: 0, category: "A3" })).toBe(false);
+    expect(isRotorcraft({ hex: "a", lat: 0, lon: 0 })).toBe(false);
   });
 });
 

@@ -26,6 +26,11 @@ export function formatAltitude(aircraft: Aircraft): string | null {
   return `${aircraft.altitude.toLocaleString("en-US")} ft`;
 }
 
+/** Helicopters and other rotorcraft (ADS-B emitter category A7) */
+export function isRotorcraft(aircraft: Aircraft): boolean {
+  return aircraft.category === "A7";
+}
+
 /** Arrow for climbing or descending faster than 300 ft/min, else "" */
 export function verticalTrend(aircraft: Aircraft): string {
   const rate = aircraft.verticalRate ?? 0;
