@@ -14,7 +14,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import React, { useEffect, memo, useState, useCallback, useMemo } from "react";
 import type { TrackedShip } from "../types/ais";
 import type { Aircraft } from "../types/aircraft";
-import { aircraftLabel, formatAltitude, verticalTrend } from "../utils/aircraft";
+import { aircraftLabel, formatAltitude, isRotorcraft, verticalTrend } from "../utils/aircraft";
 import type { Theme } from "../hooks/useTheme";
 import SourceBadge from "./SourceBadge";
 import type { ShipCamSize } from "./ShipCam";
@@ -347,6 +347,23 @@ function getAircraftColor(aircraft: Aircraft): string {
   return aircraft.onGround ? "#9ca3af" : "#f59e0b";
 }
 
+// Top-down helicopter, nose up: rotor blades behind a solid cabin, tail boom and tail rotor
+function HelicopterIcon({ color }: { color: string }) {
+  return (
+    <svg width={22} height={22} viewBox="0 0 24 24">
+      <g strokeLinecap="round">
+        <path d="M4.5 2.5 L19.5 15.5 M19.5 2.5 L4.5 15.5" stroke="#fff" strokeWidth="3" />
+        <path d="M4.5 2.5 L19.5 15.5 M19.5 2.5 L4.5 15.5" stroke={color} strokeWidth="1.5" />
+      </g>
+      <g stroke="#fff" strokeWidth="1" fill={color}>
+        <rect x="10.75" y="13" width="2.5" height="8" rx="1" />
+        <rect x="8.5" y="19.5" width="7" height="2.5" rx="1" />
+        <ellipse cx="12" cy="9" rx="4" ry="5.5" />
+      </g>
+    </svg>
+  );
+}
+
 function AircraftPopupContent({ aircraft }: { aircraft: Aircraft }) {
   const altitude = formatAltitude(aircraft);
   // The registration, unless it is already the title
@@ -404,15 +421,19 @@ const AircraftMarker = memo(
           pitchAlignment={is3D ? "map" : "viewport"}
         >
           <div className="aircraft-marker" title={aircraftLabel(aircraft)}>
-            <svg width={20} height={20} viewBox="0 0 24 24">
-              {/* Material Design "flight" icon, nose up */}
-              <path
-                d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
-                fill={getAircraftColor(aircraft)}
-                stroke="#fff"
-                strokeWidth="1"
-              />
-            </svg>
+            {isRotorcraft(aircraft) ? (
+              <HelicopterIcon color={getAircraftColor(aircraft)} />
+            ) : (
+              <svg width={20} height={20} viewBox="0 0 24 24">
+                {/* Material Design "flight" icon, nose up */}
+                <path
+                  d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
+                  fill={getAircraftColor(aircraft)}
+                  stroke="#fff"
+                  strokeWidth="1"
+                />
+              </svg>
+            )}
           </div>
         </Marker>
         {isPopupOpen && (
@@ -444,6 +465,7 @@ const AircraftMarker = memo(
       prev.speed === next.speed &&
       prev.verticalRate === next.verticalRate &&
       prev.callsign === next.callsign &&
+      prev.category === next.category &&
       prevProps.isPopupOpen === nextProps.isPopupOpen &&
       prevProps.onTogglePopup === nextProps.onTogglePopup &&
       prevProps.is3D === nextProps.is3D
