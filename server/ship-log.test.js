@@ -71,6 +71,14 @@ describe("createShipLog", () => {
     expect(onEntry).toHaveBeenCalledWith(entry);
   });
 
+  it("leaves Class B craft out of the log", () => {
+    const classB = (msg) => ({ ...msg, MetaData: { ...msg.MetaData, AisClass: "B" } });
+    log.handleMessage(classB(position(1, north(-0.2), "SEA BREEZE")));
+    t += 60_000;
+    log.handleMessage(classB(position(1, north(0.1), "SEA BREEZE")));
+    expect(log.entries()).toEqual([]);
+  });
+
   it("ignores jitter back and forth across the bridge line", () => {
     log.handleMessage(position(1, north(-0.2)));
     log.handleMessage(position(1, north(0.1)));

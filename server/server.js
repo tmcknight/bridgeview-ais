@@ -11,6 +11,7 @@ import { createShipLog, SHIP_LOG_BOUNDING_BOX } from "./ship-log.js";
 import { createUpstream, mergeSubscriptions } from "./upstream.js";
 import { createVesselDetails } from "./vessel-details.js";
 import { fetchVesselInfo } from "./wikidata.js";
+import { withClassBTypes } from "./class-b.js";
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
@@ -145,8 +146,10 @@ const clientSubscriptions = new Map(); // client -> sanitized subscription
 const upstream = USE_AISSTREAM ? createUpstream({ apiKey: API_KEY, logger }) : null;
 
 function updateUpstreamSubscription() {
+  // Clients ask for PositionReport and ShipStaticData; Class B ships send their own
+  // messages, which the upstream turns into those
   upstream?.setSubscription(
-    mergeSubscriptions([SHIP_LOG_SUBSCRIPTION, ...clientSubscriptions.values()])
+    withClassBTypes(mergeSubscriptions([SHIP_LOG_SUBSCRIPTION, ...clientSubscriptions.values()]))
   );
 }
 
@@ -280,6 +283,7 @@ function validateSubscription(subscription) {
     "ShipStaticData",
     "StandardClassBPositionReport",
     "ExtendedClassBPositionReport",
+    "StaticDataReport",
   ];
 
   if (subscription.FilterMessageTypes) {

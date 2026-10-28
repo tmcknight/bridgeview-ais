@@ -1,5 +1,6 @@
 import net from "node:net";
 import { EventEmitter } from "node:events";
+import { CLASS_B_MESSAGE_IDS, classBPositionReport, classBStaticData } from "./class-b.js";
 
 // Local AIS receiver: reads AIS-catcher's JSON_FULL TCP stream
 // (e.g. `AIS-catcher -S 5012 MSGFORMAT JSON_FULL`) and converts each
@@ -7,6 +8,8 @@ import { EventEmitter } from "node:events";
 
 const POSITION_TYPES = new Set([1, 2, 3]);
 const STATIC_TYPE = 5;
+const CLASS_B_POSITION_TYPES = new Set([18, 19]);
+const CLASS_B_STATIC_TYPE = 24;
 const RECONNECT_DELAY_MS = 5000;
 const DEDUP_TTL_MS = 60000;
 
@@ -30,6 +33,25 @@ function localSource(json) {
   return typeof json.signalpower === "number"
     ? { Source: "local", SignalPower: Math.round(json.signalpower * 10) / 10 }
     : { Source: "local" };
+}
+
+// The Class B details in a type 19 report or one part of a type 24 report
+// (part A, partno 0: name; part B, partno 1: type, call sign and size)
+function classBDetailsFrom(json) {
+  const details = {};
+  const name = (json.shipname || "").trim();
+  if (name) details.name = name;
+  if (json.type === 19 || (json.type === CLASS_B_STATIC_TYPE && json.partno === 1)) {
+    details.shipType = json.shiptype ?? 0;
+    if (json.type === CLASS_B_STATIC_TYPE) details.callSign = (json.callsign || "").trim();
+    details.dimension = {
+      A: json.to_bow ?? 0,
+      B: json.to_stern ?? 0,
+      C: json.to_port ?? 0,
+      D: json.to_starboard ?? 0,
+    };
+  }
+  return details;
 }
 
 // Convert one AIS-catcher JSON_FULL object to an AISStream-style message.
@@ -81,6 +103,59 @@ export function toAISStreamMessage(json, vessels, nameFor = () => undefined) {
         },
       },
     };
+  }
+
+  if (CLASS_B_POSITION_TYPES.has(json.type)) {
+    if (!isValidPosition(json.lat, json.lon)) return null;
+    // Type 19 also carries the name, type and size
+    const classB = json.type === 19 ? { ...known.classB, ...classBDetailsFrom(json) } : known.classB;
+    const name = classB?.name || known.name;
+    vessels.set(mmsi, { ...known, latitude: json.lat, longitude: json.lon, classB, name });
+
+    return classBPositionReport(
+      {
+        MMSI: mmsi,
+        MMSI_String: String(mmsi),
+        ShipName: name || nameFor(mmsi) || "",
+        latitude: json.lat,
+        longitude: json.lon,
+        time_utc,
+        ...localSource(json),
+      },
+      {
+        Cog: json.course ?? 360,
+        Latitude: json.lat,
+        Longitude: json.lon,
+        MessageID: json.type,
+        PositionAccuracy: Boolean(json.accuracy),
+        Raim: Boolean(json.raim),
+        RepeatIndicator: json.repeat ?? 0,
+        Sog: json.speed ?? 102.3,
+        Timestamp: json.second ?? 60,
+        TrueHeading: json.heading ?? 511,
+        UserID: mmsi,
+      }
+    );
+  }
+
+  if (json.type === CLASS_B_STATIC_TYPE) {
+    const part = classBDetailsFrom(json);
+    if (Object.keys(part).length === 0) return null;
+    const classB = { ...known.classB, ...part };
+    vessels.set(mmsi, { ...known, classB, ...(classB.name && { name: classB.name }) });
+
+    return classBStaticData(
+      {
+        MMSI: mmsi,
+        MMSI_String: String(mmsi),
+        ShipName: classB.name || known.name || nameFor(mmsi) || "",
+        latitude: known.latitude ?? 0,
+        longitude: known.longitude ?? 0,
+        time_utc,
+        ...localSource(json),
+      },
+      classB
+    );
   }
 
   if (json.type === STATIC_TYPE) {
@@ -152,7 +227,8 @@ export function matchesMessageFilter(message, filter) {
   if (!filter || filter.length === 0) return true;
   if (filter.includes(message.MessageType)) return true;
   const payload = message.Message.PositionReport || message.Message.ShipStaticData;
-  return filter.includes(payload?.MessageID);
+  // Class B messages arrive as PositionReport or ShipStaticData; match their own names too
+  return filter.some((type) => type === payload?.MessageID || CLASS_B_MESSAGE_IDS[type] === payload?.MessageID);
 }
 
 // Key identifying one over-the-air transmission, so the same report heard by both

@@ -174,6 +174,8 @@ export function createShipLog({ file, logger, now = Date.now, saveDelayMs = SAVE
   function handleMessage(message) {
     const { MessageType, MetaData, Message } = message ?? {};
     if (!MetaData || typeof MetaData.MMSI !== "number") return;
+    // Class B craft (pleasure boats, small workboats) are shown but not logged
+    if (MetaData.AisClass === "B") return;
     const mmsi = MetaData.MMSI;
     const t = now();
     const time = new Date(t).toISOString();

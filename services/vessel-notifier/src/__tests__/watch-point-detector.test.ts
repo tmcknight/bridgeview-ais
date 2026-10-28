@@ -113,6 +113,22 @@ describe("WatchPointDetector", () => {
       expect(event!.direction).toBe("southbound");
     });
 
+    it("ignores Class B craft", () => {
+      const mmsi = 367000001;
+      const classB = (msg: AISMessage): AISMessage => ({
+        ...msg,
+        MetaData: { ...msg.MetaData, AisClass: "B" },
+      });
+
+      detector.processMessage(classB(makePositionMessage(mmsi, 43.02, -82.42, 180, 8)));
+      const events = detector.processMessage(
+        classB(makePositionMessage(mmsi, BRIDGE_CENTER.lat, BRIDGE_CENTER.lng, 180, 8))
+      );
+
+      expect(events).toEqual([]);
+      expect(detector.trackedCount).toBe(0);
+    });
+
     it("does not fire for stationary vessels", () => {
       const mmsi = 123456789;
 

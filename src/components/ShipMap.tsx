@@ -33,6 +33,25 @@ import {
   ListBulletIcon,
 } from "@heroicons/react/20/solid";
 
+const HIDE_CLASS_B_KEY = "hideClassB";
+
+function getStoredHideClassB(): boolean {
+  try {
+    return localStorage.getItem(HIDE_CLASS_B_KEY) === "true";
+  } catch {
+    // localStorage might not be available
+    return false;
+  }
+}
+
+function setStoredHideClassB(hide: boolean): void {
+  try {
+    localStorage.setItem(HIDE_CLASS_B_KEY, String(hide));
+  } catch {
+    // localStorage might not be available
+  }
+}
+
 // Create ship icon as React element
 function getShipRotation(ship: TrackedShip): number {
   return ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
@@ -537,6 +556,8 @@ function MapControlGroup({
   showShipList,
   onToggleShipList,
   shipCamSize,
+  hideClassB,
+  onToggleClassB,
 }: {
   theme: Theme;
   is3D: boolean;
@@ -545,6 +566,8 @@ function MapControlGroup({
   showShipList: boolean;
   onToggleShipList: () => void;
   shipCamSize: ShipCamSize | null;
+  hideClassB: boolean;
+  onToggleClassB: () => void;
 }) {
   const { current: map } = useMap();
 
@@ -652,6 +675,19 @@ function MapControlGroup({
               style={{ transform: `rotate(${-bearing}deg)` }}
             />
           </button>
+          <button
+            className={MAP_BTN}
+            onClick={onToggleClassB}
+            aria-label="Hide Class B vessels"
+            aria-pressed={hideClassB}
+            title={hideClassB ? "Show Class B vessels (small craft)" : "Hide Class B vessels (small craft)"}
+          >
+            <span
+              className={`text-xs font-bold text-slate-700 dark:text-white ${hideClassB ? "line-through opacity-60" : ""}`}
+            >
+              B
+            </span>
+          </button>
         </div>
         <button
           className={`${MAP_BTN} rounded border border-slate-300 dark:border-slate-400 shadow-lg transition-opacity duration-300 ${showShipList ? "opacity-0 pointer-events-none" : "opacity-100"}`}
@@ -739,6 +775,21 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
   const [is3D, setIs3D] = useState(false);
   const [bearing, setBearing] = useState(0);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [hideClassB, setHideClassB] = useState(getStoredHideClassB);
+
+  const toggleClassB = useCallback(() => {
+    setHideClassB(!hideClassB);
+    setStoredHideClassB(!hideClassB);
+  }, [hideClassB]);
+
+  // Ships drawn on the map; Class B craft can be hidden
+  const mapShips = useMemo(
+    () =>
+      hideClassB
+        ? new globalThis.Map(Array.from(ships).filter(([, ship]) => !ship.classB))
+        : ships,
+    [ships, hideClassB]
+  );
 
   // Reset error count when theme changes (React recommended pattern for adjusting state on prop change)
   const [prevTheme, setPrevTheme] = useState(theme);
@@ -836,7 +887,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
         attributionControl={false}
       >
         <NavigationControl position="top-right" showCompass={false} />
-        <ShipHulls ships={ships} zoom={zoom} selectedMmsi={selectedShip?.mmsi} />
+        <ShipHulls ships={mapShips} zoom={zoom} selectedMmsi={selectedShip?.mmsi} />
         <BridgeMarker
           isPopupOpen={openPopupId === "bridge"}
           onTogglePopup={() =>
@@ -844,7 +895,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           }
           onSelect={() => onSelectShip?.(null)}
         />
-        {Array.from(ships.values()).map((ship) => (
+        {Array.from(mapShips.values()).map((ship) => (
           <ShipMarker
             key={ship.mmsi}
             ship={ship}
@@ -865,7 +916,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           showShipList={showShipList}
           shipCamSize={shipCamSize}
         />
-        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} />
+        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} />
       </Map>
       <AttributionToggle theme={theme} showShipList={showShipList} />
     </div>

@@ -117,6 +117,30 @@ describe("createUpstream", () => {
     expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("Api Key Is Not Valid"));
   });
 
+  it("emits Class B messages as PositionReport and ShipStaticData", () => {
+    const onMessage = vi.fn();
+    upstream.on("message", onMessage);
+    upstream.setSubscription({ BoundingBoxes: [WIDE] });
+    const socket = FakeSocket.instances[0];
+    socket.open();
+
+    socket.emit(
+      "message",
+      Buffer.from(
+        JSON.stringify({
+          MessageType: "StandardClassBPositionReport",
+          MetaData: { MMSI: 2, ShipName: "SEA BREEZE", latitude: 43, longitude: -82.4 },
+          Message: { StandardClassBPositionReport: { MessageID: 18, UserID: 2, Latitude: 43, Longitude: -82.4, Sog: 5, Cog: 90, TrueHeading: 511, Timestamp: 10 } },
+        })
+      )
+    );
+
+    const [message, text] = onMessage.mock.calls[0];
+    expect(message.MessageType).toBe("PositionReport");
+    expect(message.MetaData.AisClass).toBe("B");
+    expect(JSON.parse(text)).toEqual(message);
+  });
+
   it("reconnects with backoff and resubscribes", () => {
     upstream.setSubscription({ BoundingBoxes: [WIDE] });
     FakeSocket.instances[0].open();

@@ -408,6 +408,29 @@ describe('useAISStream', () => {
       })
     })
 
+    it('marks Class B craft and sends no alerts for them', async () => {
+      const { result } = renderHook(() => useAISStream())
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const closeLat = 42.9982 + (APPROACH_NOTIFICATION_DISTANCE_NM - 0.5) / 60
+      const classB = mockAISPositionMessage(367000001, closeLat, -82.423, 180, 8)
+      classB.MetaData.AisClass = 'B'
+      act(() => {
+        mockServer.sendPositionReport(classB)
+        mockServer.sendPositionReport(mockAISPositionMessage(367123456, closeLat, -82.423, 180, 8))
+      })
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(2)
+      })
+      expect(result.current.ships.get(367000001)!.classB).toBe(true)
+      expect(result.current.ships.get(367123456)!.classB).toBeUndefined()
+      expect(result.current.notifications.map((n) => n.mmsi)).toEqual([367123456])
+    })
+
     it('dismissNotification marks notification as dismissed', async () => {
       const { result } = renderHook(() => useAISStream())
 

@@ -86,6 +86,9 @@ export class WatchPointDetector {
    * the vessel has just passed.
    */
   processMessage(message: AISMessage): PassageEvent[] {
+    // Class B craft (pleasure boats, small workboats) aren't announced
+    if (message.MetaData?.AisClass === "B") return [];
+
     const positionReport = message.Message?.PositionReport;
     const staticData = message.Message?.ShipStaticData;
 
