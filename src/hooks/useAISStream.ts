@@ -13,6 +13,8 @@ import { logger } from "../utils/logger";
 import { applyShipLogMessage, type ShipLog } from "../utils/shipLog";
 import { parseFeedStatusMessage, type FeedStatus } from "../utils/feedStatus";
 import { parseVesselInfoMessage } from "../utils/vesselInfo";
+import { parseAircraftMessage } from "../utils/aircraft";
+import type { Aircraft } from "../types/aircraft";
 
 // Unset in a production build, connect to /ws on the host that served the page (nginx proxies it)
 const WS_URL =
@@ -54,6 +56,8 @@ interface UseAISStreamReturn {
   /** Health of each feed the server uses; null until the server reports it */
   feeds: FeedStatus[] | null;
   shipLog: ShipLog;
+  /** Aircraft near the bridge from the server's ADS-B feed */
+  aircraft: Aircraft[];
   dismissNotification: (id: string) => void;
   clearNotifications: () => void;
 }
@@ -113,6 +117,7 @@ export function useAISStream(): UseAISStreamReturn {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [shipLog, setShipLog] = useState<ShipLog>(() => new Map());
   const [feeds, setFeeds] = useState<FeedStatus[] | null>(null);
+  const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const shipsRef = useRef<Map<number, TrackedShip>>(new Map());
@@ -372,6 +377,13 @@ export function useAISStream(): UseAISStreamReturn {
             return;
           }
 
+          // Aircraft from the server's ADS-B feed, replacing the previous list
+          const aircraftList = parseAircraftMessage(data);
+          if (aircraftList) {
+            setAircraft(aircraftList);
+            return;
+          }
+
           // Health of the server's AIS feeds
           const feedStatus = parseFeedStatusMessage(data);
           if (feedStatus) {
@@ -402,6 +414,8 @@ export function useAISStream(): UseAISStreamReturn {
         setConnectionStatus("disconnected");
         // Feed health is unknown until the server reports it again
         setFeeds(null);
+        // Aircraft move too fast to leave on the map while disconnected
+        setAircraft([]);
         logger.log(`[AIS] reconnecting in ${reconnectDelay / 1000}s...`);
         reconnectTimeoutRef.current = setTimeout(connect, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY_MS);
@@ -428,6 +442,7 @@ export function useAISStream(): UseAISStreamReturn {
     connectionStatus,
     feeds,
     shipLog,
+    aircraft,
     dismissNotification,
     clearNotifications,
   };

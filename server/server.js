@@ -12,6 +12,7 @@ import { createUpstream, mergeSubscriptions } from "./upstream.js";
 import { createVesselDetails } from "./vessel-details.js";
 import { fetchVesselInfo } from "./wikidata.js";
 import { withClassBTypes } from "./class-b.js";
+import { createAircraftFeed, DEFAULT_ADSB_URL } from "./aircraft.js";
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
@@ -29,6 +30,9 @@ const SHIP_LOG_FILE = process.env.SHIP_LOG_FILE || "data/ship-log.json";
 const DB_FILE = process.env.DB_FILE || "data/bridgeview.db";
 // Look ships up on Wikidata (photo, build year, operator) and store the result
 const VESSEL_INFO_LOOKUP = process.env.VESSEL_INFO_LOOKUP !== "false";
+// Aircraft layer: poll an ADS-B feed (adsb.lol by default, or a local readsb's aircraft.json)
+const AIRCRAFT_TRACKING = process.env.AIRCRAFT_TRACKING !== "false";
+const ADSB_URL = process.env.ADSB_URL || DEFAULT_ADSB_URL;
 
 // Logger utility - keep errors in production, suppress debug logs
 const isDev = process.env.NODE_ENV !== "production";
@@ -96,7 +100,11 @@ const localReceiver = USE_LOCAL
 
 // Health of each configured feed, pushed to every subscribed client
 const feedStatus = createFeedStatus({
-  sources: [...(USE_AISSTREAM ? ["aisstream"] : []), ...(USE_LOCAL ? ["local"] : [])],
+  sources: [
+    ...(USE_AISSTREAM ? ["aisstream"] : []),
+    ...(USE_LOCAL ? ["local"] : []),
+    ...(AIRCRAFT_TRACKING ? ["adsb"] : []),
+  ],
 });
 const subscribedClients = new Set();
 
@@ -114,6 +122,14 @@ feedStatus.on("change", (feeds) => {
 if (localReceiver) {
   localReceiver.on("link", (link, detail) => feedStatus.setLink("local", link, detail));
   localReceiver.on("activity", () => feedStatus.messageReceived("local"));
+}
+
+const aircraftFeed = AIRCRAFT_TRACKING ? createAircraftFeed({ url: ADSB_URL, logger }) : null;
+if (aircraftFeed) {
+  aircraftFeed.on("link", (link, detail) => feedStatus.setLink("adsb", link, detail));
+  aircraftFeed.on("activity", () => feedStatus.messageReceived("adsb"));
+  aircraftFeed.on("aircraft", (aircraft) => broadcast(JSON.stringify({ type: "aircraft", aircraft })));
+  aircraftFeed.start();
 }
 
 // Shared ship log: fed by the server's own connection to the AIS sources, so
@@ -167,6 +183,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     shipLog.flush();
     vesselDetails.close();
     upstream?.stop();
+    aircraftFeed?.stop();
     process.exit(0);
   });
 }
@@ -415,6 +432,7 @@ wss.on("connection", (client, req) => {
       subscribedClients.add(client);
       client.send(JSON.stringify({ type: "shipLog", entries: shipLog.entries() }));
       client.send(JSON.stringify({ type: "feedStatus", feeds: feedStatus.snapshot() }));
+      if (aircraftFeed) client.send(JSON.stringify({ type: "aircraft", aircraft: aircraftFeed.aircraft() }));
 
       // With both sources, the same transmission can arrive twice; deliver it once
       const isFirstSeen = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
@@ -522,6 +540,7 @@ wss.on("connection", (client, req) => {
 
 logger.info(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
 logger.info(`[proxy] AIS source: ${AIS_SOURCE}${USE_LOCAL ? ` (AIS-catcher at ${LOCAL_AIS_HOST}:${LOCAL_AIS_PORT})` : ""}`);
+logger.info(`[proxy] Aircraft: ${AIRCRAFT_TRACKING ? ADSB_URL : "off"}`);
 if (AUTH_TOKEN) {
   logger.info(`[proxy] Authentication enabled`);
 } else {
