@@ -1,10 +1,9 @@
 import type { ConnectionStatus } from "../hooks/useAISStream";
-import type { AISSource } from "../types/ais";
-import type { FeedHealth, FeedStatus } from "../utils/feedStatus";
+import type { FeedHealth, FeedSource, FeedStatus } from "../utils/feedStatus";
 
 interface StatusBarProps {
   connectionStatus: ConnectionStatus;
-  /** Health of each AIS feed, as reported by the server; null while unknown */
+  /** Health of each AIS and ADS-B feed, as reported by the server; null while unknown */
   feeds?: FeedStatus[] | null;
 }
 
@@ -68,9 +67,10 @@ const FEED_CONFIG: Record<
   },
 };
 
-const FEED_NAMES: Record<AISSource, string> = {
+const FEED_NAMES: Record<FeedSource, string> = {
   aisstream: "AISStream.io",
   local: "Local antenna",
+  adsb: "ADS-B aircraft feed",
 };
 
 function feedTitle(feed: FeedStatus): string {
@@ -99,7 +99,11 @@ function Feed({ feed }: { feed: FeedStatus }) {
   return (
     <span className="inline-flex items-center gap-1" title={title}>
       <StatusDot pingClass={config.pingClass} staticClass={config.staticClass} showPing={config.showPing} />
-      {feed.source === "aisstream" ? AISSTREAM_LINK : <span>local antenna</span>}
+      {feed.source === "aisstream" ? (
+        AISSTREAM_LINK
+      ) : (
+        <span>{feed.source === "adsb" ? "ADS-B" : "local antenna"}</span>
+      )}
       <span className="sr-only">{title}</span>
     </span>
   );
@@ -124,15 +128,24 @@ function StatusDot({ pingClass, staticClass, showPing }: StatusDotProps) {
 
 export default function StatusBar({ connectionStatus, feeds }: StatusBarProps) {
   const config = STATUS_CONFIG[connectionStatus];
+  const aisFeeds = feeds?.filter((feed) => feed.source !== "adsb") ?? [];
+  const aircraftFeed = feeds?.find((feed) => feed.source === "adsb");
 
   return (
     <div className="flex flex-col items-end gap-1 text-xs">
-      {feeds && feeds.length > 0 ? (
+      {aisFeeds.length > 0 ? (
         <span className="flex flex-wrap items-center justify-end gap-x-2 text-slate-600 dark:text-slate-400" aria-live="polite">
           AIS Data via
-          {feeds.map((feed) => (
+          {aisFeeds.map((feed) => (
             <Feed key={feed.source} feed={feed} />
           ))}
+          {aircraftFeed && (
+            <>
+              <span aria-hidden="true">·</span>
+              Aircraft via
+              <Feed feed={aircraftFeed} />
+            </>
+          )}
         </span>
       ) : (
         <span className="text-slate-600 dark:text-slate-400">AIS Data via {AISSTREAM_LINK}</span>

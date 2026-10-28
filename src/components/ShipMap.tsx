@@ -13,6 +13,8 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import React, { useEffect, memo, useState, useCallback, useMemo } from "react";
 import type { TrackedShip } from "../types/ais";
+import type { Aircraft } from "../types/aircraft";
+import { aircraftLabel, formatAltitude, verticalTrend } from "../utils/aircraft";
 import type { Theme } from "../hooks/useTheme";
 import SourceBadge from "./SourceBadge";
 import type { ShipCamSize } from "./ShipCam";
@@ -31,6 +33,7 @@ import {
   CubeIcon,
   ArrowUpIcon,
   ListBulletIcon,
+  PaperAirplaneIcon,
 } from "@heroicons/react/20/solid";
 
 const HIDE_CLASS_B_KEY = "hideClassB";
@@ -47,6 +50,25 @@ function getStoredHideClassB(): boolean {
 function setStoredHideClassB(hide: boolean): void {
   try {
     localStorage.setItem(HIDE_CLASS_B_KEY, String(hide));
+  } catch {
+    // localStorage might not be available
+  }
+}
+
+const SHOW_AIRCRAFT_KEY = "showAircraft";
+
+function getStoredShowAircraft(): boolean {
+  try {
+    return localStorage.getItem(SHOW_AIRCRAFT_KEY) !== "false";
+  } catch {
+    // localStorage might not be available
+    return true;
+  }
+}
+
+function setStoredShowAircraft(show: boolean): void {
+  try {
+    localStorage.setItem(SHOW_AIRCRAFT_KEY, String(show));
   } catch {
     // localStorage might not be available
   }
@@ -320,6 +342,115 @@ const ShipMarker = memo(
   }
 );
 
+// Amber in the air, grey on the ground, so planes stand apart from the blue ships
+function getAircraftColor(aircraft: Aircraft): string {
+  return aircraft.onGround ? "#9ca3af" : "#f59e0b";
+}
+
+function AircraftPopupContent({ aircraft }: { aircraft: Aircraft }) {
+  const altitude = formatAltitude(aircraft);
+  // The registration, unless it is already the title
+  const registration = aircraft.registration !== aircraftLabel(aircraft) && aircraft.registration;
+  const details = [aircraft.type, registration].filter(Boolean).join(" · ");
+  const motion = [
+    altitude && `${altitude} ${verticalTrend(aircraft)}`.trim(),
+    aircraft.speed !== undefined && `${aircraft.speed} kn`,
+  ].filter(Boolean).join(" · ");
+  return (
+    <div className="ship-popup">
+      <h3 className="m-0! text-xs font-bold text-slate-800 leading-tight">
+        {aircraftLabel(aircraft)}
+      </h3>
+      {details && <div className="mt-0.5 text-[0.65rem] text-slate-600">{details}</div>}
+      {motion && <div className="mt-0.5 text-[0.65rem] text-slate-600">{motion}</div>}
+      <a
+        href={`https://globe.adsb.lol/?icao=${aircraft.hex}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-1 block text-[0.65rem] text-blue-600 hover:text-blue-700 underline"
+      >
+        Track on adsb.lol
+      </a>
+    </div>
+  );
+}
+
+const AircraftMarker = memo(
+  ({
+    aircraft,
+    isPopupOpen,
+    onTogglePopup,
+    is3D,
+  }: {
+    aircraft: Aircraft;
+    isPopupOpen: boolean;
+    onTogglePopup: (hex: string) => void;
+    is3D: boolean;
+  }) => {
+    const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
+      e.originalEvent.stopPropagation();
+      onTogglePopup(aircraft.hex);
+    }, [onTogglePopup, aircraft.hex]);
+
+    return (
+      <>
+        <Marker
+          longitude={aircraft.lon}
+          latitude={aircraft.lat}
+          anchor="center"
+          onClick={handleClick}
+          rotation={aircraft.track ?? 0}
+          rotationAlignment="map"
+          pitchAlignment={is3D ? "map" : "viewport"}
+        >
+          <div className="aircraft-marker" title={aircraftLabel(aircraft)}>
+            <svg width={20} height={20} viewBox="0 0 24 24">
+              {/* Material Design "flight" icon, nose up */}
+              <path
+                d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
+                fill={getAircraftColor(aircraft)}
+                stroke="#fff"
+                strokeWidth="1"
+              />
+            </svg>
+          </div>
+        </Marker>
+        {isPopupOpen && (
+          <Popup
+            longitude={aircraft.lon}
+            latitude={aircraft.lat}
+            anchor="bottom"
+            offset={12}
+            onClose={() => onTogglePopup(aircraft.hex)}
+            closeButton={false}
+            closeOnClick={false}
+          >
+            <AircraftPopupContent aircraft={aircraft} />
+          </Popup>
+        )}
+      </>
+    );
+  },
+  // The whole list is replaced on every poll, so compare what the marker shows
+  (prevProps, nextProps) => {
+    const prev = prevProps.aircraft;
+    const next = nextProps.aircraft;
+    return (
+      prev.lat === next.lat &&
+      prev.lon === next.lon &&
+      prev.track === next.track &&
+      prev.altitude === next.altitude &&
+      prev.onGround === next.onGround &&
+      prev.speed === next.speed &&
+      prev.verticalRate === next.verticalRate &&
+      prev.callsign === next.callsign &&
+      prevProps.isPopupOpen === nextProps.isPopupOpen &&
+      prevProps.onTogglePopup === nextProps.onTogglePopup &&
+      prevProps.is3D === nextProps.is3D
+    );
+  }
+);
+
 // Bridge marker as DOM marker with emoji
 function BridgeMarker({
   isPopupOpen,
@@ -558,6 +689,8 @@ function MapControlGroup({
   shipCamSize,
   hideClassB,
   onToggleClassB,
+  showAircraft,
+  onToggleAircraft,
 }: {
   theme: Theme;
   is3D: boolean;
@@ -568,6 +701,8 @@ function MapControlGroup({
   shipCamSize: ShipCamSize | null;
   hideClassB: boolean;
   onToggleClassB: () => void;
+  showAircraft: boolean;
+  onToggleAircraft: () => void;
 }) {
   const { current: map } = useMap();
 
@@ -688,6 +823,17 @@ function MapControlGroup({
               B
             </span>
           </button>
+          <button
+            className={showAircraft ? MAP_BTN_3D_ACTIVE : MAP_BTN}
+            onClick={onToggleAircraft}
+            aria-label="Show aircraft"
+            aria-pressed={showAircraft}
+            title={showAircraft ? "Hide aircraft" : "Show aircraft"}
+          >
+            <PaperAirplaneIcon
+              className={`w-3.5 h-3.5 -rotate-45 ${showAircraft ? "text-white" : "text-slate-700 dark:text-white"}`}
+            />
+          </button>
         </div>
         <button
           className={`${MAP_BTN} rounded border border-slate-300 dark:border-slate-400 shadow-lg transition-opacity duration-300 ${showShipList ? "opacity-0 pointer-events-none" : "opacity-100"}`}
@@ -707,6 +853,7 @@ function MapControlGroup({
 
 interface ShipMapProps {
   ships: Map<number, TrackedShip>;
+  aircraft?: Aircraft[];
   selectedShip?: TrackedShip | null;
   onSelectShip?: (ship: TrackedShip | null) => void;
   theme: Theme;
@@ -769,9 +916,10 @@ function MapController({
   return null;
 }
 
-export default function ShipMap({ ships, selectedShip, onSelectShip, theme, showShipList, onToggleShipList, shipCamSize = null }: ShipMapProps) {
+export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectShip, theme, showShipList, onToggleShipList, shipCamSize = null }: ShipMapProps) {
   const [errorCount, setErrorCount] = useState(0);
-  const [openPopupId, setOpenPopupId] = useState<number | "bridge" | null>(null);
+  // A ship's MMSI, the bridge, or an aircraft's ICAO address
+  const [openPopupId, setOpenPopupId] = useState<number | "bridge" | `aircraft:${string}` | null>(null);
   const [is3D, setIs3D] = useState(false);
   const [bearing, setBearing] = useState(0);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
@@ -781,6 +929,17 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
     setHideClassB(!hideClassB);
     setStoredHideClassB(!hideClassB);
   }, [hideClassB]);
+
+  const [showAircraft, setShowAircraft] = useState(getStoredShowAircraft);
+
+  const toggleAircraft = useCallback(() => {
+    setShowAircraft(!showAircraft);
+    setStoredShowAircraft(!showAircraft);
+  }, [showAircraft]);
+
+  const toggleAircraftPopup = useCallback((hex: string) => {
+    setOpenPopupId((open) => (open === `aircraft:${hex}` ? null : `aircraft:${hex}`));
+  }, []);
 
   // Ships drawn on the map; Class B craft can be hidden
   const mapShips = useMemo(
@@ -895,6 +1054,16 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           }
           onSelect={() => onSelectShip?.(null)}
         />
+        {showAircraft &&
+          aircraft.map((plane) => (
+            <AircraftMarker
+              key={plane.hex}
+              aircraft={plane}
+              isPopupOpen={openPopupId === `aircraft:${plane.hex}`}
+              onTogglePopup={toggleAircraftPopup}
+              is3D={is3D}
+            />
+          ))}
         {Array.from(mapShips.values()).map((ship) => (
           <ShipMarker
             key={ship.mmsi}
@@ -916,7 +1085,7 @@ export default function ShipMap({ ships, selectedShip, onSelectShip, theme, show
           showShipList={showShipList}
           shipCamSize={shipCamSize}
         />
-        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} />
+        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} showAircraft={showAircraft} onToggleAircraft={toggleAircraft} />
       </Map>
       <AttributionToggle theme={theme} showShipList={showShipList} />
     </div>

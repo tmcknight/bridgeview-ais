@@ -56,6 +56,11 @@
   border: none !important;
 }
 
+.aircraft-marker {
+  @apply cursor-pointer;
+  opacity: 0.9;
+}
+
 .bridge-marker {
   @apply cursor-pointer;
   background: none !important;

@@ -22,6 +22,7 @@ function App() {
     connectionStatus,
     feeds,
     shipLog,
+    aircraft,
     dismissNotification,
     clearNotifications,
   } = useAISStream()
@@ -117,6 +118,7 @@ function App() {
           <ComponentErrorBoundary componentName="Map">
             <ShipMap
               ships={ships}
+              aircraft={aircraft}
               selectedShip={selectedShip}
               onSelectShip={handleSelectShip}
               theme={theme}
