@@ -77,6 +77,8 @@ src/
   - Sends `{type: "feedStatus", feeds}` on subscribe and whenever a feed's status changes; shown in the top bar
 - `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
   - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
+- `server/class-b.js`: Class B transponders (pleasure craft, small workboats) send messages 18/19/24; both feeds turn them into `PositionReport`/`ShipStaticData` with `MetaData.AisClass = "B"`
+  - Shown on the map (hideable with the map's "B" button) and in the lists, but left out of the ship log and of bridge alerts (browser and vessel-notifier)
 
 ### Vessel Notification Service
 

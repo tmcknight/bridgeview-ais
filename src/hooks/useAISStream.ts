@@ -232,6 +232,7 @@ export function useAISStream(): UseAISStreamReturn {
           lastUpdate: parseTimeUtc(MetaData.time_utc),
           source: MetaData.Source ?? "aisstream",
           signalPower: MetaData.SignalPower,
+          ...(MetaData.AisClass === "B" && { classB: true }),
           distanceToBridge: dist,
           approaching,
           notified: existing?.notified ?? false,
@@ -244,8 +245,9 @@ export function useAISStream(): UseAISStreamReturn {
           vesselInfo: details.vesselInfo,
         };
 
-        // Check for approach notification
+        // Check for approach notification (not for Class B pleasure craft)
         if (
+          !ship.classB &&
           approaching &&
           dist <= APPROACH_NOTIFICATION_DISTANCE_NM &&
           !ship.notified
@@ -260,7 +262,7 @@ export function useAISStream(): UseAISStreamReturn {
         }
 
         // Check for "passing under" notification
-        if (dist <= CLOSE_APPROACH_DISTANCE_NM && existing && existing.distanceToBridge > CLOSE_APPROACH_DISTANCE_NM) {
+        if (!ship.classB && dist <= CLOSE_APPROACH_DISTANCE_NM && existing && existing.distanceToBridge > CLOSE_APPROACH_DISTANCE_NM) {
           addNotification(
             ship.name,
             mmsi,

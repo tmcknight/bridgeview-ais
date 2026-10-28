@@ -6,6 +6,8 @@ export interface AISMetaData {
   latitude: number;
   longitude: number;
   time_utc: string;
+  /** Set to "B" by the proxy for Class B transponders (pleasure craft, small workboats) */
+  AisClass?: "B";
 }
 
 /** AIS position report */

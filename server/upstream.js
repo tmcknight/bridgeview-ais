@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import { WebSocket } from "ws";
+import { fromAISStreamClassB } from "./class-b.js";
 
 // One shared connection to AISStream.io for every client. AISStream allows
 // only 3 connections per account (and per IP), so a connection per browser
@@ -61,7 +62,8 @@ export function mergeSubscriptions(subscriptions) {
   return merged;
 }
 
-// Emits "message" (parsed AIS message, raw text) for each AIS message, and
+// Emits "message" (parsed AIS message, raw text) for each AIS message, with Class B
+// messages turned into PositionReport and ShipStaticData (see class-b.js), and
 // "link" ("connecting" | "up" | "down", detail) as the connection changes.
 // Call setSubscription() whenever the merged subscription changes.
 export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketImpl = WebSocket }) {
@@ -78,6 +80,7 @@ export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketIm
   let stopped = false;
   let retrying = false;
   let lastError = null;
+  const classBDetails = new Map(); // MMSI -> Class B details heard so far
 
   function send() {
     clearTimeout(sendTimer);
@@ -128,7 +131,9 @@ export function createUpstream({ apiKey, logger, url = UPSTREAM_URL, WebSocketIm
       }
       // Skip SubscriptionConfirmation and anything else without a position
       if (!message.MetaData) return;
-      emitter.emit("message", message, text);
+      const converted = fromAISStreamClassB(message, classBDetails);
+      if (!converted) return;
+      emitter.emit("message", converted, converted === message ? text : JSON.stringify(converted));
     });
 
     socket.on("close", (code) => {

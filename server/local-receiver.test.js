@@ -142,6 +142,96 @@ describe("toAISStreamMessage names", () => {
   });
 });
 
+describe("toAISStreamMessage Class B", () => {
+  const classBPosition = {
+    class: "AIS",
+    type: 18,
+    repeat: 0,
+    mmsi: 367000001,
+    speed: 6.2,
+    accuracy: true,
+    lon: -82.4235,
+    lat: 42.9985,
+    course: 12.3,
+    heading: 511,
+    second: 30,
+    raim: false,
+    signalpower: -20.5,
+    rxuxtime: 1793049431,
+  };
+  const partA = { class: "AIS", type: 24, repeat: 0, mmsi: 367000001, partno: 0, shipname: "SEA BREEZE  " };
+  const partB = {
+    class: "AIS",
+    type: 24,
+    repeat: 0,
+    mmsi: 367000001,
+    partno: 1,
+    shiptype: 37,
+    callsign: "WDA1234",
+    to_bow: 8,
+    to_stern: 4,
+    to_port: 2,
+    to_starboard: 2,
+  };
+
+  it("converts a Class B position report into a PositionReport marked Class B", () => {
+    const msg = toAISStreamMessage(classBPosition, new Map());
+
+    expect(msg.MessageType).toBe("PositionReport");
+    expect(msg.MetaData).toMatchObject({ MMSI: 367000001, AisClass: "B", Source: "local", SignalPower: -20.5 });
+    expect(msg.Message.PositionReport).toMatchObject({
+      MessageID: 18,
+      Latitude: 42.9985,
+      Longitude: -82.4235,
+      Sog: 6.2,
+      Cog: 12.3,
+      NavigationalStatus: 15,
+    });
+  });
+
+  it("joins both parts of a type 24 report and names later positions", () => {
+    const vessels = new Map();
+    toAISStreamMessage(classBPosition, vessels);
+
+    const a = toAISStreamMessage(partA, vessels);
+    expect(a.MessageType).toBe("ShipStaticData");
+    expect(a.MetaData).toMatchObject({ ShipName: "SEA BREEZE", AisClass: "B", latitude: 42.9985 });
+
+    const b = toAISStreamMessage(partB, vessels);
+    expect(b.Message.ShipStaticData).toMatchObject({
+      Name: "SEA BREEZE",
+      Type: 37,
+      CallSign: "WDA1234",
+      Dimension: { A: 8, B: 4, C: 2, D: 2 },
+    });
+
+    expect(toAISStreamMessage(classBPosition, vessels).MetaData.ShipName).toBe("SEA BREEZE");
+  });
+
+  it("takes the name and size from a type 19 report", () => {
+    const vessels = new Map();
+    const msg = toAISStreamMessage(
+      { ...classBPosition, type: 19, shipname: "TUG LIFE", shiptype: 52, to_bow: 10, to_stern: 5, to_port: 3, to_starboard: 3 },
+      vessels
+    );
+    expect(msg.MetaData.ShipName).toBe("TUG LIFE");
+    expect(msg.Message.PositionReport.MessageID).toBe(19);
+    expect(vessels.get(367000001).classB).toMatchObject({ name: "TUG LIFE", shipType: 52 });
+  });
+
+  it("drops an empty part A", () => {
+    expect(toAISStreamMessage({ ...partA, shipname: "" }, new Map())).toBeNull();
+  });
+
+  it("matches Class B filters by AISStream name", () => {
+    const msg = toAISStreamMessage(classBPosition, new Map());
+    expect(matchesMessageFilter(msg, ["PositionReport"])).toBe(true);
+    expect(matchesMessageFilter(msg, ["StandardClassBPositionReport"])).toBe(true);
+    expect(matchesMessageFilter(msg, [18])).toBe(true);
+    expect(matchesMessageFilter(msg, ["ExtendedClassBPositionReport"])).toBe(false);
+  });
+});
+
 describe("inBoundingBoxes", () => {
   it("accepts positions inside a box and rejects those outside", () => {
     const inside = toAISStreamMessage(position, new Map());

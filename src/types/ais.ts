@@ -23,6 +23,8 @@ export interface AISMetaData {
   Source?: AISSource;
   // Received signal level in dB (local antenna only)
   SignalPower?: number;
+  // Set by the proxy on messages from Class B transponders (pleasure craft, small workboats)
+  AisClass?: "B";
 }
 
 export interface PositionReport {
@@ -103,6 +105,8 @@ export interface TrackedShip {
   lastUpdate: string;
   source: AISSource;
   signalPower?: number;
+  /** Class B transponder (pleasure craft, small workboats); not in the ship log or alerts */
+  classB?: boolean;
   distanceToBridge: number;
   approaching: boolean;
   notified: boolean;
