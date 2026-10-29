@@ -27,6 +27,7 @@ src/
 │   ├── UpcomingShips.tsx      # "Coming up" list of ships heading for the bridge
 │   ├── ShipLog.tsx    # Log of ships that have gone under the bridge
 │   ├── StatusBar.tsx  # Connection status indicator
+│   ├── SourceBadge.tsx # Where a ship's last position came from (antenna, AISStream, AISHub)
 │   ├── ShipCam.tsx    # Port Huron YouTube ship cams, toggled from the header
 │   ├── ErrorBoundary.tsx          # App-level error boundary
 │   └── ComponentErrorBoundary.tsx # Component-level error boundary
@@ -73,12 +74,15 @@ src/
   - Sends a ship's stored details and `{type: "vesselInfo", mmsi, info}` to a client just before its first position, and new lookups as they finish; fills in names on antenna reports
 - `server/latest-positions.js`: Each ship's latest position report (in memory, dropped after 10 minutes unheard)
   - Replayed to a client on subscribe, so the map fills in at once instead of waiting for each ship's next report
-- `server/feed-status.js`: Health of each configured feed (AISStream, local antenna)
+- `server/feed-status.js`: Health of each configured feed (AISStream, local antenna, AISHub)
   - `connecting`, `live`, `quiet` (link up, no messages lately) or `down` (with the reason)
   - Sends `{type: "feedStatus", feeds}` on subscribe and whenever a feed's status changes, each with its web page `url` if it has one (`LOCAL_AIS_WEB_URL` for the antenna)
   - Shown in the top bar's Sources dropdown (`StatusBar.tsx`): a dot per feed, opening to each feed's status, reason and link
 - `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
-  - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
+  - `AIS_SOURCES`: comma-separated `aisstream`, `local`, `aishub` (default `aisstream,local`; duplicates dropped per client). The old `AIS_SOURCE=aisstream|local|both` still works, with a warning
+- `server/aishub.js`: Optional AISHub source; polls its REST API once a minute (its limit) for one box covering the ship log and every client's area
+  - Converts each record to `ShipStaticData` (when details change) and `PositionReport` (when newer than any feed's latest); messages carry `MetaData.Source = "aishub"`
+  - Reported as the `aishub` feed in feed status; needs `AISHUB_API_KEY` (AISHub's docs call it a username)
 - `server/aircraft.js`: Aircraft layer; polls an ADS-B feed every 5s, backing off on errors (doubling, honouring a 429's `Retry-After`, capped at 5 min; default adsb.fi's free open-data API, 40 NM around the bridge; or a local readsb/tar1090 `aircraft.json` via `ADSB_URL`)
   - Sends `{type: "aircraft", aircraft}` on subscribe and after each poll; reported as the `adsb` feed in feed status; `AIRCRAFT_TRACKING=false` turns it off
   - Shown on the map as amber planes (helicopters, ADS-B category A7, get their own icon), hideable with the map's plane button
@@ -168,8 +172,8 @@ This command:
 ### Environment Variables
 
 - Copy `.example.env` to `.env` for local development
-- Required: `AISSTREAM_API_KEY` unless `AIS_SOURCE=local`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the sources menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge)
+- Required: `AISSTREAM_API_KEY` unless `AIS_SOURCES` leaves out `aisstream`; `AISHUB_API_KEY` when it includes `aishub`
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCES` (default: `aisstream,local`), `AISHUB_API_KEY`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the sources menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production

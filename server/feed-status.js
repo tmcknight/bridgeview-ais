@@ -12,10 +12,12 @@ import { EventEmitter } from "node:events";
 // How long a connected feed can go without a message before it counts as quiet.
 // AISStream covers a wide area and is rarely silent; the antenna only hears
 // nearby ships, so a quiet spell there is more normal. The ADS-B feed is polled
-// every few seconds, so a minute without a good poll is worth showing.
+// every few seconds, so a minute without a good poll is worth showing. AISHub
+// is polled once a minute, so allow a few polls with no ships.
 export const QUIET_AFTER_MS = {
   aisstream: 2 * 60_000,
   local: 10 * 60_000,
+  aishub: 5 * 60_000,
   adsb: 60_000,
 };
 

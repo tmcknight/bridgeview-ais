@@ -64,6 +64,16 @@ describe('StatusBar', () => {
       await user.click(getByRole('button', { name: /sources/i }))
       expect(await findByText(/^Connected, but no messages lately\. Last message /)).toBeInTheDocument()
     })
+
+    it('lists AISHub with its reason and web page', async () => {
+      const user = userEvent.setup()
+      const { getByRole, findByText } = renderFeeds([
+        { source: 'aishub', status: 'down', detail: 'Too frequent requests!', url: 'https://www.aishub.net' },
+      ])
+      await user.click(getByRole('button', { name: /sources/i }))
+      expect(await findByText('Down (Too frequent requests!)')).toBeInTheDocument()
+      expect(getByRole('link', { name: 'AISHub' })).toHaveAttribute('href', 'https://www.aishub.net')
+    })
   })
 
   describe('connected state', () => {

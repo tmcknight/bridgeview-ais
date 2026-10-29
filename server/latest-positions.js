@@ -27,6 +27,12 @@ export function createLatestPositions({ ttlMs = POSITION_TTL_MS, now = Date.now 
       prune();
     },
 
+    // One ship's latest report and when it arrived ({ message, receivedAt }), if heard within the TTL
+    latest(mmsi) {
+      const entry = positions.get(mmsi);
+      return entry && entry.receivedAt > now() - ttlMs ? entry : undefined;
+    },
+
     // Latest report of every ship heard within the TTL, oldest first
     messages() {
       prune();

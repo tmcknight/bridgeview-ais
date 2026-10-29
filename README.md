@@ -130,13 +130,19 @@ The proxy can also take AIS straight off the air from an RTL-SDR dongle (e.g. a 
 AIS-catcher -d:0 -gr TUNER auto -S 5012 MSGFORMAT JSON_FULL
 ```
 
-Set `AIS_SOURCE` in `.env` to choose the feed:
+Set `AIS_SOURCES` in `.env` to the feeds to use, comma-separated (default `aisstream,local`). A transmission heard by more than one feed is sent once.
 
-- `both` (default): merge AISStream.io and the local receiver, dropping duplicate transmissions
-- `local`: local receiver only (no API key needed)
-- `aisstream`: AISStream.io only
+- `aisstream`: AISStream.io (needs `AISSTREAM_API_KEY`)
+- `local`: the local receiver (no API key needed)
+- `aishub`: [AISHub](https://www.aishub.net/api) (needs `AISHUB_API_KEY`)
+
+For example, `AIS_SOURCES=local` uses the antenna alone. The old `AIS_SOURCE` (`aisstream`, `local` or `both`) still works but logs a warning.
 
 `LOCAL_AIS_HOST` / `LOCAL_AIS_PORT` point at AIS-catcher (default `127.0.0.1:5012`). The proxy reconnects automatically if AIS-catcher restarts. Set `LOCAL_AIS_WEB_URL` to AIS-catcher's web view (started with `-N 8100`) to link it from the sources menu.
+
+### AISHub (optional)
+
+AISHub gives API access to stations that [share their feed](https://www.aishub.net/join-us) (AIS-catcher can send to it). Set `AISHUB_API_KEY` (AISHub's docs call it a username) and add `aishub` to `AIS_SOURCES`, e.g. `AIS_SOURCES=aisstream,local,aishub`. The proxy polls once a minute (AISHub's limit) for the area every client is watching. Its reports are a minute or so behind the others, so a report another feed has already beaten is dropped.
 
 ## ℹ️ About
 
