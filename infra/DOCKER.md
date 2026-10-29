@@ -48,6 +48,8 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `AIRCRAFT_TRACKING` | No       | `true`            | Show aircraft from an ADS-B feed on the map |
 | `ADSB_URL`          | No       | adsb.fi, 40 NM around the bridge | ADS-B feed to poll; a local readsb/tar1090 `aircraft.json` works too |
 | `LOCAL_AIS_WEB_URL` | No       | —                 | AIS-catcher's web view, linked from the sources menu |
+| `AIS_SOURCES`       | No       | `aisstream,local` | AIS feeds to use, comma-separated: `aisstream`, `local`, `aishub` |
+| `AISHUB_API_KEY`    | With `aishub` | —            | AISHub API key (AISHub calls it a username) |
 
 ## Architecture
 

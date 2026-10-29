@@ -9,8 +9,8 @@ export interface AISSubscription {
   FiltersShipMMSI?: string[];
 }
 
-// Where a message came from: the local SDR antenna (via AIS-catcher) or AISStream.io
-export type AISSource = "local" | "aisstream";
+// Where a message came from: the local SDR antenna (via AIS-catcher), AISStream.io or AISHub
+export type AISSource = "local" | "aisstream" | "aishub";
 
 export interface AISMetaData {
   MMSI: number;
@@ -19,7 +19,7 @@ export interface AISMetaData {
   latitude: number;
   longitude: number;
   time_utc: string;
-  // Set by the proxy on local antenna messages; absent on AISStream.io messages
+  // Set by the proxy on local antenna and AISHub messages; absent on AISStream.io messages
   Source?: AISSource;
   // Received signal level in dB (local antenna only)
   SignalPower?: number;

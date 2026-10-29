@@ -20,6 +20,19 @@ describe("createLatestPositions", () => {
     expect(positions.messages()).toEqual([position(2), position(1, 43.0)]);
   });
 
+  it("looks up one ship's latest report and when it arrived", () => {
+    clock = 0;
+    const positions = create();
+    positions.handleMessage(position(1, 42.9));
+    clock = 1000;
+    positions.handleMessage(position(1, 43.0));
+
+    expect(positions.latest(1)).toEqual({ message: position(1, 43.0), receivedAt: 1000 });
+    expect(positions.latest(2)).toBeUndefined();
+    clock = 1000 + POSITION_TTL_MS;
+    expect(positions.latest(1)).toBeUndefined();
+  });
+
   it("ignores messages other than position reports", () => {
     const positions = create();
     positions.handleMessage({

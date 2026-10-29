@@ -24,6 +24,7 @@ function webUrlOrUndefined(value) {
     return undefined;
   }
 }
+import { createAishubFeed, enclosingBox } from "./aishub.js";
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
@@ -31,14 +32,35 @@ const AUTH_TOKEN = process.env.WS_AUTH_TOKEN; // Optional: set for production
 // Take the client's address from the reverse proxy's X-Real-IP header (Docker/nginx only)
 const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 
-// Data source: "aisstream" (AISStream.io), "local" (AIS-catcher on a local SDR), or "both"
-const AIS_SOURCE = (process.env.AIS_SOURCE || "both").toLowerCase();
+// AISHub's API key (its docs call it a username), given to stations that share their feed
+const AISHUB_API_KEY = process.env.AISHUB_API_KEY;
+// AIS feeds to use, comma-separated:
+//   aisstream - AISStream.io (needs AISSTREAM_API_KEY)
+//   local     - AIS-catcher on a local SDR (LOCAL_AIS_HOST, LOCAL_AIS_PORT)
+//   aishub    - AISHub, polled once a minute (needs AISHUB_API_KEY)
+const KNOWN_SOURCES = ["aisstream", "local", "aishub"];
+const DEFAULT_SOURCES = "aisstream,local";
+// The old AIS_SOURCE took one of aisstream, local or both
+const LEGACY_AIS_SOURCE = process.env.AIS_SOURCE?.toLowerCase();
+const AIS_SOURCES_SETTING =
+  process.env.AIS_SOURCES ||
+  (LEGACY_AIS_SOURCE === "both" ? DEFAULT_SOURCES : LEGACY_AIS_SOURCE) ||
+  DEFAULT_SOURCES;
+const AIS_SOURCES = new Set(
+  AIS_SOURCES_SETTING.toLowerCase()
+    .split(",")
+    .map((source) => source.trim())
+    .filter(Boolean)
+);
 const LOCAL_AIS_HOST = process.env.LOCAL_AIS_HOST || "127.0.0.1";
 const LOCAL_AIS_PORT = Number(process.env.LOCAL_AIS_PORT) || 5012;
 // The antenna's AIS-catcher web view, linked from the feed status (e.g. http://192.168.1.20:8100)
 const LOCAL_AIS_WEB_URL = webUrlOrUndefined(process.env.LOCAL_AIS_WEB_URL);
-const USE_AISSTREAM = AIS_SOURCE === "aisstream" || AIS_SOURCE === "both";
-const USE_LOCAL = AIS_SOURCE === "local" || AIS_SOURCE === "both";
+const USE_AISSTREAM = AIS_SOURCES.has("aisstream");
+const USE_LOCAL = AIS_SOURCES.has("local");
+const USE_AISHUB = AIS_SOURCES.has("aishub");
+// With more than one source, the same transmission can arrive twice; deliver it once
+const MULTIPLE_SOURCES = AIS_SOURCES.size > 1;
 const SHIP_LOG_FILE = process.env.SHIP_LOG_FILE || "data/ship-log.json";
 const DB_FILE = process.env.DB_FILE || "data/bridgeview.db";
 // Look ships up on Wikidata (photo, build year, operator) and store the result
@@ -74,13 +96,23 @@ const VALID_BOUNDS = {
   MAX_BOUNDING_BOX_AREA: 100, // Limit to ~100 square degrees
 };
 
-if (!USE_AISSTREAM && !USE_LOCAL) {
-  logger.error(`[proxy] invalid AIS_SOURCE "${AIS_SOURCE}" (expected aisstream, local, or both)`);
+if (!process.env.AIS_SOURCES && LEGACY_AIS_SOURCE) {
+  logger.warn(`[proxy] AIS_SOURCE is deprecated; use AIS_SOURCES=${[...AIS_SOURCES].join(",")}`);
+}
+
+const unknownSources = [...AIS_SOURCES].filter((source) => !KNOWN_SOURCES.includes(source));
+if (unknownSources.length > 0 || AIS_SOURCES.size === 0) {
+  logger.error(`[proxy] invalid AIS_SOURCES "${AIS_SOURCES_SETTING}" (expected a comma-separated list of ${KNOWN_SOURCES.join(", ")})`);
   process.exit(1);
 }
 
 if (USE_AISSTREAM && !API_KEY) {
-  logger.error("[proxy] AISSTREAM_API_KEY environment variable is required (or set AIS_SOURCE=local)");
+  logger.error("[proxy] AISSTREAM_API_KEY is required for AISStream.io (or leave aisstream out of AIS_SOURCES)");
+  process.exit(1);
+}
+
+if (USE_AISHUB && !AISHUB_API_KEY) {
+  logger.error("[proxy] AISHUB_API_KEY is required for AISHub (or leave aishub out of AIS_SOURCES)");
   process.exit(1);
 }
 
@@ -116,11 +148,13 @@ const feedStatus = createFeedStatus({
   sources: [
     ...(USE_AISSTREAM ? ["aisstream"] : []),
     ...(USE_LOCAL ? ["local"] : []),
+    ...(USE_AISHUB ? ["aishub"] : []),
     ...(AIRCRAFT_TRACKING ? ["adsb"] : []),
   ],
   links: {
     aisstream: "https://aisstream.io",
     local: LOCAL_AIS_WEB_URL,
+    aishub: "https://www.aishub.net",
     adsb: ADSB_URL === DEFAULT_ADSB_URL ? DEFAULT_ADSB_WEB_URL : undefined,
   },
 });
@@ -153,7 +187,7 @@ if (aircraftFeed) {
 // Shared ship log: fed by the server's own connection to the AIS sources, so
 // passages are logged whether or not any browser is connected
 const shipLog = createShipLog({ file: SHIP_LOG_FILE, logger });
-const isFirstSeenByShipLog = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
+const isFirstSeenByShipLog = MULTIPLE_SOURCES ? createDeduper() : () => true;
 
 function feedShipLog(message) {
   if (inBoundingBoxes(message, [SHIP_LOG_BOUNDING_BOX]) && isFirstSeenByShipLog(message)) {
@@ -196,11 +230,31 @@ if (upstream) {
   updateUpstreamSubscription();
 }
 
+// AISHub, polled once a minute for one box covering the ship log and every client's area
+const aishub = USE_AISHUB
+  ? createAishubFeed({
+      username: AISHUB_API_KEY,
+      area: () => enclosingBox([SHIP_LOG_BOUNDING_BOX, ...[...clientSubscriptions.values()].flatMap((sub) => sub.BoundingBoxes)]),
+      latest: (mmsi) => latestPositions.latest(mmsi),
+      logger,
+    })
+  : null;
+
+if (aishub) {
+  aishub.on("link", (link, detail) => feedStatus.setLink("aishub", link, detail));
+  aishub.on("activity", () => feedStatus.messageReceived("aishub"));
+  aishub.on("message", (message) => vesselDetails.handleMessage(message));
+  aishub.on("message", (message) => latestPositions.handleMessage(message));
+  aishub.on("message", feedShipLog);
+  aishub.start();
+}
+
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     shipLog.flush();
     vesselDetails.close();
     upstream?.stop();
+    aishub?.stop();
     aircraftFeed?.stop();
     process.exit(0);
   });
@@ -387,6 +441,7 @@ wss.on("connection", (client, req) => {
   let subscribed = false;
   let localListener = null;
   let upstreamListener = null;
+  let aishubListener = null;
   let authenticated = !AUTH_TOKEN; // Auto-auth if no token configured
   let subscriptionTimeout = null;
 
@@ -452,8 +507,7 @@ wss.on("connection", (client, req) => {
       client.send(JSON.stringify({ type: "feedStatus", feeds: feedStatus.snapshot() }));
       if (aircraftFeed) client.send(JSON.stringify({ type: "aircraft", aircraft: aircraftFeed.aircraft() }));
 
-      // With both sources, the same transmission can arrive twice; deliver it once
-      const isFirstSeen = USE_LOCAL && USE_AISSTREAM ? createDeduper() : () => true;
+      const isFirstSeen = MULTIPLE_SOURCES ? createDeduper() : () => true;
       // Read the subscription on each message, so updates from the client apply
       const wants = (message) => {
         const subscription = clientSubscriptions.get(client);
@@ -510,6 +564,15 @@ wss.on("connection", (client, req) => {
         logger.log(`[proxy] client ${clientId} subscribed to shared upstream`);
       }
 
+      if (aishub) {
+        aishubListener = (message) => {
+          if (!wants(message)) return;
+          sendStoredDetails(message);
+          client.send(JSON.stringify(message));
+        };
+        aishub.on("message", aishubListener);
+      }
+
       return;
     }
 
@@ -545,6 +608,10 @@ wss.on("connection", (client, req) => {
       upstream.off("message", upstreamListener);
       upstreamListener = null;
     }
+    if (aishubListener) {
+      aishub.off("message", aishubListener);
+      aishubListener = null;
+    }
     if (clientSubscriptions.delete(client)) {
       updateUpstreamSubscription();
     }
@@ -557,7 +624,7 @@ wss.on("connection", (client, req) => {
 });
 
 logger.info(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
-logger.info(`[proxy] AIS source: ${AIS_SOURCE}${USE_LOCAL ? ` (AIS-catcher at ${LOCAL_AIS_HOST}:${LOCAL_AIS_PORT})` : ""}`);
+logger.info(`[proxy] AIS sources: ${[...AIS_SOURCES].join(", ")}${USE_LOCAL ? ` (AIS-catcher at ${LOCAL_AIS_HOST}:${LOCAL_AIS_PORT})` : ""}`);
 logger.info(`[proxy] Aircraft: ${AIRCRAFT_TRACKING ? ADSB_URL : "off"}`);
 if (AUTH_TOKEN) {
   logger.info(`[proxy] Authentication enabled`);

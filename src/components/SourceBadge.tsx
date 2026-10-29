@@ -6,7 +6,7 @@ interface SourceBadgeProps {
   signalPower?: number
 }
 
-// Shows whether a ship's last position came from the local antenna or AISStream.io
+// Shows whether a ship's last position came from the local antenna, AISStream.io or AISHub
 export default function SourceBadge({ source, signalPower }: SourceBadgeProps) {
   if (source === "local") {
     const level = signalPower !== undefined ? `${signalPower.toFixed(1)} dB` : null
@@ -21,13 +21,14 @@ export default function SourceBadge({ source, signalPower }: SourceBadgeProps) {
     )
   }
 
+  const [name, fullName] = source === "aishub" ? ["AISHub", "AISHub"] : ["AISStream", "AISStream.io"]
   return (
     <span
       className="inline-flex items-center gap-1 whitespace-nowrap"
-      title="Last position from AISStream.io"
+      title={`Last position from ${fullName}`}
     >
       <CloudIcon className="shrink-0 w-3 h-3" />
-      AISStream
+      {name}
     </span>
   )
 }

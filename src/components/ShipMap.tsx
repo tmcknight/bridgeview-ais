@@ -833,15 +833,13 @@ function MapControlGroup({
             />
           </button>
           <button
-            className={MAP_BTN}
+            className={hideClassB ? MAP_BTN : MAP_BTN_3D_ACTIVE}
             onClick={onToggleClassB}
-            aria-label="Hide Class B vessels"
-            aria-pressed={hideClassB}
+            aria-label="Show Class B vessels"
+            aria-pressed={!hideClassB}
             title={hideClassB ? "Show Class B vessels (small craft)" : "Hide Class B vessels (small craft)"}
           >
-            <span
-              className={`text-xs font-bold text-slate-700 dark:text-white ${hideClassB ? "line-through opacity-60" : ""}`}
-            >
+            <span className={`text-xs font-bold ${hideClassB ? "text-slate-700 dark:text-white" : "text-white"}`}>
               B
             </span>
           </button>

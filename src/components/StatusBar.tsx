@@ -72,6 +72,7 @@ const FEED_CONFIG: Record<
 const FEED_NAMES: Record<FeedSource, { name: string; carries: string }> = {
   aisstream: { name: "AISStream.io", carries: "Ships" },
   local: { name: "Local antenna", carries: "Ships" },
+  aishub: { name: "AISHub", carries: "Ships" },
   adsb: { name: "ADS-B feed", carries: "Aircraft" },
 };
 
