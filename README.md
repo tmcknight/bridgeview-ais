@@ -138,7 +138,7 @@ Set `AIS_SOURCES` in `.env` to the feeds to use, comma-separated (default `aisst
 
 For example, `AIS_SOURCES=local` uses the antenna alone. The old `AIS_SOURCE` (`aisstream`, `local` or `both`) still works but logs a warning.
 
-`LOCAL_AIS_HOST` / `LOCAL_AIS_PORT` point at AIS-catcher (default `127.0.0.1:5012`). The proxy reconnects automatically if AIS-catcher restarts. Set `LOCAL_AIS_WEB_URL` to AIS-catcher's web view (started with `-N 8100`) to link it from the sources menu.
+`LOCAL_AIS_HOST` / `LOCAL_AIS_PORT` point at AIS-catcher (default `127.0.0.1:5012`). The proxy reconnects automatically if AIS-catcher restarts. Set `LOCAL_AIS_WEB_URL` to AIS-catcher's web view (started with `-N 8100`) to link it from the status menu.
 
 ### AISHub (optional)
 

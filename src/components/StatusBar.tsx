@@ -9,9 +9,15 @@ interface StatusBarProps {
   feeds?: FeedStatus[] | null;
 }
 
+interface DotStyle {
+  pingClass: string;
+  staticClass: string;
+  showPing: boolean;
+}
+
 const STATUS_CONFIG: Record<
   ConnectionStatus,
-  { label: string; pingClass: string; staticClass: string; showPing: boolean }
+  DotStyle & { label: string }
 > = {
   connected: {
     label: "Connected",
@@ -41,7 +47,7 @@ const STATUS_CONFIG: Record<
 
 const FEED_CONFIG: Record<
   FeedHealth,
-  { label: string; pingClass: string; staticClass: string; showPing: boolean }
+  DotStyle & { label: string }
 > = {
   live: {
     label: "Live",
@@ -90,18 +96,49 @@ function feedStatusText(feed: FeedStatus): string {
 const feedSummary = (feeds: FeedStatus[]): string =>
   feeds.map((feed) => `${FEED_NAMES[feed.source].name}: ${FEED_CONFIG[feed.status].label.toLowerCase()}`).join(", ");
 
-const LINK_CLASS =
-  "text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 underline";
+const countSources = (count: number, state: string): string =>
+  `${count} ${count === 1 ? "source" : "sources"} ${state}`;
 
-const AISSTREAM_LINK = (
-  <a href="https://aisstream.io" target="_blank" rel="noopener noreferrer" className={LINK_CLASS}>
-    aisstream.io
-  </a>
-);
+/**
+ * One status for the connection and every feed: the connection's own while it isn't up,
+ * then the worst feed's ("2 sources down"), or Live when everything is
+ */
+function overallStatus(
+  connectionStatus: ConnectionStatus,
+  feeds: FeedStatus[] | null | undefined
+): { label: string; dot: DotStyle } {
+  if (connectionStatus !== "connected" || !feeds || feeds.length === 0) {
+    return { label: STATUS_CONFIG[connectionStatus].label, dot: STATUS_CONFIG[connectionStatus] };
+  }
+  const down = feeds.filter((feed) => feed.status === "down").length;
+  if (down > 0) {
+    // Every feed down is an outage; some down still leaves ships on the map
+    return { label: countSources(down, "down"), dot: down === feeds.length ? FEED_CONFIG.down : FEED_CONFIG.quiet };
+  }
+  const quiet = feeds.filter((feed) => feed.status === "quiet").length;
+  if (quiet > 0) return { label: countSources(quiet, "quiet"), dot: FEED_CONFIG.quiet };
+  if (feeds.some((feed) => feed.status === "connecting")) return { label: "Connecting...", dot: FEED_CONFIG.connecting };
+  return { label: "Live", dot: FEED_CONFIG.live };
+}
 
 function FeedDot({ feed }: { feed: FeedStatus }) {
-  const config = FEED_CONFIG[feed.status];
-  return <StatusDot pingClass={config.pingClass} staticClass={config.staticClass} showPing={config.showPing} />;
+  return <StatusDot {...FEED_CONFIG[feed.status]} />;
+}
+
+/** This browser's own connection to the server, first in the menu */
+function ConnectionRow({ connectionStatus }: { connectionStatus: ConnectionStatus }) {
+  const config = STATUS_CONFIG[connectionStatus];
+  return (
+    <li className="flex items-start gap-2.5 px-3 py-2">
+      <span className="mt-1">
+        <StatusDot {...config} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <span className="font-medium text-slate-800 dark:text-slate-200">BridgeView server</span>
+        <p className="mt-0.5 text-slate-600 dark:text-slate-400">{config.label}</p>
+      </div>
+    </li>
+  );
 }
 
 function FeedRow({ feed }: { feed: FeedStatus }) {
@@ -134,49 +171,7 @@ function FeedRow({ feed }: { feed: FeedStatus }) {
   );
 }
 
-function FeedsMenu({ feeds }: { feeds: FeedStatus[] }) {
-  const summary = feedSummary(feeds);
-  return (
-    <Popover className="relative">
-      <PopoverButton
-        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-600 dark:text-slate-400 transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none data-focus:ring-2 data-focus:ring-blue-500"
-        title={summary}
-      >
-        <span className="flex items-center gap-1" aria-hidden="true">
-          {feeds.map((feed) => (
-            <FeedDot key={feed.source} feed={feed} />
-          ))}
-        </span>
-        Sources
-        <ChevronDownIcon className="size-3" aria-hidden="true" />
-      </PopoverButton>
-      <span className="sr-only" aria-live="polite">
-        {summary}
-      </span>
-      <PopoverPanel
-        anchor={{ to: "bottom end", gap: 4 }}
-        className="z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs shadow-lg"
-      >
-        <h2 className="border-b border-slate-200 dark:border-slate-700 px-3 py-2 font-semibold text-slate-800 dark:text-slate-200">
-          Data sources
-        </h2>
-        <ul className="divide-y divide-slate-100 dark:divide-slate-700">
-          {feeds.map((feed) => (
-            <FeedRow key={feed.source} feed={feed} />
-          ))}
-        </ul>
-      </PopoverPanel>
-    </Popover>
-  );
-}
-
-interface StatusDotProps {
-  pingClass: string;
-  staticClass: string;
-  showPing: boolean;
-}
-
-function StatusDot({ pingClass, staticClass, showPing }: StatusDotProps) {
+function StatusDot({ pingClass, staticClass, showPing }: DotStyle) {
   return (
     <span className="relative flex size-2" aria-hidden="true">
       {showPing && (
@@ -187,20 +182,41 @@ function StatusDot({ pingClass, staticClass, showPing }: StatusDotProps) {
   );
 }
 
+// One dot and label summing up the connection and every feed, opening to each one's status
 export default function StatusBar({ connectionStatus, feeds }: StatusBarProps) {
-  const config = STATUS_CONFIG[connectionStatus];
+  const { label, dot } = overallStatus(connectionStatus, feeds);
+  const shownFeeds = feeds ?? [];
+  const title = [`${STATUS_CONFIG[connectionStatus].label}`, shownFeeds.length > 0 && feedSummary(shownFeeds)]
+    .filter(Boolean)
+    .join(". ");
 
   return (
-    <div className="flex flex-col items-end gap-1 text-xs">
-      {feeds && feeds.length > 0 ? (
-        <FeedsMenu feeds={feeds} />
-      ) : (
-        <span className="text-slate-600 dark:text-slate-400">AIS Data via {AISSTREAM_LINK}</span>
-      )}
-      <div className="flex items-center gap-1.5" aria-live="polite" aria-atomic="true">
-        <StatusDot pingClass={config.pingClass} staticClass={config.staticClass} showPing={config.showPing} />
-        <span className="text-slate-800 dark:text-slate-200">{config.label}</span>
-      </div>
-    </div>
+    <Popover className="relative text-xs">
+      <PopoverButton
+        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-slate-800 dark:text-slate-200 transition-colors hover:bg-slate-200 dark:hover:bg-slate-700 focus:outline-none data-focus:ring-2 data-focus:ring-blue-500"
+        title={title}
+        aria-label={`Status: ${label}`}
+      >
+        <StatusDot {...dot} />
+        <span aria-live="polite" aria-atomic="true">
+          {label}
+        </span>
+        <ChevronDownIcon className="size-3 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+      </PopoverButton>
+      <PopoverPanel
+        anchor={{ to: "bottom end", gap: 4 }}
+        className="z-50 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-xs shadow-lg"
+      >
+        <h2 className="border-b border-slate-200 dark:border-slate-700 px-3 py-2 font-semibold text-slate-800 dark:text-slate-200">
+          Status
+        </h2>
+        <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+          <ConnectionRow connectionStatus={connectionStatus} />
+          {shownFeeds.map((feed) => (
+            <FeedRow key={feed.source} feed={feed} />
+          ))}
+        </ul>
+      </PopoverPanel>
+    </Popover>
   );
 }

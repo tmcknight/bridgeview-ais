@@ -10,34 +10,60 @@ describe('StatusBar', () => {
     renderWithProviders(<StatusBar connectionStatus={status} />)
 
   describe('feeds', () => {
-    const renderFeeds = (feeds: FeedStatus[] | null) =>
-      renderWithProviders(<StatusBar connectionStatus="connected" feeds={feeds} />)
+    const renderFeeds = (feeds: FeedStatus[] | null, status: ConnectionStatus = 'connected') =>
+      renderWithProviders(<StatusBar connectionStatus={status} feeds={feeds} />)
+    const LIVE: FeedStatus[] = [
+      { source: 'aisstream', status: 'live' },
+      { source: 'local', status: 'live' },
+      { source: 'aishub', status: 'live' },
+      { source: 'adsb', status: 'live' },
+    ]
 
-    it('credits aisstream.io without a sources menu before the server reports feeds', () => {
-      const { getByText, queryByRole } = renderFeeds(null)
-      expect(getByText('aisstream.io')).toBeInTheDocument()
-      expect(queryByRole('button', { name: /sources/i })).not.toBeInTheDocument()
+    it('sums up the connection and every feed in one dot', () => {
+      const { getByRole, container } = renderFeeds(LIVE)
+      const button = getByRole('button', { name: 'Status: Live' })
+      expect(button).toHaveAttribute(
+        'title',
+        'Connected. AISStream.io: live, Local antenna: live, AISHub: live, ADS-B feed: live'
+      )
+      expect(container.querySelectorAll('.bg-green-500')).toHaveLength(1)
     })
 
-    it('sums up every feed on the sources button', () => {
-      const { getByRole } = renderFeeds([
+    it('counts feeds that are down, in amber while others still work', () => {
+      const { getByRole, container } = renderFeeds([
         { source: 'aisstream', status: 'live' },
         { source: 'local', status: 'down' },
         { source: 'adsb', status: 'quiet' },
       ])
-      const button = getByRole('button', { name: /sources/i })
-      expect(button).toHaveAttribute(
-        'title',
-        'AISStream.io: live, Local antenna: down, ADS-B feed: connected, but no messages lately'
-      )
-      expect(button.querySelector('.bg-green-500')).toBeInTheDocument()
-      expect(button.querySelector('.bg-red-500')).toBeInTheDocument()
-      expect(button.querySelector('.bg-amber-500')).toBeInTheDocument()
+      expect(getByRole('button', { name: 'Status: 1 source down' })).toBeInTheDocument()
+      expect(container.querySelector('.bg-amber-500')).toBeInTheDocument()
     })
 
-    it('lists each feed with its status, reason and web page when opened', async () => {
+    it('shows red when every feed is down', () => {
+      const { getByRole, container } = renderFeeds([
+        { source: 'aisstream', status: 'down' },
+        { source: 'local', status: 'down' },
+      ])
+      expect(getByRole('button', { name: 'Status: 2 sources down' })).toBeInTheDocument()
+      expect(container.querySelector('.bg-red-500')).toBeInTheDocument()
+    })
+
+    it('counts quiet feeds', () => {
+      const { getByRole } = renderFeeds([
+        { source: 'aisstream', status: 'live' },
+        { source: 'local', status: 'quiet' },
+      ])
+      expect(getByRole('button', { name: 'Status: 1 source quiet' })).toBeInTheDocument()
+    })
+
+    it("shows the connection's own status while it isn't connected", () => {
+      const { getByRole } = renderFeeds(LIVE, 'connecting')
+      expect(getByRole('button', { name: 'Status: Connecting...' })).toBeInTheDocument()
+    })
+
+    it('lists the connection, then each feed with its status, reason and web page', async () => {
       const user = userEvent.setup()
-      const { getByRole, findByText, getByText } = renderFeeds([
+      const { getByRole, findByText, getByText, getAllByRole } = renderFeeds([
         { source: 'aisstream', status: 'live', url: 'https://aisstream.io' },
         {
           source: 'local',
@@ -45,15 +71,27 @@ describe('StatusBar', () => {
           detail: 'AIS-catcher unavailable (ECONNREFUSED)',
           url: 'http://192.168.1.20:8100/',
         },
+        { source: 'aishub', status: 'live', url: 'https://www.aishub.net' },
         { source: 'adsb', status: 'live' },
       ])
-      await user.click(getByRole('button', { name: /sources/i }))
+      await user.click(getByRole('button', { name: /^Status:/ }))
 
       expect(await findByText('Down (AIS-catcher unavailable (ECONNREFUSED))')).toBeInTheDocument()
+      const rows = getAllByRole('listitem')
+      expect(rows).toHaveLength(5)
+      expect(rows[0]).toHaveTextContent('BridgeView serverConnected')
       expect(getByRole('link', { name: 'Local antenna' })).toHaveAttribute('href', 'http://192.168.1.20:8100/')
       expect(getByRole('link', { name: 'AISStream.io' })).toHaveAttribute('target', '_blank')
+      expect(getByRole('link', { name: 'AISHub' })).toHaveAttribute('href', 'https://www.aishub.net')
       expect(getByText('ADS-B feed').closest('a')).toBeNull()
       expect(getByText('Aircraft')).toBeInTheDocument()
+    })
+
+    it('lists only the connection before the server reports feeds', async () => {
+      const user = userEvent.setup()
+      const { getByRole, findAllByRole } = renderFeeds(null)
+      await user.click(getByRole('button', { name: 'Status: Connected' }))
+      expect(await findAllByRole('listitem')).toHaveLength(1)
     })
 
     it('says when a quiet feed was last heard', async () => {
@@ -61,18 +99,8 @@ describe('StatusBar', () => {
       const { getByRole, findByText } = renderFeeds([
         { source: 'local', status: 'quiet', lastMessageAt: '2026-10-26T12:00:00Z' },
       ])
-      await user.click(getByRole('button', { name: /sources/i }))
+      await user.click(getByRole('button', { name: /^Status:/ }))
       expect(await findByText(/^Connected, but no messages lately\. Last message /)).toBeInTheDocument()
-    })
-
-    it('lists AISHub with its reason and web page', async () => {
-      const user = userEvent.setup()
-      const { getByRole, findByText } = renderFeeds([
-        { source: 'aishub', status: 'down', detail: 'Too frequent requests!', url: 'https://www.aishub.net' },
-      ])
-      await user.click(getByRole('button', { name: /sources/i }))
-      expect(await findByText('Down (Too frequent requests!)')).toBeInTheDocument()
-      expect(getByRole('link', { name: 'AISHub' })).toHaveAttribute('href', 'https://www.aishub.net')
     })
   })
 
@@ -153,15 +181,6 @@ describe('StatusBar', () => {
   })
 
   describe('common elements', () => {
-    it('renders aisstream.io attribution link', () => {
-      const { getByText } = renderStatusBar('connected')
-      const link = getByText('aisstream.io')
-      expect(link).toBeInTheDocument()
-      expect(link).toHaveAttribute('href', 'https://aisstream.io')
-      expect(link).toHaveAttribute('target', '_blank')
-      expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-    })
-
     it('has accessible aria-live region', () => {
       const { container } = renderStatusBar('connected')
       const liveRegion = container.querySelector('[aria-live="polite"]')
