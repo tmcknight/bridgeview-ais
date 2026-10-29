@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createAircraftFeed, parseAircraft, parseAircraftResponse } from "./aircraft.js";
+import { createAircraftFeed, parseAircraft, parseAircraftResponse, parseRetryAfter } from "./aircraft.js";
 
 const RECORD = {
   hex: "AAB922",
@@ -69,6 +69,19 @@ describe("parseAircraftResponse", () => {
   });
 });
 
+describe("parseRetryAfter", () => {
+  it("reads seconds and HTTP dates", () => {
+    expect(parseRetryAfter("120")).toBe(120_000);
+    expect(parseRetryAfter("Wed, 28 Oct 2026 20:01:00 GMT", Date.parse("Wed, 28 Oct 2026 20:00:00 GMT"))).toBe(60_000);
+  });
+
+  it("ignores a missing or unreadable header", () => {
+    expect(parseRetryAfter(null)).toBeNull();
+    expect(parseRetryAfter("soon")).toBeNull();
+    expect(parseRetryAfter("-5")).toBeNull();
+  });
+});
+
 describe("createAircraftFeed", () => {
   let feed;
   afterEach(() => {
@@ -76,7 +89,12 @@ describe("createAircraftFeed", () => {
     vi.useRealTimers();
   });
 
-  const response = (body, ok = true, status = 200) => ({ ok, status, json: async () => body });
+  const response = (body, ok = true, status = 200, headers = {}) => ({
+    ok,
+    status,
+    headers: new Headers(headers),
+    json: async () => body,
+  });
 
   it("polls, emitting the aircraft and the link going up", async () => {
     vi.useFakeTimers();
@@ -123,9 +141,49 @@ describe("createAircraftFeed", () => {
     expect(onLink).toHaveBeenLastCalledWith("down", "HTTP 429");
     expect(feed.aircraft()).toHaveLength(1);
 
+    // The failure doubles the wait, so the next poll comes a minute later
     clock = 90_000;
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(feed.aircraft()).toEqual([]);
     expect(onAircraft).toHaveBeenLastCalledWith([]);
+  });
+
+  it("backs off after failures in a row and goes back to the normal interval on success", async () => {
+    vi.useFakeTimers();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, false, 429))
+      .mockResolvedValueOnce(response({}, false, 429))
+      .mockResolvedValue(response({ ac: [RECORD] }));
+    feed = createAircraftFeed({ url: "http://adsb.test", fetch, pollIntervalMs: 1000, logger: { warn: () => {} } });
+
+    feed.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(3999);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetch).toHaveBeenCalledTimes(3);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("waits as long as a 429's Retry-After asks", async () => {
+    vi.useFakeTimers();
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(response({}, false, 429, { "Retry-After": "30" }))
+      .mockResolvedValue(response({ ac: [RECORD] }));
+    feed = createAircraftFeed({ url: "http://adsb.test", fetch, pollIntervalMs: 1000, logger: { warn: () => {} } });
+
+    feed.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(29_999);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

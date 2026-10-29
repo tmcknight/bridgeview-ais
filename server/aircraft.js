@@ -8,6 +8,8 @@ import { EventEmitter } from "node:events";
 
 export const DEFAULT_ADSB_URL = "https://api.adsb.lol/v2/point/42.9982/-82.423/40";
 const POLL_INTERVAL_MS = 5_000;
+// Each failed poll in a row doubles the wait, up to this; a 429's Retry-After can ask for longer, up to this too
+const MAX_BACKOFF_MS = 5 * 60_000;
 const REQUEST_TIMEOUT_MS = 10_000;
 // Positions older than this are dropped; readsb keeps aircraft listed for a while after losing them
 const MAX_POSITION_AGE_S = 60;
@@ -47,6 +49,15 @@ export function parseAircraft(record) {
   return aircraft;
 }
 
+// Milliseconds a Retry-After header asks for (seconds or an HTTP date); null without a usable one
+export function parseRetryAfter(value, now = Date.now()) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return seconds >= 0 ? seconds * 1000 : null;
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? null : Math.max(0, date - now);
+}
+
 export function parseAircraftResponse(body) {
   const records = Array.isArray(body?.ac) ? body.ac : Array.isArray(body?.aircraft) ? body.aircraft : null;
   if (!records) throw new Error("response has no aircraft list");
@@ -65,6 +76,8 @@ export function createAircraftFeed({
   const emitter = new EventEmitter();
   let aircraft = [];
   let lastSuccessAt = null;
+  let failures = 0;
+  let retryAfterMs = null;
   let timer = null;
   let stopped = false;
 
@@ -74,13 +87,18 @@ export function createAircraftFeed({
         headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.ok) {
+        if (response.status === 429) retryAfterMs = parseRetryAfter(response.headers?.get("retry-after"), now());
+        throw new Error(`HTTP ${response.status}`);
+      }
       aircraft = parseAircraftResponse(await response.json());
       lastSuccessAt = now();
+      failures = 0;
       emitter.emit("link", "up");
       emitter.emit("activity");
       emitter.emit("aircraft", aircraft);
     } catch (err) {
+      failures++;
       logger?.warn(`[adsb] poll failed: ${err.message}`);
       emitter.emit("link", "down", err.message);
       if (aircraft.length > 0 && (lastSuccessAt === null || now() - lastSuccessAt > CLEAR_AFTER_MS)) {
@@ -88,8 +106,15 @@ export function createAircraftFeed({
         emitter.emit("aircraft", aircraft);
       }
     } finally {
-      if (!stopped) timer = setTimeout(poll, pollIntervalMs);
+      if (!stopped) timer = setTimeout(poll, nextDelay());
+      retryAfterMs = null;
     }
+  }
+
+  function nextDelay() {
+    if (failures === 0) return pollIntervalMs;
+    const backoff = Math.min(pollIntervalMs * 2 ** failures, MAX_BACKOFF_MS);
+    return Math.max(backoff, Math.min(retryAfterMs ?? 0, MAX_BACKOFF_MS));
   }
 
   emitter.aircraft = () => aircraft;

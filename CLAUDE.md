@@ -78,7 +78,7 @@ src/
   - Sends `{type: "feedStatus", feeds}` on subscribe and whenever a feed's status changes; shown in the top bar
 - `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
   - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
-- `server/aircraft.js`: Aircraft layer; polls an ADS-B feed every 5s (default adsb.lol's free API, 40 NM around the bridge; or a local readsb/tar1090 `aircraft.json` via `ADSB_URL`)
+- `server/aircraft.js`: Aircraft layer; polls an ADS-B feed every 5s, backing off on errors (doubling, honouring a 429's `Retry-After`, capped at 5 min; default adsb.lol's free API, 40 NM around the bridge; or a local readsb/tar1090 `aircraft.json` via `ADSB_URL`)
   - Sends `{type: "aircraft", aircraft}` on subscribe and after each poll; reported as the `adsb` feed in feed status; `AIRCRAFT_TRACKING=false` turns it off
   - Shown on the map as amber planes (helicopters, ADS-B category A7, get their own icon), hideable with the map's plane button
 - `server/class-b.js`: Class B transponders (pleasure craft, small workboats) send messages 18/19/24; both feeds turn them into `PositionReport`/`ShipStaticData` with `MetaData.AisClass = "B"`
