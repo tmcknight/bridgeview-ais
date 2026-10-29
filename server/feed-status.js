@@ -21,7 +21,8 @@ export const QUIET_AFTER_MS = {
 
 const CHECK_INTERVAL_MS = 15_000;
 
-export function createFeedStatus({ sources, now = Date.now, checkIntervalMs = CHECK_INTERVAL_MS }) {
+// links: optional web page per source (e.g. the antenna's AIS-catcher view), sent as each feed's url
+export function createFeedStatus({ sources, links = {}, now = Date.now, checkIntervalMs = CHECK_INTERVAL_MS }) {
   const emitter = new EventEmitter();
   const feeds = new Map(
     sources.map((source) => [
@@ -40,6 +41,7 @@ export function createFeedStatus({ sources, now = Date.now, checkIntervalMs = CH
   function snapshot() {
     return Array.from(feeds.values(), (feed) => {
       const status = { source: feed.source, status: statusOf(feed) };
+      if (links[feed.source]) status.url = links[feed.source];
       if (feed.detail) status.detail = feed.detail;
       if (feed.lastMessageAt !== null) status.lastMessageAt = new Date(feed.lastMessageAt).toISOString();
       return status;

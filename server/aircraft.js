@@ -3,10 +3,12 @@ import { EventEmitter } from "node:events";
 // Aircraft near the bridge from an ADS-B feed, polled by the server and sent to clients
 // as {type: "aircraft", aircraft} on subscribe and after each poll.
 //
-// Both sources speak readsb's JSON: the public adsb.lol API (an "ac" array) and a local
+// Both sources speak readsb's JSON: the public adsb.fi API and a local
 // readsb/tar1090 receiver's aircraft.json (an "aircraft" array).
 
-export const DEFAULT_ADSB_URL = "https://api.adsb.lol/v2/point/42.9982/-82.423/40";
+export const DEFAULT_ADSB_URL = "https://opendata.adsb.fi/api/v2/lat/42.9982/lon/-82.423/dist/40";
+// adsb.fi's live map, linked from the feed status when the default feed is in use
+export const DEFAULT_ADSB_WEB_URL = "https://globe.adsb.fi/?lat=42.9982&lon=-82.423&zoom=9";
 const POLL_INTERVAL_MS = 5_000;
 // Each failed poll in a row doubles the wait, up to this; a 429's Retry-After can ask for longer, up to this too
 const MAX_BACKOFF_MS = 5 * 60_000;

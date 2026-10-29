@@ -12,7 +12,18 @@ import { createUpstream, mergeSubscriptions } from "./upstream.js";
 import { createVesselDetails } from "./vessel-details.js";
 import { fetchVesselInfo } from "./wikidata.js";
 import { withClassBTypes } from "./class-b.js";
-import { createAircraftFeed, DEFAULT_ADSB_URL } from "./aircraft.js";
+import { createAircraftFeed, DEFAULT_ADSB_URL, DEFAULT_ADSB_WEB_URL } from "./aircraft.js";
+
+// An http(s) URL safe to hand clients as a link; undefined for anything else
+function webUrlOrUndefined(value) {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
@@ -24,13 +35,15 @@ const TRUST_PROXY = process.env.TRUST_PROXY === "true";
 const AIS_SOURCE = (process.env.AIS_SOURCE || "both").toLowerCase();
 const LOCAL_AIS_HOST = process.env.LOCAL_AIS_HOST || "127.0.0.1";
 const LOCAL_AIS_PORT = Number(process.env.LOCAL_AIS_PORT) || 5012;
+// The antenna's AIS-catcher web view, linked from the feed status (e.g. http://192.168.1.20:8100)
+const LOCAL_AIS_WEB_URL = webUrlOrUndefined(process.env.LOCAL_AIS_WEB_URL);
 const USE_AISSTREAM = AIS_SOURCE === "aisstream" || AIS_SOURCE === "both";
 const USE_LOCAL = AIS_SOURCE === "local" || AIS_SOURCE === "both";
 const SHIP_LOG_FILE = process.env.SHIP_LOG_FILE || "data/ship-log.json";
 const DB_FILE = process.env.DB_FILE || "data/bridgeview.db";
 // Look ships up on Wikidata (photo, build year, operator) and store the result
 const VESSEL_INFO_LOOKUP = process.env.VESSEL_INFO_LOOKUP !== "false";
-// Aircraft layer: poll an ADS-B feed (adsb.lol by default, or a local readsb's aircraft.json)
+// Aircraft layer: poll an ADS-B feed (adsb.fi by default, or a local readsb's aircraft.json)
 const AIRCRAFT_TRACKING = process.env.AIRCRAFT_TRACKING !== "false";
 const ADSB_URL = process.env.ADSB_URL || DEFAULT_ADSB_URL;
 
@@ -105,6 +118,11 @@ const feedStatus = createFeedStatus({
     ...(USE_LOCAL ? ["local"] : []),
     ...(AIRCRAFT_TRACKING ? ["adsb"] : []),
   ],
+  links: {
+    aisstream: "https://aisstream.io",
+    local: LOCAL_AIS_WEB_URL,
+    adsb: ADSB_URL === DEFAULT_ADSB_URL ? DEFAULT_ADSB_WEB_URL : undefined,
+  },
 });
 const subscribedClients = new Set();
 

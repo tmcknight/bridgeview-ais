@@ -12,6 +12,7 @@ services:
       - AIS_SOURCE=${AIS_SOURCE:-both}
       - LOCAL_AIS_HOST=${LOCAL_AIS_HOST:-host.docker.internal}
       - LOCAL_AIS_PORT=${LOCAL_AIS_PORT:-5012}
+      - LOCAL_AIS_WEB_URL=${LOCAL_AIS_WEB_URL:-}
       - VESSEL_INFO_LOOKUP=${VESSEL_INFO_LOOKUP:-true}
       - AIRCRAFT_TRACKING=${AIRCRAFT_TRACKING:-true}
       - ADSB_URL=${ADSB_URL:-}

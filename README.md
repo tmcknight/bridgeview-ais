@@ -136,7 +136,7 @@ Set `AIS_SOURCE` in `.env` to choose the feed:
 - `local`: local receiver only (no API key needed)
 - `aisstream`: AISStream.io only
 
-`LOCAL_AIS_HOST` / `LOCAL_AIS_PORT` point at AIS-catcher (default `127.0.0.1:5012`). The proxy reconnects automatically if AIS-catcher restarts.
+`LOCAL_AIS_HOST` / `LOCAL_AIS_PORT` point at AIS-catcher (default `127.0.0.1:5012`). The proxy reconnects automatically if AIS-catcher restarts. Set `LOCAL_AIS_WEB_URL` to AIS-catcher's web view (started with `-N 8100`) to link it from the sources menu.
 
 ## ℹ️ About
 

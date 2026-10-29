@@ -75,10 +75,11 @@ src/
   - Replayed to a client on subscribe, so the map fills in at once instead of waiting for each ship's next report
 - `server/feed-status.js`: Health of each configured feed (AISStream, local antenna)
   - `connecting`, `live`, `quiet` (link up, no messages lately) or `down` (with the reason)
-  - Sends `{type: "feedStatus", feeds}` on subscribe and whenever a feed's status changes; shown in the top bar
+  - Sends `{type: "feedStatus", feeds}` on subscribe and whenever a feed's status changes, each with its web page `url` if it has one (`LOCAL_AIS_WEB_URL` for the antenna)
+  - Shown in the top bar's Sources dropdown (`StatusBar.tsx`): a dot per feed, opening to each feed's status, reason and link
 - `server/local-receiver.js`: Optional local SDR source; reads AIS-catcher's TCP JSON stream and converts it to AISStream message shape
   - `AIS_SOURCE=aisstream|local|both` (default `both`; duplicates dropped per client)
-- `server/aircraft.js`: Aircraft layer; polls an ADS-B feed every 5s, backing off on errors (doubling, honouring a 429's `Retry-After`, capped at 5 min; default adsb.lol's free API, 40 NM around the bridge; or a local readsb/tar1090 `aircraft.json` via `ADSB_URL`)
+- `server/aircraft.js`: Aircraft layer; polls an ADS-B feed every 5s, backing off on errors (doubling, honouring a 429's `Retry-After`, capped at 5 min; default adsb.fi's free open-data API, 40 NM around the bridge; or a local readsb/tar1090 `aircraft.json` via `ADSB_URL`)
   - Sends `{type: "aircraft", aircraft}` on subscribe and after each poll; reported as the `adsb` feed in feed status; `AIRCRAFT_TRACKING=false` turns it off
   - Shown on the map as amber planes (helicopters, ADS-B category A7, get their own icon), hideable with the map's plane button
 - `server/class-b.js`: Class B transponders (pleasure craft, small workboats) send messages 18/19/24; both feeds turn them into `PositionReport`/`ShipStaticData` with `MetaData.AisClass = "B"`
@@ -168,7 +169,7 @@ This command:
 
 - Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` unless `AIS_SOURCE=local`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.lol around the bridge)
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCE`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the sources menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production
