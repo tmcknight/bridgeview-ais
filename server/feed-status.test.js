@@ -22,6 +22,18 @@ describe("createFeedStatus", () => {
     ]);
   });
 
+  it("includes each feed's web page when one is given", () => {
+    feedStatus = createFeedStatus({
+      sources: ["aisstream", "local"],
+      links: { aisstream: "https://aisstream.io" },
+      now: () => clock,
+    });
+    expect(feedStatus.snapshot()).toEqual([
+      { source: "aisstream", status: "connecting", url: "https://aisstream.io" },
+      { source: "local", status: "connecting" },
+    ]);
+  });
+
   it("is live once connected and down with the reason when the link drops", () => {
     create(["local"]);
     const onChange = vi.fn();

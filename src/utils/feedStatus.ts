@@ -18,6 +18,8 @@ export interface FeedStatus {
   /** Why the feed is down, e.g. a refused connection or a rejected API key */
   detail?: string;
   lastMessageAt?: string;
+  /** The feed's own web page, e.g. the antenna's AIS-catcher view */
+  url?: string;
 }
 
 export interface FeedStatusMessage {

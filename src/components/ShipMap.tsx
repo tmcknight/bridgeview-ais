@@ -381,12 +381,12 @@ function AircraftPopupContent({ aircraft }: { aircraft: Aircraft }) {
       {details && <div className="mt-0.5 text-[0.65rem] text-slate-600">{details}</div>}
       {motion && <div className="mt-0.5 text-[0.65rem] text-slate-600">{motion}</div>}
       <a
-        href={`https://globe.adsb.lol/?icao=${aircraft.hex}`}
+        href={`https://globe.adsb.fi/?icao=${aircraft.hex}`}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-1 block text-[0.65rem] text-blue-600 hover:text-blue-700 underline"
       >
-        Track on adsb.lol
+        Track on adsb.fi
       </a>
     </div>
   );
