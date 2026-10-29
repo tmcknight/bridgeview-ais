@@ -11,14 +11,28 @@ import type { AddLayerObject } from "maplibre-gl";
 import type { FeatureCollection, Point, Polygon } from "geojson";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import React, { useEffect, memo, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useLayoutEffect, useRef, memo, useState, useCallback, useMemo } from "react";
 import type { TrackedShip } from "../types/ais";
 import type { Aircraft } from "../types/aircraft";
 import { aircraftLabel, formatAltitude, isRotorcraft, verticalTrend } from "../utils/aircraft";
 import type { Theme } from "../hooks/useTheme";
 import SourceBadge from "./SourceBadge";
+import MovingMarker from "./MovingMarker";
 import type { ShipCamSize } from "./ShipCam";
 import { hullOutline, hasHull, metresPerPixel } from "../utils/hull";
+import {
+  AIRCRAFT_MAX_AGE_MS,
+  SHIP_MAX_AGE_MS,
+  aircraftFix,
+  motionAt,
+  motionSettled,
+  sameFix,
+  shipFix,
+  shipRotation,
+  startMotion,
+  type Motion,
+  type MotionPosition,
+} from "../utils/motion";
 import {
   BRIDGE_CENTER,
   DEFAULT_ZOOM,
@@ -72,11 +86,6 @@ function setStoredShowAircraft(show: boolean): void {
   } catch {
     // localStorage might not be available
   }
-}
-
-// Create ship icon as React element
-function getShipRotation(ship: TrackedShip): number {
-  return ship.trueHeading !== 511 ? ship.trueHeading : ship.cog;
 }
 
 function getShipColor(ship: TrackedShip): string {
@@ -136,17 +145,19 @@ interface HullFeatures {
 function buildHullFeatures(
   ships: Map<number, TrackedShip>,
   zoom: number,
+  position: (ship: TrackedShip) => MotionPosition,
   selectedMmsi?: number
 ): HullFeatures {
   const hulls: FeatureCollection<Polygon>["features"] = [];
   const ripple: FeatureCollection<Point>["features"] = [];
   for (const ship of ships.values()) {
     if (!showsHull(ship, zoom)) continue;
-    const mpp = metresPerPixel(zoom, ship.latitude);
+    const { lat, lon, rotation } = position(ship);
+    const mpp = metresPerPixel(zoom, lat);
     const outline = hullOutline(
-      ship.latitude,
-      ship.longitude,
-      getShipRotation(ship),
+      lat,
+      lon,
+      rotation,
       ship.dimensions!,
       HULL_MIN_LENGTH_PX * mpp,
       HULL_MIN_BEAM_PX * mpp
@@ -214,6 +225,8 @@ function useHullRipple(active: boolean): void {
   }, [map, active]);
 }
 
+const EMPTY_FEATURES: FeatureCollection = { type: "FeatureCollection", features: [] };
+
 function ShipHulls({
   ships,
   zoom,
@@ -223,14 +236,70 @@ function ShipHulls({
   zoom: number;
   selectedMmsi?: number;
 }) {
-  const { hulls, ripple } = useMemo(
-    () => buildHullFeatures(ships, zoom, selectedMmsi),
-    [ships, zoom, selectedMmsi]
-  );
-  useHullRipple(ripple.features.length > 0);
+  const { current: map } = useMap();
+  const motionsRef = useRef(new globalThis.Map<number, Motion>());
+
+  // Before paint, so a new report never shows for a frame at its raw position
+  useLayoutEffect(() => {
+    const motions = motionsRef.current;
+    const now = performance.now();
+    for (const ship of ships.values()) {
+      const fix = shipFix(ship);
+      const prev = motions.get(ship.mmsi);
+      if (!prev || !sameFix(prev.fix, fix)) {
+        motions.set(ship.mmsi, startMotion(prev, fix, now, SHIP_MAX_AGE_MS));
+      }
+    }
+    for (const mmsi of motions.keys()) {
+      if (!ships.has(mmsi)) motions.delete(mmsi);
+    }
+  }, [ships]);
+
+  // The sources' data is set here every frame while hulls are moving, not from props
+  useEffect(() => {
+    if (!map) return;
+    const mapInstance = map.getMap();
+    const motions = motionsRef.current;
+    let drawn = false;
+    // A new map style brings the sources back empty
+    const redraw = () => {
+      drawn = false;
+    };
+    mapInstance.on("styledata", redraw);
+    let frame = requestAnimationFrame(function step(now) {
+      const moving = Array.from(ships.values()).some((ship) => {
+        const motion = motions.get(ship.mmsi);
+        return showsHull(ship, zoom) && motion !== undefined && !motionSettled(motion, now);
+      });
+      const hullSource = mapInstance.getSource<maplibregl.GeoJSONSource>("ship-hulls");
+      const rippleSource = mapInstance.getSource<maplibregl.GeoJSONSource>("ship-hull-ripple");
+      if ((!drawn || moving) && hullSource && rippleSource) {
+        const { hulls, ripple } = buildHullFeatures(
+          ships,
+          zoom,
+          (ship) => {
+            const motion = motions.get(ship.mmsi);
+            return motion ? motionAt(motion, now) : { lat: ship.latitude, lon: ship.longitude, rotation: shipRotation(ship) };
+          },
+          selectedMmsi
+        );
+        hullSource.setData(hulls);
+        rippleSource.setData(ripple);
+        drawn = true;
+      }
+      frame = requestAnimationFrame(step);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      mapInstance.off("styledata", redraw);
+    };
+  }, [map, ships, zoom, selectedMmsi]);
+
+  const selected = selectedMmsi !== undefined ? ships.get(selectedMmsi) : undefined;
+  useHullRipple(selected !== undefined && showsHull(selected, zoom));
   return (
     <>
-      <Source id="ship-hulls" type="geojson" data={hulls}>
+      <Source id="ship-hulls" type="geojson" data={EMPTY_FEATURES}>
         <Layer
           id={HULL_FILL_LAYER}
           type="fill"
@@ -256,7 +325,7 @@ function ShipHulls({
           }}
         />
       </Source>
-      <Source id="ship-hull-ripple" type="geojson" data={ripple}>
+      <Source id="ship-hull-ripple" type="geojson" data={EMPTY_FEATURES}>
         <Layer
           id={HULL_RIPPLE_LAYER}
           type="circle"
@@ -293,41 +362,24 @@ const ShipMarker = memo(
     /** False while the ship is drawn as a hull; the marker then only anchors its popup */
     showArrow: boolean;
   }) => {
-    const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
-      e.originalEvent.stopPropagation();
+    const handleClick = useCallback((e: MouseEvent) => {
+      e.stopPropagation();
       onTogglePopup();
       onSelectShip?.(ship);
     }, [onTogglePopup, onSelectShip, ship]);
 
     return (
-      <>
-        <Marker
-          longitude={ship.longitude}
-          latitude={ship.latitude}
-          anchor="center"
-          onClick={handleClick}
-          className={isSelected ? "selected-ship-marker" : ""}
-          rotation={getShipRotation(ship)}
-          rotationAlignment="map"
-          pitchAlignment={is3D ? "map" : "viewport"}
-        >
-          {/* An empty Marker would fall back to MapLibre's default pin */}
-          {showArrow ? createShipIconElement(ship) : <div />}
-        </Marker>
-        {isPopupOpen && (
-          <Popup
-            longitude={ship.longitude}
-            latitude={ship.latitude}
-            anchor="bottom"
-            offset={12}
-            onClose={onTogglePopup}
-            closeButton={false}
-            closeOnClick={false}
-          >
-            <ShipPopupContent ship={ship} />
-          </Popup>
-        )}
-      </>
+      <MovingMarker
+        fix={shipFix(ship)}
+        maxAgeMs={SHIP_MAX_AGE_MS}
+        onClick={handleClick}
+        className={isSelected ? "selected-ship-marker" : undefined}
+        pitchAlignment={is3D ? "map" : "viewport"}
+        popup={isPopupOpen && <ShipPopupContent ship={ship} />}
+      >
+        {/* While the ship is drawn as a hull, the marker only anchors its popup */}
+        {showArrow && createShipIconElement(ship)}
+      </MovingMarker>
     );
   },
   // Custom comparison: only re-render if ship data or popup state has changed
@@ -404,52 +456,35 @@ const AircraftMarker = memo(
     onTogglePopup: (hex: string) => void;
     is3D: boolean;
   }) => {
-    const handleClick = useCallback((e: MarkerEvent<MouseEvent>) => {
-      e.originalEvent.stopPropagation();
+    const handleClick = useCallback((e: MouseEvent) => {
+      e.stopPropagation();
       onTogglePopup(aircraft.hex);
     }, [onTogglePopup, aircraft.hex]);
 
     return (
-      <>
-        <Marker
-          longitude={aircraft.lon}
-          latitude={aircraft.lat}
-          anchor="center"
-          onClick={handleClick}
-          rotation={aircraft.track ?? 0}
-          rotationAlignment="map"
-          pitchAlignment={is3D ? "map" : "viewport"}
-        >
-          <div className="aircraft-marker" title={aircraftLabel(aircraft)}>
-            {isRotorcraft(aircraft) ? (
-              <HelicopterIcon color={getAircraftColor(aircraft)} />
-            ) : (
-              <svg width={20} height={20} viewBox="0 0 24 24">
-                {/* Material Design "flight" icon, nose up */}
-                <path
-                  d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
-                  fill={getAircraftColor(aircraft)}
-                  stroke="#fff"
-                  strokeWidth="1"
-                />
-              </svg>
-            )}
-          </div>
-        </Marker>
-        {isPopupOpen && (
-          <Popup
-            longitude={aircraft.lon}
-            latitude={aircraft.lat}
-            anchor="bottom"
-            offset={12}
-            onClose={() => onTogglePopup(aircraft.hex)}
-            closeButton={false}
-            closeOnClick={false}
-          >
-            <AircraftPopupContent aircraft={aircraft} />
-          </Popup>
-        )}
-      </>
+      <MovingMarker
+        fix={aircraftFix(aircraft)}
+        maxAgeMs={AIRCRAFT_MAX_AGE_MS}
+        onClick={handleClick}
+        pitchAlignment={is3D ? "map" : "viewport"}
+        popup={isPopupOpen && <AircraftPopupContent aircraft={aircraft} />}
+      >
+        <div className="aircraft-marker" title={aircraftLabel(aircraft)}>
+          {isRotorcraft(aircraft) ? (
+            <HelicopterIcon color={getAircraftColor(aircraft)} />
+          ) : (
+            <svg width={20} height={20} viewBox="0 0 24 24">
+              {/* Material Design "flight" icon, nose up */}
+              <path
+                d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
+                fill={getAircraftColor(aircraft)}
+                stroke="#fff"
+                strokeWidth="1"
+              />
+            </svg>
+          )}
+        </div>
+      </MovingMarker>
     );
   },
   // The whole list is replaced on every poll, so compare what the marker shows
@@ -897,19 +932,56 @@ function MapController({
 }) {
   const { current: map } = useMap();
   const liveShip = selectedShip ? ships.get(selectedShip.mmsi) : null;
+  const followedMmsi = liveShip?.mmsi;
 
-  useEffect(() => {
-    if (liveShip && map) {
-      const currentZoom = map.getZoom();
-      map.easeTo({
-        center: [liveShip.longitude, liveShip.latitude],
-        zoom: Math.max(currentZoom, 13),
-        duration: 500,
-        essential: true,
-        padding: getMapPadding(map, showShipList, shipCamSize),
-      });
+  // The selected ship's motion, matching its marker's
+  const motionRef = useRef<{ mmsi: number; motion: Motion } | undefined>(undefined);
+  useLayoutEffect(() => {
+    if (!liveShip) {
+      motionRef.current = undefined;
+      return;
     }
-  }, [map, liveShip, liveShip?.latitude, liveShip?.longitude, showShipList, shipCamSize]);
+    const fix = shipFix(liveShip);
+    const prev = motionRef.current?.mmsi === liveShip.mmsi ? motionRef.current.motion : undefined;
+    if (!prev || !sameFix(prev.fix, fix)) {
+      motionRef.current = { mmsi: liveShip.mmsi, motion: startMotion(prev, fix, performance.now(), SHIP_MAX_AGE_MS) };
+    }
+  }, [liveShip]);
+
+  // Ease to the ship when it's selected, then keep it centred as it glides, until the map is dragged away
+  useEffect(() => {
+    const followed = motionRef.current;
+    if (followedMmsi === undefined || !map || !followed) return;
+    const start = motionAt(followed.motion, performance.now());
+    map.easeTo({
+      center: [start.lon, start.lat],
+      zoom: Math.max(map.getZoom(), 13),
+      duration: 500,
+      essential: true,
+      padding: getMapPadding(map, showShipList, shipCamSize),
+    });
+
+    const mapInstance = map.getMap();
+    let following = true;
+    const stopFollowing = () => {
+      following = false;
+    };
+    mapInstance.on("dragstart", stopFollowing);
+    let frame = requestAnimationFrame(function step(now) {
+      const motion = motionRef.current?.motion;
+      // Leave the camera alone while it's easing, or while someone is zooming or rotating it
+      if (following && motion && !mapInstance.isMoving()) {
+        const { lat, lon } = motionAt(motion, now);
+        const center = mapInstance.getCenter();
+        if (center.lat !== lat || center.lng !== lon) mapInstance.jumpTo({ center: [lon, lat] });
+      }
+      frame = requestAnimationFrame(step);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      mapInstance.off("dragstart", stopFollowing);
+    };
+  }, [map, followedMmsi, showShipList, shipCamSize]);
 
   useEffect(() => {
     if (isBridgeSelected && map) {

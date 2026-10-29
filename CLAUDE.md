@@ -22,6 +22,7 @@ BridgeView AIS is a real-time maritime tracking application that visualizes vess
 src/
 ├── components/         # React components
 │   ├── ShipMap.tsx    # MapLibre GL map with vessel markers (via react-map-gl)
+│   ├── MovingMarker.tsx # Map marker that glides between position reports
 │   ├── ShipList.tsx   # List view of tracked vessels
 │   ├── NotificationPanel.tsx  # Real-time alerts
 │   ├── UpcomingShips.tsx      # "Coming up" list of ships heading for the bridge
@@ -46,6 +47,7 @@ src/
 │   ├── shipLog.ts     # Ship log types and server message handling
 │   ├── feedStatus.ts  # Feed health types and server message handling
 │   ├── aircraft.ts    # Aircraft server messages and display helpers
+│   ├── motion.ts      # Dead reckoning and easing between position reports
 │   └── logger.ts      # Logging utility
 ├── test/              # Test infrastructure
 │   ├── setup.ts       # Vitest setup
@@ -221,6 +223,7 @@ See [TESTING.md](TESTING.md) for comprehensive test documentation.
 - Custom ship markers show vessel positions and headings with rotation
 - Map supports dark/light themes and 3D pitch alignment
 - Map updates smoothly without full re-renders
+- Ships, planes and hulls are dead-reckoned between reports and eased onto each new one (`utils/motion.ts`); the selected ship stays centred until the map is dragged
 
 ## Common Tasks
 
