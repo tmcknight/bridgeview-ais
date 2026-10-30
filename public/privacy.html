@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy · BridgeView</title>
+    <meta name="description" content="What the BridgeView app and website collect, and what they don't." />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="/pages.css" />
+  </head>
+  <body>
+    <main>
+      <a class="home" href="/"><img src="/icon-192.png" alt="" width="40" height="40" /> BridgeView</a>
+      <h1>Privacy</h1>
+      <p class="updated">Last updated 30 October 2026</p>
+
+      <p>
+        BridgeView shows ships heading for the Blue Water Bridge and can alert you before one goes
+        under it. It doesn't have accounts, ads or analytics, and it doesn't track you.
+      </p>
+
+      <h2>Your location</h2>
+      <p>
+        If you turn on <strong>Only when I'm near the bridge</strong>, the iPhone app uses iOS's
+        location services to notice when you arrive within the distance you chose of the bridge, and
+        when you leave. That happens on your phone. Your location is never sent to BridgeView or
+        anyone else; the app only tells our server whether to send you alerts right now.
+      </p>
+      <p>If you leave the setting off, the app doesn't use your location at all.</p>
+
+      <h2>What the server keeps for alerts</h2>
+      <p>To send bridge alerts to your iPhone, our server stores:</p>
+      <ul>
+        <li>The push notification token Apple gives the app, and the Live Activity token</li>
+        <li>
+          Your alert settings: whether alerts are on, which kinds of ships, minimum length, which
+          directions, and whether Live Activities are on
+        </li>
+        <li>When the device registered and when its settings last changed</li>
+      </ul>
+      <p>
+        These tokens identify the app on your phone to Apple's push service; they don't tell us who
+        you are. Nothing here is linked to your name, Apple ID, email or phone number. If you turn
+        notifications off or delete the app, Apple stops accepting the token and the server deletes
+        the record the next time it tries to alert you.
+      </p>
+
+      <h2>Server logs</h2>
+      <p>
+        Like most websites, the server sees your IP address when the app or site connects, and keeps
+        it briefly in memory to limit how often one address can make requests. Standard web server
+        logs may also record it for a short time to help keep the service running. We don't use it
+        for anything else.
+      </p>
+
+      <h2>Ship data and outside links</h2>
+      <p>
+        Ship positions come from AIS, the radio signals ships broadcast publicly, received by a local
+        antenna and the data feeds credited in the app. Ship photos and details come from Wikidata and
+        Wikimedia Commons. Links to VesselFinder, MarineTraffic, Wikipedia and the YouTube ship cam open
+        those sites, which have their own privacy policies.
+      </p>
+
+      <h2>Sharing</h2>
+      <p>We don't sell or share your information. Push notifications are delivered through Apple.</p>
+
+      <h2>Children</h2>
+      <p>BridgeView isn't directed at children and doesn't knowingly collect anything from them.</p>
+
+      <h2>Changes and questions</h2>
+      <p>
+        If this policy changes, the date at the top will change with it. Questions:
+        <a href="https://github.com/tmcknight/bridgeview-ais/issues">open an issue on GitHub</a>.
+      </p>
+    </main>
+  </body>
+</html>

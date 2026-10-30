@@ -1,0 +1,70 @@
+/* Plain pages outside the map app (privacy, support), in the iOS app's colours */
+:root {
+  color-scheme: light dark;
+  --bg: #edf2f5;
+  --text: #0b1b2b;
+  --muted: #4a5b6b;
+  --accent: #d9530f;
+  --river: #0a3c61;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #07121d;
+    --text: #e3ebf2;
+    --muted: #93a4b4;
+    --accent: #ff8a3d;
+    --river: #8fb8de;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 17px/1.55 -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+}
+
+main {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.home {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--river);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.home img {
+  border-radius: 10px;
+}
+
+h1 {
+  font-size: 2.2rem;
+  font-weight: 900;
+  font-stretch: expanded;
+  margin: 28px 0 4px;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 32px 0 6px;
+}
+
+.updated {
+  color: var(--muted);
+  margin-top: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+li {
+  margin: 6px 0;
+}
