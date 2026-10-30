@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CAM_ENTER_NM, CAM_EXIT_NM, bearingToBridge, getApproachingShip, getPassingShip, passageDirection, shouldFollow } from './tvMode'
+import { CAM_ENTER_DOWNBOUND_NM, CAM_ENTER_NM, CAM_EXIT_NM, bearingToBridge, getApproachingShip, getPassingShip, passageDirection, shouldFollow } from './tvMode'
 import { mockShip } from '../test/mocks/ships'
 import { BRIDGE_CENTER } from '../constants/bridge'
 
@@ -34,6 +34,12 @@ describe('getPassingShip', () => {
 
   it('ignores ships further out', () => {
     expect(getPassingShip([mockShip({ distanceToBridge: CAM_ENTER_NM + 0.1 })], null)).toBeNull()
+  })
+
+  it('waits until a downbound ship is closer', () => {
+    expect(getPassingShip([downbound(1, CAM_ENTER_DOWNBOUND_NM + 0.1)], null)).toBeNull()
+    const ship = downbound(1, CAM_ENTER_DOWNBOUND_NM - 0.1)
+    expect(getPassingShip([ship], null)).toBe(ship)
   })
 
   it('ignores stopped, anchored, moored and Class B ships', () => {
