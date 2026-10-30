@@ -19,6 +19,18 @@ describe('ShipCam', () => {
     )
   })
 
+  it("plays the server's live video when it has one", () => {
+    const [first] = SHIP_CAMS
+    const { getByTitle, getByLabelText } = renderWithProviders(
+      <ShipCam onClose={() => {}} videoIds={{ [first.id]: 'newVideo123' }} />,
+    )
+    expect(getByTitle(`${first.name} live cam`)).toHaveAttribute('src', expect.stringContaining('/embed/newVideo123?'))
+    expect(getByLabelText(`Open ${first.name} on YouTube`)).toHaveAttribute(
+      'href',
+      'https://www.youtube.com/watch?v=newVideo123',
+    )
+  })
+
   it('closes', () => {
     const onClose = vi.fn()
     const { getByLabelText } = renderWithProviders(<ShipCam onClose={onClose} />)

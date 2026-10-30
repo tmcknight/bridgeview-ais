@@ -1,6 +1,8 @@
 // Live YouTube cameras on the St. Clair River at Port Huron. These are run
-// by others, and a stream gets a new video ID whenever its owner restarts it,
-// so an ID here may need updating when a cam shows "unavailable"
+// by others, and a stream gets a new video ID whenever its owner restarts it.
+// With YOUTUBE_API_KEY set, the server follows it (server/ship-cams.js, which
+// lists the same cams); without, an ID here may need updating when a cam
+// shows "unavailable"
 export interface ShipCam {
   id: string
   name: string
@@ -17,8 +19,9 @@ export const SHIP_CAMS: ShipCam[] = [
   },
 ]
 
+// enablejsapi lets useLiveStream keep the player at the live edge
 export function shipCamEmbedUrl(cam: ShipCam): string {
-  return `https://www.youtube-nocookie.com/embed/${cam.videoId}?autoplay=1&mute=1&playsinline=1`
+  return `https://www.youtube-nocookie.com/embed/${cam.videoId}?autoplay=1&mute=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`
 }
 
 export function shipCamWatchUrl(cam: ShipCam): string {
