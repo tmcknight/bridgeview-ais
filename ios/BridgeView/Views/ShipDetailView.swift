@@ -90,22 +90,28 @@ private struct ShipDetailContent: View {
 
     @ViewBuilder private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .bottomLeading) {
-                photo
-                LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(ship.name)
-                        .font(Theme.hull(.title))
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.6)
-                    if let flag = ship.flagEmoji { Text(flag).font(.title2) }
+            // Size the box first: a filled photo is larger than it, and would push
+            // the name below the clipped edge if it set the size
+            Color.clear
+                .frame(maxWidth: .infinity)
+                .frame(height: 220)
+                .overlay { photo }
+                .clipped()
+                .overlay {
+                    LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
                 }
-                .foregroundStyle(.white)
-                .shadow(radius: 4)
-                .padding(16)
-            }
-            .frame(height: 220)
-            .clipped()
+                .overlay(alignment: .bottomLeading) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(ship.name)
+                            .font(Theme.hull(.title))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.6)
+                        if let flag = ship.flagEmoji { Text(flag).font(.title2) }
+                    }
+                    .foregroundStyle(.white)
+                    .shadow(radius: 4)
+                    .padding(16)
+                }
             if ship.info?.description != nil || ship.cargo != nil || !ship.summary.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     if !ship.summary.isEmpty {

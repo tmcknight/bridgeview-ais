@@ -77,14 +77,17 @@ First release.
 In this order:
 
 1. `1-coming-up.png`: Coming up, with the next ship's countdown
-2. `2-ship.png`: a ship's page
-3. `3-ship-details.png`: details, trips under the bridge and links
+2. `2-next-ship.png`: the next ship's page: photo, countdown, map
+3. `3-ship-details.png`: a ship's photo and details
 4. `4-coming-up-dark.png`: Coming up in Dark mode
-5. `5-alert-settings.png`: alert settings
+5. `5-passed.png`: ships that went under the bridge in the last day
+6. `6-alert-settings.png`: alert settings
 
-They were taken in the simulator against sample data (`ios/AppStore/screenshots`).
-Worth adding later: a Lock Screen shot of the Live Activity from a real device
-(the simulator can't start one), and a ship page with a real Wikimedia photo.
+Taken in the simulator (iPhone 17 Pro Max) against the live server's ships,
+photos and details. For 1, 2 and 4, four of the day's ships were given positions
+and ETAs heading for the bridge, since none were on their way at the time. Worth
+adding later: a Lock Screen shot of the Live Activity from a real device (the
+simulator can't start one).
 
 ## App privacy (the "nutrition label")
 

@@ -29,7 +29,7 @@ struct ShipListContainer<Empty: View>: View {
                         Text(error)
                     } actions: {
                         Button("Try again") { Task { await store.refresh() } }
-                            .buttonStyle(.borderedProminent)
+                            .prominentGlassButton()
                     }
                 } else if ships == nil {
                     ProgressView()
@@ -41,6 +41,8 @@ struct ShipListContainer<Empty: View>: View {
             .background { RiverBackground() }
             .refreshable { await store.refresh() }
             .navigationTitle(title)
+            // Big title in the bar, beside its buttons, not on a row of its own
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 if let shipCam {
                     ToolbarItem(placement: .topBarTrailing) {
@@ -54,20 +56,25 @@ struct ShipListContainer<Empty: View>: View {
                 ShipDetailView(mmsi: mmsi)
             }
             .safeAreaInset(edge: .bottom) {
-                VStack(spacing: 0) {
+                // Small glass pills floating over the list, above the tab bar
+                VStack(spacing: 6) {
                     if ships != nil, let error = store.error {
                         Label(error, systemImage: "exclamationmark.triangle")
                             .font(.footnote)
-                            .padding(8)
-                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .glassPill()
                     }
                     if let attribution = store.snapshot?.attribution, !attribution.isEmpty {
                         DataCredits(attribution: attribution)
-                            .padding(.horizontal)
+                            .fixedSize()
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 6)
+                            .glassPill()
                     }
                 }
-                .background(.thinMaterial)
+                .padding(.horizontal)
+                .padding(.bottom, 4)
             }
         }
     }
@@ -123,7 +130,7 @@ struct NextShipCard: View {
                 .font(.caption.weight(.bold))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(.white.opacity(0.14), in: .capsule)
+                .glassPill(clear: true)
             }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {

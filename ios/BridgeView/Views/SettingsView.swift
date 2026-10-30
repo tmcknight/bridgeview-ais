@@ -121,7 +121,11 @@ struct SettingsView: View {
                 .listRowBackground(Theme.surface)
             }
             .riverListBackground()
+            // The title sits in the bar now; no need for the form's usual top gap
+            .contentMargins(.top, 4, for: .scrollContent)
             .navigationTitle("Settings")
+            // Big title in the bar, beside its buttons, not on a row of its own
+            .toolbarTitleDisplayMode(.inlineLarge)
             .onChange(of: enabled) { locationSettingsChanged() }
             .onChange(of: categories) { push.preferencesChanged() }
             .onChange(of: minLength) { push.preferencesChanged() }

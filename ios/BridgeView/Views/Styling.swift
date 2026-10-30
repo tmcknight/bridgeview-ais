@@ -60,6 +60,26 @@ extension View {
         modifier(CardModifier(padding: padding))
     }
 
+    /// Liquid Glass capsule for small controls floating over content (iOS 26);
+    /// a material capsule on earlier versions. `clear` is the see-through glass
+    /// for use over a colour or photo.
+    @ViewBuilder func glassPill(clear: Bool = false) -> some View {
+        if #available(iOS 26, *) {
+            glassEffect(clear ? .clear : .regular, in: .capsule)
+        } else {
+            background(clear ? AnyShapeStyle(.white.opacity(0.14)) : AnyShapeStyle(.thinMaterial), in: .capsule)
+        }
+    }
+
+    /// The main button in a view: tinted glass on iOS 26, filled before
+    @ViewBuilder func prominentGlassButton() -> some View {
+        if #available(iOS 26, *) {
+            buttonStyle(.glassProminent)
+        } else {
+            buttonStyle(.borderedProminent)
+        }
+    }
+
     /// Themed background for a List or Form
     func riverListBackground() -> some View {
         scrollContentBackground(.hidden)
