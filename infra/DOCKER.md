@@ -48,6 +48,10 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `AIRCRAFT_TRACKING` | No       | `true`            | Show aircraft from an ADS-B feed on the map |
 | `ADSB_URL`          | No       | adsb.fi, 40 NM around the bridge | ADS-B feed to poll; a local readsb/tar1090 `aircraft.json` works too |
 | `YOUTUBE_API_KEY`   | No       | —                 | YouTube Data API key; finds the ship cam's live video when its stream restarts |
+| `APNS_KEY_ID`       | For iOS alerts | —           | APNs auth key ID; with the three below, turns on the iOS app's bridge alerts |
+| `APNS_TEAM_ID`      | For iOS alerts | —           | Apple developer team ID |
+| `APNS_BUNDLE_ID`    | For iOS alerts | —           | The iOS app's bundle ID |
+| `APNS_KEY`          | For iOS alerts | —           | The APNs `.p8` key's contents (newlines may be written as `\n`) |
 | `LOCAL_AIS_WEB_URL` | No       | —                 | AIS-catcher's web view, linked from the status menu |
 | `AIS_SOURCES`       | No       | `aisstream,local` | AIS feeds to use, comma-separated: `aisstream`, `local`, `aishub` |
 | `AISHUB_API_KEY`    | With `aishub` | —            | AISHub API key (AISHub calls it a username) |
@@ -61,9 +65,9 @@ Browser  -->  Nginx (:80)  --/ws-->  ws-server (:3001)  -->  AISStream.io
            (React app)
 ```
 
-Nginx serves the production-built frontend and proxies WebSocket connections on `/ws` to the Node.js backend. The frontend connects to `/ws` on whatever host served it (`wss://` under HTTPS), so it goes through the nginx proxy on any hostname without a rebuild.
+Nginx serves the production-built frontend and proxies WebSocket connections on `/ws`, and the iOS app's API on `/api/` ([ios/API.md](../ios/API.md)), to the Node.js backend. The frontend connects to `/ws` on whatever host served it (`wss://` under HTTPS), so it goes through the nginx proxy on any hostname without a rebuild.
 
-The ws-server keeps a shared log of ships that have gone under the bridge. It saves the log to `/app/data/ship-log.json` on the `ship-log` named volume, so the log survives rebuilds and restarts. It also keeps each ship's latest details (name, destination, size, type) and its Wikidata details (photo link, build year, operator) in a SQLite database at `/app/data/bridgeview.db` on the same volume. `docker compose down -v` deletes the volume, and the log and database with it.
+The ws-server keeps a shared log of ships that have gone under the bridge. It saves the log to `/app/data/ship-log.json` on the `ship-log` named volume, so the log survives rebuilds and restarts. It also keeps each ship's latest details (name, destination, size, type) and its Wikidata details (photo link, build year, operator) in a SQLite database at `/app/data/bridgeview.db` on the same volume. Devices registered for iOS bridge alerts are kept in the same database. `docker compose down -v` deletes the volume, and the log and database with it.
 
 ## Commands
 

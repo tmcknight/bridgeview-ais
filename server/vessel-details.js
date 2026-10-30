@@ -107,6 +107,9 @@ export function createVesselDetails({
   `);
   const selectDetails = db.prepare("SELECT details_message FROM vessels WHERE mmsi = ?");
   const selectInfo = db.prepare("SELECT vessel_info, vessel_info_at FROM vessels WHERE mmsi = ?");
+  const selectRecord = db.prepare(
+    "SELECT name, call_sign, imo, ship_type, destination, length, width, draught FROM vessels WHERE mmsi = ?"
+  );
 
   // Checked on every message, so keep what's needed in memory too
   const names = new Map();
@@ -226,6 +229,24 @@ export function createVesselDetails({
     detailsMessage(mmsi) {
       const row = selectDetails.get(mmsi);
       return row?.details_message ? JSON.parse(row.details_message) : undefined;
+    },
+
+    // What's stored about a ship ({ name, callSign, imo, shipType, destination,
+    // length, width, draught }, missing fields left out), or undefined if unknown
+    record(mmsi) {
+      const row = selectRecord.get(mmsi);
+      if (!row) return undefined;
+      const record = {
+        name: row.name,
+        callSign: row.call_sign,
+        imo: row.imo,
+        shipType: row.ship_type,
+        destination: row.destination,
+        length: row.length,
+        width: row.width,
+        draught: row.draught,
+      };
+      return Object.fromEntries(Object.entries(record).filter(([, value]) => value != null));
     },
 
     // The ship's stored Wikidata details: VesselInfo, null for no match, or

@@ -1,0 +1,5 @@
+#include "Base.xcconfig"
+
+// TestFlight and App Store builds get production tokens
+APS_ENVIRONMENT = production
+BRIDGEVIEW_PUSH_ENVIRONMENT = production

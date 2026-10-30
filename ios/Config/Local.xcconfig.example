@@ -1,0 +1,4 @@
+// Copy to Local.xcconfig (untracked) and fill in
+BRIDGEVIEW_BUNDLE_ID = com.yourname.bridgeview
+DEVELOPMENT_TEAM = ABCDE12345
+BRIDGEVIEW_API_URL = https:/$()/bridgeview.yourdomain.com

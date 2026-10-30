@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { createAircraftFeed, parseAircraft, parseAircraftResponse, parseRetryAfter } from "./aircraft.js";
+import { createAircraftFeed, DEFAULT_ADSB_URL, isAdsbFi, parseAircraft, parseAircraftResponse, parseRetryAfter } from "./aircraft.js";
 
 const RECORD = {
   hex: "AAB922",
@@ -185,5 +185,15 @@ describe("createAircraftFeed", () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     await vi.advanceTimersByTimeAsync(1);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("isAdsbFi", () => {
+  it("recognises adsb.fi's feeds, which must be credited", () => {
+    expect(isAdsbFi(DEFAULT_ADSB_URL)).toBe(true);
+    expect(isAdsbFi("https://adsb.fi/api")).toBe(true);
+    expect(isAdsbFi("http://127.0.0.1:8080/data/aircraft.json")).toBe(false);
+    expect(isAdsbFi("https://evil-adsb.fi.example.com/")).toBe(false);
+    expect(isAdsbFi("not a url")).toBe(false);
   });
 });

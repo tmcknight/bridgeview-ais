@@ -1,0 +1,107 @@
+name: BridgeView
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Release: Config/Release.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  BridgeView:
+    type: application
+    platform: iOS
+    sources:
+      - BridgeView
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BRIDGEVIEW_BUNDLE_ID)
+        PRODUCT_NAME: BridgeView
+        INFOPLIST_FILE: BridgeView/Info.plist
+        CODE_SIGN_ENTITLEMENTS: BridgeView/BridgeView.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    info:
+      path: BridgeView/Info.plist
+      properties:
+        CFBundleDisplayName: BridgeView
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        BridgeViewAPIURL: $(BRIDGEVIEW_API_URL)
+        BridgeViewPushEnvironment: $(BRIDGEVIEW_PUSH_ENVIRONMENT)
+        NSSupportsLiveActivities: true
+        NSLocationWhenInUseUsageDescription: BridgeView uses your location to pause bridge alerts while you're away from the bridge. It stays on your phone.
+        NSLocationAlwaysAndWhenInUseUsageDescription: To pause bridge alerts while you're away from the Blue Water Bridge, and start them again when you come back, BridgeView needs to notice when you arrive and leave, even when it isn't open. Your location stays on your phone.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchLogo
+          UIImageRespectsSafeAreaInsets: true
+        UIBackgroundModes: [remote-notification]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        CFBundleURLTypes:
+          - CFBundleURLName: bridgeview
+            CFBundleURLSchemes: [bridgeview]
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: BridgeView/BridgeView.entitlements
+      properties:
+        aps-environment: $(APS_ENVIRONMENT)
+        com.apple.developer.usernotifications.time-sensitive: true
+    dependencies:
+      - target: BridgeViewWidgets
+        embed: true
+
+  BridgeViewWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - BridgeViewWidgets
+      - Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BRIDGEVIEW_BUNDLE_ID).widgets
+        PRODUCT_NAME: BridgeViewWidgets
+        INFOPLIST_FILE: BridgeViewWidgets/Info.plist
+    info:
+      path: BridgeViewWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: BridgeView
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+
+  BridgeViewTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - BridgeViewTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BRIDGEVIEW_BUNDLE_ID).tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/BridgeView.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BridgeView
+        BUNDLE_LOADER: $(TEST_HOST)
+    dependencies:
+      - target: BridgeView
+
+schemes:
+  BridgeView:
+    build:
+      targets:
+        BridgeView: all
+        BridgeViewTests: [test]
+    test:
+      targets:
+        - BridgeViewTests

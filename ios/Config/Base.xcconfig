@@ -1,0 +1,10 @@
+// Shared build settings. Put your own bundle ID (the widget gets <id>.widgets), team and server in
+// Config/Local.xcconfig (untracked), which overrides anything here.
+
+BRIDGEVIEW_BUNDLE_ID = com.example.bridgeview
+DEVELOPMENT_TEAM =
+// Root URL of the BridgeView server; the app calls <url>/api/...
+// (xcconfig treats // as a comment, so the scheme is split with $())
+BRIDGEVIEW_API_URL = https:/$()/bridgeview.example.com
+
+#include? "Local.xcconfig"

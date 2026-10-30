@@ -16,6 +16,7 @@ import type { TrackedShip } from "../types/ais";
 import type { Aircraft } from "../types/aircraft";
 import { aircraftLabel, formatAltitude, isRotorcraft, verticalTrend } from "../utils/aircraft";
 import type { Theme } from "../hooks/useTheme";
+import DataCredits from "./DataCredits";
 import SourceBadge from "./SourceBadge";
 import MovingMarker from "./MovingMarker";
 import type { ShipCamSize } from "./ShipCam";
@@ -1283,6 +1284,10 @@ interface ShipMapProps {
   /** TV mode: no bridge marker, and satellite imagery fades in under the 3D
    * ships and bridge while it shows a ship */
   tvMode?: boolean;
+  /** The server uses AISHub, whose terms ask for a visible credit */
+  creditAishub?: boolean;
+  /** The aircraft come from adsb.fi, credited while planes are shown */
+  creditAdsbFi?: boolean;
 }
 
 // How long TV mode takes to glide back to the bridge
@@ -1497,7 +1502,7 @@ function MapController({
   return null;
 }
 
-export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectShip, theme, showShipList, onToggleShipList, shipCamSize = null, hideControls = false, followShip = null, chase = false, tvMode = false, onBearingChange }: ShipMapProps) {
+export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectShip, theme, showShipList, onToggleShipList, shipCamSize = null, hideControls = false, followShip = null, chase = false, tvMode = false, onBearingChange, creditAishub = false, creditAdsbFi = false }: ShipMapProps) {
   const [errorCount, setErrorCount] = useState(0);
   // A ship's MMSI, the bridge, or an aircraft's ICAO address
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | `aircraft:${string}` | null>(null);
@@ -1711,6 +1716,13 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
         {!hideControls && <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} showAircraft={showAircraft} onToggleAircraft={toggleAircraft} satellite={satellite} onToggleSatellite={toggleSatellite} onHome={handleHome} />}
       </Map>
       {!hideControls && <AttributionToggle theme={theme} showShipList={showShipList} satellite={satellite} />}
+      <DataCredits
+        theme={theme}
+        aishub={creditAishub}
+        adsb={creditAdsbFi && showAircraft && aircraft.length > 0}
+        besideButton={!hideControls}
+        showShipList={showShipList}
+      />
     </div>
   );
 }
