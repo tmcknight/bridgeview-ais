@@ -607,7 +607,7 @@ const ShipMarker = memo(
     ship: TrackedShip;
     isPopupOpen: boolean;
     onTogglePopup: () => void;
-    onSelectShip?: (ship: TrackedShip) => void;
+    onSelectShip?: (ship: TrackedShip | null) => void;
     isSelected: boolean;
     is3D: boolean;
     /** False while the ship is drawn as a hull; the marker then only anchors its popup */
@@ -616,8 +616,9 @@ const ShipMarker = memo(
     const handleClick = useCallback((e: MouseEvent) => {
       e.stopPropagation();
       onTogglePopup();
-      onSelectShip?.(ship);
-    }, [onTogglePopup, onSelectShip, ship]);
+      // Clicking the open ship again closes it and lets it go
+      onSelectShip?.(isPopupOpen ? null : ship);
+    }, [onTogglePopup, onSelectShip, ship, isPopupOpen]);
 
     return (
       <MovingMarker
@@ -1132,6 +1133,7 @@ function MapControlGroup({
   onToggleAircraft,
   satellite,
   onToggleSatellite,
+  onHome,
 }: {
   theme: Theme;
   is3D: boolean;
@@ -1146,10 +1148,13 @@ function MapControlGroup({
   onToggleAircraft: () => void;
   satellite: boolean;
   onToggleSatellite: () => void;
+  /** Lets go of the selected ship, so the map stays on the bridge */
+  onHome: () => void;
 }) {
   const { current: map } = useMap();
 
   const handleRecenter = () => {
+    onHome();
     if (map) {
       map.flyTo({
         center: [BRIDGE_CENTER.lng, BRIDGE_CENTER.lat],
@@ -1584,13 +1589,21 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
     }
     const mmsi = e.features?.[0]?.properties?.mmsi as number | undefined;
     const ship = mmsi !== undefined ? ships.get(mmsi) : undefined;
-    if (!ship) {
+    // Empty water, or the open ship again: close it and let it go
+    if (!ship || openPopupId === ship.mmsi) {
       setOpenPopupId(null);
+      onSelectShip?.(null);
       return;
     }
-    setOpenPopupId((open) => (open === ship.mmsi ? null : ship.mmsi));
+    setOpenPopupId(ship.mmsi);
     onSelectShip?.(ship);
-  }, [ships, onSelectShip, toggleAircraftPopup]);
+  }, [ships, onSelectShip, toggleAircraftPopup, openPopupId]);
+
+  const handleHome = useCallback(() => {
+    if (!selectedShip) return;
+    setOpenPopupId((open) => (open === selectedShip.mmsi ? null : open));
+    onSelectShip?.(null);
+  }, [selectedShip, onSelectShip]);
 
   const handleMove = useCallback((e: { viewState: { pitch: number; bearing: number; zoom: number } }) => {
     // As soon as it tilts, so the 3D ships and bridge are there on the way
@@ -1609,9 +1622,9 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
 
   // Open popup when ship is selected from list (React recommended pattern for adjusting state on prop change)
   const [prevSelectedMmsi, setPrevSelectedMmsi] = useState<number | undefined>(selectedShip?.mmsi);
-  if (selectedShip && selectedShip.mmsi !== prevSelectedMmsi) {
-    setPrevSelectedMmsi(selectedShip.mmsi);
-    setOpenPopupId(selectedShip.mmsi);
+  if (selectedShip?.mmsi !== prevSelectedMmsi) {
+    setPrevSelectedMmsi(selectedShip?.mmsi);
+    if (selectedShip) setOpenPopupId(selectedShip.mmsi);
   }
 
   return (
@@ -1695,7 +1708,7 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
           showShipList={showShipList}
           shipCamSize={shipCamSize}
         />
-        {!hideControls && <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} showAircraft={showAircraft} onToggleAircraft={toggleAircraft} satellite={satellite} onToggleSatellite={toggleSatellite} />}
+        {!hideControls && <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} showAircraft={showAircraft} onToggleAircraft={toggleAircraft} satellite={satellite} onToggleSatellite={toggleSatellite} onHome={handleHome} />}
       </Map>
       {!hideControls && <AttributionToggle theme={theme} showShipList={showShipList} satellite={satellite} />}
     </div>
