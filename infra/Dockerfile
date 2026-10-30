@@ -23,7 +23,7 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY server/server.js server/local-receiver.js server/ship-log.js server/upstream.js server/feed-status.js server/vessel-details.js server/wikidata.js server/latest-positions.js server/class-b.js server/aircraft.js server/aishub.js ./
+COPY server/server.js server/local-receiver.js server/ship-log.js server/upstream.js server/feed-status.js server/vessel-details.js server/wikidata.js server/latest-positions.js server/class-b.js server/aircraft.js server/aishub.js server/ship-cams.js ./
 
 # Shared ship log and ship details database; mount a volume here to keep them across container restarts
 ENV SHIP_LOG_FILE=/app/data/ship-log.json
