@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@headlessui/react"
 import {
   ArrowUpIcon,
   XMarkIcon,
 } from "@heroicons/react/20/solid"
 import { SHIP_CAMS, shipCamEmbedUrl } from "../constants/shipCams"
+import { useLiveStream } from "../hooks/useLiveStream"
 import { useVesselInfo } from "../hooks/useVesselInfo"
+import { withLiveVideo, type ShipCamVideoIds } from "../utils/shipCams"
 import { formatDistance, formatSpeed } from "../utils/geo"
 import { describeCargo, guessCargo } from "../utils/cargo"
 import { passageDirection } from "../utils/tvMode"
@@ -19,6 +21,8 @@ interface TvModeProps extends TvShips {
   idle: boolean
   /** Which cam to show (an id from SHIP_CAMS); the first cam if unknown */
   camId?: string | null
+  /** Each cam's current live video from the server, if it looks them up */
+  videoIds?: ShipCamVideoIds
   onExit: () => void
 }
 
@@ -33,9 +37,14 @@ export default function TvMode({
   approaching,
   idle,
   camId,
+  videoIds,
   onExit,
 }: TvModeProps) {
-  const cam = SHIP_CAMS.find((c) => c.id === camId) ?? SHIP_CAMS[0]
+  const cam = withLiveVideo(SHIP_CAMS.find((c) => c.id === camId) ?? SHIP_CAMS[0], videoIds)
+  const frameRef = useRef<HTMLIFrameElement>(null)
+  const src = shipCamEmbedUrl(cam)
+  // Hidden behind the map for long stretches, so it can fall behind live
+  useLiveStream(frameRef, src)
 
   return (
     <div className="absolute inset-0 z-40 pointer-events-none">
@@ -43,8 +52,9 @@ export default function TvMode({
           mouse moves go through it, so the map stays usable and moving the
           mouse still wakes the controls */}
       <iframe
+        ref={frameRef}
         className={`absolute inset-0 w-full h-full bg-black transition-opacity duration-1000 ${passing ? "opacity-100" : "opacity-0"}`}
-        src={shipCamEmbedUrl(cam)}
+        src={src}
         title={`${cam.name} live cam`}
         allow="autoplay; encrypted-media"
         referrerPolicy="strict-origin-when-cross-origin"

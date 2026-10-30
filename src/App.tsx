@@ -43,6 +43,7 @@ function App() {
     feeds,
     shipLog,
     aircraft,
+    shipCamVideoIds,
     dismissNotification,
     clearNotifications,
   } = useAISStream()
@@ -209,6 +210,7 @@ function App() {
                   {...tvShips}
                   idle={idle}
                   camId={tvCam}
+                  videoIds={shipCamVideoIds}
                   onExit={exitTvMode}
                 />
               </ComponentErrorBoundary>
@@ -220,6 +222,7 @@ function App() {
               <ShipCam
                 onClose={() => setShowShipCam(false)}
                 onResize={handleShipCamResize}
+                videoIds={shipCamVideoIds}
               />
             </ComponentErrorBoundary>
           )}

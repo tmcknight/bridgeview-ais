@@ -36,6 +36,7 @@ src/
 ├── hooks/
 │   ├── useAISStream.ts  # WebSocket connection management
 │   ├── useIdle.ts       # Whether the mouse has been still (TV mode hides its buttons)
+│   ├── useLiveStream.ts # Keeps a YouTube cam at the live edge (plays again if paused or behind)
 │   └── useTheme.ts      # Dark/light theme toggle
 ├── types/
 │   └── ais.ts         # AIS data type definitions
@@ -49,6 +50,7 @@ src/
 │   ├── shipLog.ts     # Ship log types and server message handling
 │   ├── feedStatus.ts  # Feed health types and server message handling
 │   ├── aircraft.ts    # Aircraft server messages and display helpers
+│   ├── shipCams.ts    # Ship cam video IDs from the server
 │   ├── motion.ts      # Dead reckoning and easing between position reports
 │   ├── tvMode.ts      # Which ship TV mode shows on the cam
 │   └── logger.ts      # Logging utility
@@ -91,6 +93,9 @@ src/
 - `server/aircraft.js`: Aircraft layer; polls an ADS-B feed every 5s, backing off on errors (doubling, honouring a 429's `Retry-After`, capped at 5 min; default adsb.fi's free open-data API, 40 NM around the bridge; or a local readsb/tar1090 `aircraft.json` via `ADSB_URL`)
   - Sends `{type: "aircraft", aircraft}` on subscribe and after each poll; reported as the `adsb` feed in feed status; `AIRCRAFT_TRACKING=false` turns it off
   - Shown on the map as amber planes (helicopters, ADS-B category A7, get their own icon), hideable with the map's plane button
+- `server/ship-cams.js`: Follows each ship cam's live YouTube video when its stream restarts with a new ID (`YOUTUBE_API_KEY`, YouTube Data API)
+  - Checks the current video is still live every 5 min (1 quota unit); only when it isn't, searches the cam's channel for a live video whose title matches (100 units, at most every 20 min)
+  - Sends `{type: "shipCams", videoIds}` on subscribe and when one changes; without a key the cam uses the ID in `src/constants/shipCams.ts`
 - `server/class-b.js`: Class B transponders (pleasure craft, small workboats) send messages 18/19/24; both feeds turn them into `PositionReport`/`ShipStaticData` with `MetaData.AisClass = "B"`
   - Shown on the map (hideable with the map's "B" button) and in the lists, but left out of the ship log and of bridge alerts (browser and vessel-notifier)
 
@@ -178,7 +183,7 @@ This command:
 
 - Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` unless `AIS_SOURCES` leaves out `aisstream`; `AISHUB_API_KEY` when it includes `aishub`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCES` (default: `aisstream,local`), `AISHUB_API_KEY`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the status menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge)
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCES` (default: `aisstream,local`), `AISHUB_API_KEY`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the status menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge), `YOUTUBE_API_KEY` (follow the ship cam's live video)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production

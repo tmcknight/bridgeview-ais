@@ -13,6 +13,7 @@ import { createVesselDetails } from "./vessel-details.js";
 import { fetchVesselInfo } from "./wikidata.js";
 import { withClassBTypes } from "./class-b.js";
 import { createAircraftFeed, DEFAULT_ADSB_URL, DEFAULT_ADSB_WEB_URL } from "./aircraft.js";
+import { createShipCamFinder } from "./ship-cams.js";
 
 // An http(s) URL safe to hand clients as a link; undefined for anything else
 function webUrlOrUndefined(value) {
@@ -68,6 +69,8 @@ const VESSEL_INFO_LOOKUP = process.env.VESSEL_INFO_LOOKUP !== "false";
 // Aircraft layer: poll an ADS-B feed (adsb.fi by default, or a local readsb's aircraft.json)
 const AIRCRAFT_TRACKING = process.env.AIRCRAFT_TRACKING !== "false";
 const ADSB_URL = process.env.ADSB_URL || DEFAULT_ADSB_URL;
+// Find each ship cam's live video on YouTube, following it when the stream restarts
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 
 // Logger utility - keep errors in production, suppress debug logs
 const isDev = process.env.NODE_ENV !== "production";
@@ -184,6 +187,12 @@ if (aircraftFeed) {
   aircraftFeed.start();
 }
 
+const shipCamFinder = YOUTUBE_API_KEY ? createShipCamFinder({ apiKey: YOUTUBE_API_KEY, logger }) : null;
+if (shipCamFinder) {
+  shipCamFinder.on("videoIds", (videoIds) => broadcast(JSON.stringify({ type: "shipCams", videoIds })));
+  shipCamFinder.start();
+}
+
 // Shared ship log: fed by the server's own connection to the AIS sources, so
 // passages are logged whether or not any browser is connected
 const shipLog = createShipLog({ file: SHIP_LOG_FILE, logger });
@@ -256,6 +265,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     upstream?.stop();
     aishub?.stop();
     aircraftFeed?.stop();
+    shipCamFinder?.stop();
     process.exit(0);
   });
 }
@@ -506,6 +516,7 @@ wss.on("connection", (client, req) => {
       client.send(JSON.stringify({ type: "shipLog", entries: shipLog.entries() }));
       client.send(JSON.stringify({ type: "feedStatus", feeds: feedStatus.snapshot() }));
       if (aircraftFeed) client.send(JSON.stringify({ type: "aircraft", aircraft: aircraftFeed.aircraft() }));
+      if (shipCamFinder) client.send(JSON.stringify({ type: "shipCams", videoIds: shipCamFinder.videoIds() }));
 
       const isFirstSeen = MULTIPLE_SOURCES ? createDeduper() : () => true;
       // Read the subscription on each message, so updates from the client apply
@@ -626,6 +637,7 @@ wss.on("connection", (client, req) => {
 logger.info(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
 logger.info(`[proxy] AIS sources: ${[...AIS_SOURCES].join(", ")}${USE_LOCAL ? ` (AIS-catcher at ${LOCAL_AIS_HOST}:${LOCAL_AIS_PORT})` : ""}`);
 logger.info(`[proxy] Aircraft: ${AIRCRAFT_TRACKING ? ADSB_URL : "off"}`);
+logger.info(`[proxy] Ship cam lookup: ${YOUTUBE_API_KEY ? "on" : "off (set YOUTUBE_API_KEY)"}`);
 if (AUTH_TOKEN) {
   logger.info(`[proxy] Authentication enabled`);
 } else {

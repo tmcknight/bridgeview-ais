@@ -14,6 +14,7 @@ import { applyShipLogMessage, type ShipLog } from "../utils/shipLog";
 import { parseFeedStatusMessage, type FeedStatus } from "../utils/feedStatus";
 import { parseVesselInfoMessage } from "../utils/vesselInfo";
 import { parseAircraftMessage } from "../utils/aircraft";
+import { parseShipCamsMessage, type ShipCamVideoIds } from "../utils/shipCams";
 import type { Aircraft } from "../types/aircraft";
 
 // Unset in a production build, connect to /ws on the host that served the page (nginx proxies it)
@@ -58,6 +59,8 @@ interface UseAISStreamReturn {
   shipLog: ShipLog;
   /** Aircraft near the bridge from the server's ADS-B feed */
   aircraft: Aircraft[];
+  /** Each ship cam's current live video, when the server looks them up */
+  shipCamVideoIds: ShipCamVideoIds;
   dismissNotification: (id: string) => void;
   clearNotifications: () => void;
 }
@@ -118,6 +121,7 @@ export function useAISStream(): UseAISStreamReturn {
   const [shipLog, setShipLog] = useState<ShipLog>(() => new Map());
   const [feeds, setFeeds] = useState<FeedStatus[] | null>(null);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [shipCamVideoIds, setShipCamVideoIds] = useState<ShipCamVideoIds>({});
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const shipsRef = useRef<Map<number, TrackedShip>>(new Map());
@@ -384,6 +388,13 @@ export function useAISStream(): UseAISStreamReturn {
             return;
           }
 
+          // Ship cams' live videos, followed by the server when a stream restarts
+          const videoIds = parseShipCamsMessage(data);
+          if (videoIds) {
+            setShipCamVideoIds(videoIds);
+            return;
+          }
+
           // Health of the server's AIS feeds
           const feedStatus = parseFeedStatusMessage(data);
           if (feedStatus) {
@@ -443,6 +454,7 @@ export function useAISStream(): UseAISStreamReturn {
     feeds,
     shipLog,
     aircraft,
+    shipCamVideoIds,
     dismissNotification,
     clearNotifications,
   };

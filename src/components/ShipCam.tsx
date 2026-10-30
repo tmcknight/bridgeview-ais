@@ -10,6 +10,8 @@ import {
   shipCamEmbedUrl,
   shipCamWatchUrl,
 } from "../constants/shipCams";
+import { useLiveStream } from "../hooks/useLiveStream";
+import { withLiveVideo, type ShipCamVideoIds } from "../utils/shipCams";
 
 const WIDTH_KEY = "shipCamWidth";
 const DEFAULT_WIDTH = 448;
@@ -56,14 +58,19 @@ interface ShipCamProps {
   onClose: () => void;
   // Called with the panel's size once it settles, and with null on close
   onResize?: (size: ShipCamSize | null) => void;
+  // Each cam's current live video from the server, if it looks them up
+  videoIds?: ShipCamVideoIds;
 }
 
-export default function ShipCam({ onClose, onResize }: ShipCamProps) {
+export default function ShipCam({ onClose, onResize, videoIds }: ShipCamProps) {
   const [camId, setCamId] = useState(SHIP_CAMS[0].id);
-  const cam = SHIP_CAMS.find((c) => c.id === camId) ?? SHIP_CAMS[0];
+  const cam = withLiveVideo(SHIP_CAMS.find((c) => c.id === camId) ?? SHIP_CAMS[0], videoIds);
   const [width, setWidth] = useState(loadWidth);
   const [resizing, setResizing] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  const src = shipCamEmbedUrl(cam);
+  useLiveStream(frameRef, src);
   const dragRef = useRef<{ x: number; y: number; width: number } | null>(null);
 
   const resize = useCallback((next: number) => {
@@ -188,9 +195,10 @@ export default function ShipCam({ onClose, onResize }: ShipCamProps) {
         </button>
       </div>
       <iframe
-        key={cam.id}
+        key={cam.videoId}
+        ref={frameRef}
         className={`block w-full aspect-video bg-black ${resizing ? "pointer-events-none" : ""}`}
-        src={shipCamEmbedUrl(cam)}
+        src={src}
         title={`${cam.name} live cam`}
         allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
         referrerPolicy="strict-origin-when-cross-origin"
