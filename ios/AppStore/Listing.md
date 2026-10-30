@@ -1,8 +1,10 @@
 # App Store listing
 
-Text and answers for App Store Connect. Screenshots for the 6.9" iPhone size
-(1320×2868, iPhone 17 Pro Max) are in `screenshots/`; App Store Connect scales them
-for smaller iPhones.
+Text and answers for App Store Connect. Screenshots are in `screenshots/` at the
+large display size (1320×2868, iPhone 17 Pro Max) and in `screenshots/medium/` at the
+medium display size (1206×2622, iPhone 17), scaled down from the large ones. App Store
+Connect requires the medium set ("iPhone with Dynamic Island (medium display)" in its
+Media Manager); the large set is optional.
 
 ## App information
 
