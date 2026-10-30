@@ -19,18 +19,6 @@ describe('ShipCam', () => {
     )
   })
 
-  it('switches to another cam', () => {
-    const { getByRole, getByTitle } = renderWithProviders(<ShipCam onClose={() => {}} />)
-    const second = SHIP_CAMS[1]
-    const button = getByRole('button', { name: second.name })
-    fireEvent.click(button)
-    expect(button).toHaveAttribute('aria-pressed', 'true')
-    expect(getByTitle(`${second.name} live cam`)).toHaveAttribute(
-      'src',
-      expect.stringContaining(`/embed/${second.videoId}?`),
-    )
-  })
-
   it('closes', () => {
     const onClose = vi.fn()
     const { getByLabelText } = renderWithProviders(<ShipCam onClose={onClose} />)

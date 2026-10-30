@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hullOutline, hasHull, metresPerPixel } from './hull'
+import { hullHeights, hullOutline, hasHull, metresPerPixel, wakeOutline } from './hull'
 
 const LAT = 43
 const M_PER_DEG_LAT = 111_320
@@ -85,5 +85,44 @@ describe('metresPerPixel', () => {
 
   it("matches MapLibre's 512px tiles at zoom 0 on the equator", () => {
     expect(metresPerPixel(0, 0)).toBeCloseTo(78_271.5, 0)
+  })
+})
+
+describe('hullHeights', () => {
+  it('puts the deckhouse above the deck, both growing with length', () => {
+    const small = hullHeights(20)
+    const laker = hullHeights(225)
+    expect(laker.house).toBeGreaterThan(laker.deck)
+    expect(laker.deck).toBeGreaterThan(small.deck)
+    expect(laker.house).toBeGreaterThan(small.house)
+  })
+})
+
+describe('wakeOutline', () => {
+  const dims = { toBow: 150, toStern: 50, toPort: 10, toStarboard: 10 }
+
+  it('trails behind the stern, longer when faster', () => {
+    const slow = wakeOutline(LAT, -82.42, 0, dims, 4)
+    const fast = wakeOutline(LAT, -82.42, 0, dims, 12)
+    const tail = (bands: ReturnType<typeof wakeOutline>) =>
+      Math.min(...toMetres(bands[0].outline).map(([, n]) => n))
+    expect(tail(slow)).toBeLessThan(-50)
+    expect(tail(fast)).toBeLessThan(tail(slow))
+  })
+
+  it('is empty for a ship barely moving', () => {
+    expect(wakeOutline(LAT, -82.42, 0, dims, 0.3)).toEqual([])
+  })
+})
+
+describe('bow waves', () => {
+  it('angle back from the bow on both sides', () => {
+    const dims = { toBow: 150, toStern: 50, toPort: 10, toStarboard: 10 }
+    const bands = wakeOutline(LAT, -82.42, 0, dims, 10)
+    const forward = bands.filter((b) => Math.max(...toMetres(b.outline).map(([, n]) => n)) > 100)
+    expect(forward.length).toBe(8)
+    const easts = forward.flatMap((b) => toMetres(b.outline).map(([e]) => e))
+    expect(Math.min(...easts)).toBeLessThan(-10)
+    expect(Math.max(...easts)).toBeGreaterThan(10)
   })
 })
