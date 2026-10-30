@@ -6,8 +6,8 @@ import Map, {
   NavigationControl,
   useMap,
 } from "react-map-gl/maplibre";
-import type { MapRef, MarkerEvent, MapLayerMouseEvent, ErrorEvent as MapErrorEvent, StyleSpecification, LayerSpecification } from "react-map-gl/maplibre";
-import type { AddLayerObject } from "maplibre-gl";
+import type { MapRef, MarkerEvent, MapLayerMouseEvent, ErrorEvent as MapErrorEvent, StyleSpecification } from "react-map-gl/maplibre";
+import type { FilterSpecification, SkySpecification } from "maplibre-gl";
 import type { FeatureCollection, Point, Polygon } from "geojson";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -19,7 +19,8 @@ import type { Theme } from "../hooks/useTheme";
 import SourceBadge from "./SourceBadge";
 import MovingMarker from "./MovingMarker";
 import type { ShipCamSize } from "./ShipCam";
-import { hullOutline, hasHull, metresPerPixel } from "../utils/hull";
+import { hullHeights, hullOutline, hasHull, metresPerPixel, wakeOutline } from "../utils/hull";
+import { shipKind, shipModel, type ModelPart } from "../utils/shipModel";
 import {
   AIRCRAFT_MAX_AGE_MS,
   SHIP_MAX_AGE_MS,
@@ -39,6 +40,9 @@ import {
   MIN_ZOOM,
   MAX_ZOOM,
 } from "../constants/bridge";
+import { bearingToBridge } from "../utils/tvMode";
+import { isSpeedAvailable } from "../utils/geo";
+import { buildBridgeModel } from "../utils/bridgeModel";
 import {
   GlobeAmericasIcon,
   ArrowsUpDownIcon,
@@ -88,6 +92,152 @@ function setStoredShowAircraft(show: boolean): void {
   }
 }
 
+const SATELLITE_KEY = "satellite";
+
+function getStoredSatellite(): boolean {
+  try {
+    return localStorage.getItem(SATELLITE_KEY) === "true";
+  } catch {
+    // localStorage might not be available
+    return false;
+  }
+}
+
+function setStoredSatellite(show: boolean): void {
+  try {
+    localStorage.setItem(SATELLITE_KEY, String(show));
+  } catch {
+    // localStorage might not be available
+  }
+}
+
+// Esri World Imagery: free to use with attribution
+const SATELLITE_TILES =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+// Our own layers, which satellite imagery stays under
+const OWN_LAYERS = new Set([
+  "ship-wakes",
+  "ship-hulls-fill",
+  "ship-hulls-outline",
+  "ship-hulls-hit",
+  "ship-hulls-3d",
+  "ship-hulls-ripple",
+  "bridge-model",
+]);
+// How long satellite imagery takes to fade in or out (ms)
+const SATELLITE_FADE_MS = 2500;
+
+// Satellite imagery over the base map's land, water and roads, and under its
+// labels, or with `bare`, over the whole base map, leaving only our ships and
+// bridge on top. Fades in and out with `visible`, and once faded out is
+// hidden, as a see-through layer still downloads its tiles
+function SatelliteImagery({ visible, bare }: { visible: boolean; bare: boolean }) {
+  const { current: map } = useMap();
+  // Set on the map directly rather than as props, so that showing the layer
+  // and fading it in happen together, and hiding it waits for the fade
+  useEffect(() => {
+    const mapInstance = map?.getMap();
+    if (!mapInstance?.getLayer("satellite")) return;
+    if (visible) {
+      mapInstance.setLayoutProperty("satellite", "visibility", "visible");
+      mapInstance.setPaintProperty("satellite", "raster-opacity", 1);
+      return;
+    }
+    mapInstance.setPaintProperty("satellite", "raster-opacity", 0);
+    const hide = setTimeout(
+      () => mapInstance.getLayer("satellite") && mapInstance.setLayoutProperty("satellite", "visibility", "none"),
+      SATELLITE_FADE_MS
+    );
+    return () => clearTimeout(hide);
+  }, [map, visible]);
+  // Read each render; the map re-renders often enough to catch a new style.
+  // Not gated on isStyleLoaded(), which is false while tiles load and would
+  // drop the imagery on top of everything, 3D ships and bridge included
+  const mapInstance = map?.getMap();
+  const beforeId = mapInstance
+    ?.getLayersOrder()
+    .find((id) => (bare ? OWN_LAYERS.has(id) : mapInstance.getLayer(id)?.type === "symbol"));
+  return (
+    <Source id="satellite" type="raster" tiles={[SATELLITE_TILES]} tileSize={256} maxzoom={19}>
+      <Layer
+        id="satellite"
+        type="raster"
+        beforeId={beforeId}
+        layout={{ visibility: "none" }}
+        paint={{
+          "raster-opacity": 0,
+          "raster-opacity-transition": { duration: SATELLITE_FADE_MS, delay: 0 },
+        }}
+      />
+    </Source>
+  );
+}
+
+// Vertical field of view while tilted (degrees; MapLibre's default is ~37):
+// wider, so the distance shrinks away toward the horizon
+const FOV_3D = 60;
+
+// A wider lens while the map is tilted
+function Perspective3D() {
+  const { current: map } = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const mapInstance = map.getMap();
+    const before = mapInstance.getVerticalFieldOfView();
+    mapInstance.setVerticalFieldOfView(FOV_3D);
+    return () => {
+      mapInstance.setVerticalFieldOfView(before);
+    };
+  }, [map]);
+  return null;
+}
+
+// The bridge in 3D, built once
+let bridgeModel: ReturnType<typeof buildBridgeModel> | undefined;
+
+function BridgeModel() {
+  bridgeModel ??= buildBridgeModel();
+  return (
+    <Source id="bridge-model" type="geojson" data={bridgeModel}>
+      <Layer
+        id="bridge-model"
+        type="fill-extrusion"
+        paint={{
+          "fill-extrusion-color": ["get", "color"],
+          "fill-extrusion-base": ["get", "base"],
+          "fill-extrusion-height": ["get", "height"],
+        }}
+      />
+    </Source>
+  );
+}
+
+// Sky and haze toward the horizon, seen when the map is tilted
+const SKY: Record<Theme, SkySpecification> = {
+  light: {
+    "sky-color": "#7cc4f0",
+    "horizon-color": "#e0f2fe",
+    "fog-color": "#eef6fb",
+    "sky-horizon-blend": 0.6,
+    "horizon-fog-blend": 0.7,
+    "fog-ground-blend": 0.85,
+  },
+  dark: {
+    "sky-color": "#0b1220",
+    "horizon-color": "#1e293b",
+    "fog-color": "#1e293b",
+    "sky-horizon-blend": 0.6,
+    "horizon-fog-blend": 0.7,
+    "fog-ground-blend": 0.85,
+  },
+};
+
+// Lowest the camera can tilt to (degrees from looking straight down)
+const MAX_PITCH = 85;
+// Tilt for the 3D button
+const PITCH_3D = 70;
+
 function getShipColor(ship: TrackedShip): string {
   const isStationary = ship.navStatus === 1 || ship.navStatus === 5; // anchored or moored
   return ship.approaching ? "#ef4444" : isStationary ? "#9ca3af" : "#3b82f6";
@@ -127,9 +277,15 @@ function ShipPopupContent({ ship }: { ship: TrackedShip }) {
 
 // Closer than this, ships whose measurements are known are drawn as hulls instead of arrows
 const HULL_MIN_ZOOM = 11;
+interface HullMinSize {
+  lengthPx: number;
+  beamPx: number;
+}
 // Hulls never shrink below the arrow's size, so small or distant ships stay visible
-const HULL_MIN_LENGTH_PX = 24;
-const HULL_MIN_BEAM_PX = 6;
+const HULL_MIN_SIZE: HullMinSize = { lengthPx: 24, beamPx: 6 };
+// TV mode watches one ship from afar, so keeps them close to true scale, just
+// big enough not to vanish
+const TV_HULL_MIN_SIZE: HullMinSize = { lengthPx: 8, beamPx: 2 };
 
 function showsHull(ship: TrackedShip, zoom: number): boolean {
   return zoom >= HULL_MIN_ZOOM && hasHull(ship.dimensions);
@@ -141,11 +297,22 @@ interface HullFeatures {
   ripple: FeatureCollection<Point>;
 }
 
-// Hull outlines: true to scale when zoomed in, blown up to a minimum size further out
+// 3D model colours, apart from the hull, which keeps the ship's status colour
+const MODEL_COLORS: Record<Exclude<ModelPart, "hull">, string> = {
+  deck: "#57534e",
+  house: "#f8fafc",
+  funnel: "#1f2937",
+  gear: "#d4d4d8",
+};
+
+// Hull outlines: true to scale when zoomed in, blown up to a minimum size further out.
+// Each hull comes with its 3D model (what stands on deck), which only the 3D
+// view draws, and its wake while it's under way
 function buildHullFeatures(
   ships: Map<number, TrackedShip>,
   zoom: number,
   position: (ship: TrackedShip) => MotionPosition,
+  minSize: HullMinSize,
   selectedMmsi?: number
 ): HullFeatures {
   const hulls: FeatureCollection<Polygon>["features"] = [];
@@ -154,20 +321,58 @@ function buildHullFeatures(
     if (!showsHull(ship, zoom)) continue;
     const { lat, lon, rotation } = position(ship);
     const mpp = metresPerPixel(zoom, lat);
+    const minLength = minSize.lengthPx * mpp;
+    const minBeam = minSize.beamPx * mpp;
     const outline = hullOutline(
       lat,
       lon,
       rotation,
       ship.dimensions!,
-      HULL_MIN_LENGTH_PX * mpp,
-      HULL_MIN_BEAM_PX * mpp
+      minLength,
+      minBeam
     );
     if (!outline) continue;
+    const length = ship.dimensions!.toBow + ship.dimensions!.toStern;
+    const color = getShipColor(ship);
     hulls.push({
       type: "Feature",
-      properties: { mmsi: ship.mmsi, color: getShipColor(ship) },
+      properties: { mmsi: ship.mmsi, color, part: "hull", base: 0, height: hullHeights(length).deck },
       geometry: { type: "Polygon", coordinates: [outline] },
     });
+    const model = shipModel(
+      lat,
+      lon,
+      rotation,
+      ship.dimensions!,
+      shipKind(ship.shipType, length),
+      minLength,
+      minBeam
+    );
+    // The first block is the hull itself, already added
+    for (const block of model.slice(1)) {
+      hulls.push({
+        type: "Feature",
+        properties: {
+          mmsi: ship.mmsi,
+          color: block.part === "hull" ? color : MODEL_COLORS[block.part],
+          part: "model",
+          base: block.base,
+          height: block.height,
+        },
+        geometry: { type: "Polygon", coordinates: [block.outline] },
+      });
+    }
+    const moving = isSpeedAvailable(ship.sog) && ship.navStatus !== 1 && ship.navStatus !== 5;
+    const wake = moving
+      ? wakeOutline(lat, lon, rotation, ship.dimensions!, ship.sog, minLength, minBeam)
+      : [];
+    for (const band of wake) {
+      hulls.push({
+        type: "Feature",
+        properties: { mmsi: ship.mmsi, part: "wake", opacity: band.opacity },
+        geometry: { type: "Polygon", coordinates: [band.outline] },
+      });
+    }
     if (ship.mmsi === selectedMmsi) {
       // Halfway between the middle of the stern and the bow tip
       const [sternPort, sternStarboard, , bow] = outline;
@@ -176,7 +381,7 @@ function buildHullFeatures(
         ((sternPort[1] + sternStarboard[1]) / 2 + bow[1]) / 2,
       ];
       const { toBow, toStern } = ship.dimensions!;
-      const lengthPx = Math.max((toBow + toStern) / mpp, HULL_MIN_LENGTH_PX);
+      const lengthPx = Math.max((toBow + toStern) / mpp, minSize.lengthPx);
       ripple.push({
         type: "Feature",
         properties: { baseRadius: lengthPx / 2 },
@@ -227,14 +432,25 @@ function useHullRipple(active: boolean): void {
 
 const EMPTY_FEATURES: FeatureCollection = { type: "FeatureCollection", features: [] };
 
+// Flat hulls leave the 3D models out, and nothing solid has a wake
+const HULLS_ONLY: FilterSpecification = ["==", ["get", "part"], "hull"];
+const WAKES_ONLY: FilterSpecification = ["==", ["get", "part"], "wake"];
+const NO_WAKES: FilterSpecification = ["!=", ["get", "part"], "wake"];
+
 function ShipHulls({
   ships,
   zoom,
   selectedMmsi,
+  is3D,
+  minSize,
 }: {
   ships: Map<number, TrackedShip>;
   zoom: number;
   selectedMmsi?: number;
+  /** Map pitched: draw the ships as solid blocks */
+  is3D: boolean;
+  /** The smallest a hull is drawn on screen */
+  minSize: HullMinSize;
 }) {
   const { current: map } = useMap();
   const motionsRef = useRef(new globalThis.Map<number, Motion>());
@@ -281,6 +497,7 @@ function ShipHulls({
             const motion = motions.get(ship.mmsi);
             return motion ? motionAt(motion, now) : { lat: ship.latitude, lon: ship.longitude, rotation: shipRotation(ship) };
           },
+          minSize,
           selectedMmsi
         );
         hullSource.setData(hulls);
@@ -293,16 +510,31 @@ function ShipHulls({
       cancelAnimationFrame(frame);
       mapInstance.off("styledata", redraw);
     };
-  }, [map, ships, zoom, selectedMmsi]);
+  }, [map, ships, zoom, selectedMmsi, minSize]);
 
   const selected = selectedMmsi !== undefined ? ships.get(selectedMmsi) : undefined;
   useHullRipple(selected !== undefined && showsHull(selected, zoom));
   return (
     <>
       <Source id="ship-hulls" type="geojson" data={EMPTY_FEATURES}>
+        {/* Under the hulls, on the water */}
+        <Layer
+          id="ship-wakes"
+          type="fill"
+          filter={WAKES_ONLY}
+          paint={{
+            "fill-color": "#ffffff",
+            "fill-opacity": ["get", "opacity"],
+          }}
+        />
+        {/* Flat and solid hulls are separate layers, shown in turn: a
+            layer can't change type, and swapping one for another under the
+            same id breaks MapLibre's drawing */}
         <Layer
           id={HULL_FILL_LAYER}
           type="fill"
+          filter={HULLS_ONLY}
+          layout={{ visibility: is3D ? "none" : "visible" }}
           paint={{
             "fill-color": ["get", "color"],
             "fill-opacity": 0.85,
@@ -311,14 +543,29 @@ function ShipHulls({
         <Layer
           id="ship-hulls-outline"
           type="line"
+          filter={HULLS_ONLY}
+          layout={{ visibility: is3D ? "none" : "visible" }}
           paint={{
             "line-color": "#fff",
             "line-width": 1.5,
           }}
         />
         <Layer
+          id="ship-hulls-3d"
+          type="fill-extrusion"
+          filter={NO_WAKES}
+          layout={{ visibility: is3D ? "visible" : "none" }}
+          paint={{
+            "fill-extrusion-color": ["get", "color"],
+            "fill-extrusion-base": ["get", "base"],
+            "fill-extrusion-height": ["get", "height"],
+            "fill-extrusion-opacity": 0.95,
+          }}
+        />
+        <Layer
           id={HULL_HIT_LAYER}
           type="line"
+          filter={HULLS_ONLY}
           paint={{
             "line-color": "transparent",
             "line-width": 16,
@@ -705,7 +952,7 @@ const TILE_PROVIDERS = {
 };
 
 // Custom attribution control component
-function AttributionToggle({ theme, showShipList }: { theme: Theme; showShipList: boolean }) {
+function AttributionToggle({ theme, showShipList, satellite }: { theme: Theme; showShipList: boolean; satellite: boolean }) {
   const [showAttribution, setShowAttribution] = useState(false);
 
   return (
@@ -713,6 +960,7 @@ function AttributionToggle({ theme, showShipList }: { theme: Theme; showShipList
       {showAttribution && (
         <div className="absolute right-full top-1/2 -translate-y-1/2 mr-1.5 px-2 py-1.5 bg-white/95 dark:bg-slate-800/95 border border-slate-300/40 dark:border-slate-600/40 rounded text-[0.65rem] text-slate-600 dark:text-slate-400 whitespace-nowrap">
           © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenStreetMap</a> contributors · Tiles: <a href="https://openfreemap.org" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">OpenFreeMap</a>
+          {satellite && " · Imagery © Esri, Maxar, Earthstar Geographics"}
         </div>
       )}
       <button
@@ -748,6 +996,8 @@ function MapControlGroup({
   onToggleClassB,
   showAircraft,
   onToggleAircraft,
+  satellite,
+  onToggleSatellite,
 }: {
   theme: Theme;
   is3D: boolean;
@@ -760,6 +1010,8 @@ function MapControlGroup({
   onToggleClassB: () => void;
   showAircraft: boolean;
   onToggleAircraft: () => void;
+  satellite: boolean;
+  onToggleSatellite: () => void;
 }) {
   const { current: map } = useMap();
 
@@ -779,53 +1031,8 @@ function MapControlGroup({
     const next = !is3D;
     onToggle3D(next);
 
-    if (next) {
-      map.easeTo({ pitch: 60, duration: 500 });
-      const mapInstance = map.getMap();
-      if (!mapInstance.getLayer("3d-buildings")) {
-        const style = mapInstance.getStyle();
-        const buildingLayer = style?.layers?.find(
-          (l: LayerSpecification) =>
-            l.id.includes("building") &&
-            l.type === "fill" &&
-            !l.id.includes("3d-buildings")
-        );
-        if (buildingLayer && "source" in buildingLayer) {
-          mapInstance.addLayer({
-            id: "3d-buildings",
-            source: buildingLayer.source,
-            "source-layer": "source-layer" in buildingLayer ? (buildingLayer["source-layer"] as string) : undefined,
-            type: "fill-extrusion",
-            minzoom: 13,
-            paint: {
-              "fill-extrusion-color": theme === "dark" ? "#475569" : "#cbd5e1",
-              "fill-extrusion-height": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                13,
-                0,
-                15,
-                ["coalesce", ["get", "render_height"], ["get", "height"], 10],
-              ],
-              "fill-extrusion-base": [
-                "coalesce",
-                ["get", "render_min_height"],
-                ["get", "min_height"],
-                0,
-              ],
-              "fill-extrusion-opacity": 0.7,
-            },
-          } as AddLayerObject);
-        }
-      }
-    } else {
-      map.easeTo({ pitch: 0, duration: 500 });
-      const mapInstance = map.getMap();
-      if (mapInstance.getLayer("3d-buildings")) {
-        mapInstance.removeLayer("3d-buildings");
-      }
-    }
+    // The ships and the bridge rise with the tilt, and satellite imagery fades in
+    map.easeTo({ pitch: next ? PITCH_3D : 0, duration: 500 });
   };
 
   const handleResetNorth = () => {
@@ -889,6 +1096,17 @@ function MapControlGroup({
               className={`w-3.5 h-3.5 -rotate-45 ${showAircraft ? "text-white" : "text-slate-700 dark:text-white"}`}
             />
           </button>
+          <button
+            className={satellite ? MAP_BTN_3D_ACTIVE : MAP_BTN}
+            onClick={onToggleSatellite}
+            aria-label="Satellite view"
+            aria-pressed={satellite}
+            title={satellite ? "Switch to map view" : "Switch to satellite view"}
+          >
+            <GlobeAmericasIcon
+              className={`w-3.5 h-3.5 ${satellite ? "text-white" : "text-slate-700 dark:text-white"}`}
+            />
+          </button>
         </div>
         <button
           className={`${MAP_BTN} rounded border border-slate-300 dark:border-slate-400 shadow-lg transition-opacity duration-300 ${showShipList ? "opacity-0 pointer-events-none" : "opacity-100"}`}
@@ -915,24 +1133,121 @@ interface ShipMapProps {
   showShipList: boolean;
   onToggleShipList: () => void;
   shipCamSize?: ShipCamSize | null;
+  /** TV mode with the mouse still: no buttons on the map */
+  hideControls?: boolean;
+  /** TV mode: a ship to keep in view with the bridge, without selecting it */
+  followShip?: TrackedShip | null;
+  /** ...and whether to drop in behind it, looking ahead to the bridge */
+  chase?: boolean;
+  /** Called with the exact bearing as the map turns (every frame, so keep it cheap) */
+  onBearingChange?: (bearing: number) => void;
+  /** TV mode: no bridge marker, and satellite imagery fades in under the 3D
+   * ships and bridge while it shows a ship */
+  tvMode?: boolean;
+}
+
+// How long TV mode takes to glide back to the bridge
+const TV_FLY_MS = 4000;
+// Share of the way to its view TV mode closes each frame, so the camera
+// glides rather than stepping with each position report
+const TV_CAMERA_EASE = 0.03;
+// Closest TV mode zooms in, however near the ship gets
+const TV_MAX_ZOOM = 17;
+// TV mode's two views of a ship and the bridge, both looking from the ship
+// to the bridge and tilted so the 3D ships and bridge show: first from high
+// up, then lower in behind the ship. Both face the same way, so going from
+// one to the other is a dip and a close-in, not a spin. The two sit either
+// side of a point `across` and `middle` of the way over and down the screen,
+// `apart` of its height apart
+interface TvView {
+  pitch: number;
+  /** Across the screen: right of centre, clear of the details box */
+  across: number;
+  middle: number;
+  apart: number;
+}
+const TV_FRAME: TvView = { pitch: 45, across: 0.64, middle: 0.4, apart: 0.5 };
+// Low in behind the ship, so the river and bridge shrink away ahead
+const TV_CHASE: TvView = { pitch: 74, across: 0.62, middle: 0.5, apart: 0.34 };
+// Turning is slower than the rest of the camera
+const TV_TURN_EASE = 0.015;
+
+// Each of TV mode's moves (to a new ship, or swinging round behind one)
+// starts gently, building up to full speed over this long (ms)
+const TV_RAMP_MS = 3000;
+
+function tvRamp(startedAt: number, now: number): number {
+  const t = Math.min(1, (now - startedAt) / TV_RAMP_MS);
+  return Math.max(0.05, t * t * (3 - 2 * t));
+}
+
+// One frame of TV mode's camera: turn and tilt toward the view, and nudge the
+// zoom and centre until the ship and the bridge sit where it puts them.
+// Measured on screen, so it holds at any tilt or screen size
+function tvStep(
+  map: maplibregl.Map,
+  lat: number,
+  lon: number,
+  chase: boolean,
+  ramp: number,
+  frames: number,
+): maplibregl.JumpToOptions {
+  const view = chase ? TV_CHASE : TV_FRAME;
+  const { clientWidth: width, clientHeight: height } = map.getContainer();
+  // Eases are per 60th of a second; a late frame moves the share it missed too,
+  // so a slow frame doesn't show as a stutter
+  const perFrame = (rate: number): number => 1 - (1 - rate * ramp) ** frames;
+  const ease = perFrame(TV_CAMERA_EASE);
+  const bearing = map.getBearing();
+  const turn = ((bearingToBridge(lat, lon) - bearing + 540) % 360) - 180;
+  const ship = map.project([lon, lat]);
+  const bridge = map.project([BRIDGE_CENTER.lng, BRIDGE_CENTER.lat]);
+  const apart = Math.max(1, Math.hypot(ship.x - bridge.x, ship.y - bridge.y));
+  const zoom = Math.min(TV_MAX_ZOOM, map.getZoom() + ease * Math.log2((height * view.apart) / apart));
+  // Slide the map so the point between them heads for its spot
+  const center = map.unproject([
+    width / 2 + ((ship.x + bridge.x) / 2 - width * view.across) * ease,
+    height / 2 + ((ship.y + bridge.y) / 2 - height * view.middle) * ease,
+  ]);
+  return {
+    center,
+    zoom,
+    bearing: bearing + turn * perFrame(TV_TURN_EASE),
+    pitch: map.getPitch() + (view.pitch - map.getPitch()) * ease,
+  };
 }
 
 function MapController({
   selectedShip,
+  followShip,
+  chase,
   ships,
   isBridgeSelected,
   showShipList,
   shipCamSize,
 }: {
   selectedShip?: TrackedShip | null;
+  followShip: TrackedShip | null;
+  chase: boolean;
   ships: Map<number, TrackedShip>;
   isBridgeSelected: boolean;
   showShipList: boolean;
   shipCamSize: ShipCamSize | null;
 }) {
   const { current: map } = useMap();
-  const liveShip = selectedShip ? ships.get(selectedShip.mmsi) : null;
+  // A ship picked by hand wins over the one TV mode is following
+  const target = selectedShip ?? followShip;
+  const liveShip = target ? ships.get(target.mmsi) : null;
   const followedMmsi = liveShip?.mmsi;
+  const tvFollow = !selectedShip && !!followShip;
+  // Read each frame, so swinging round doesn't restart the follow; it does
+  // start a new gentle move
+  const chaseRef = useRef(chase);
+  const moveStartRef = useRef(0);
+  useLayoutEffect(() => {
+    chaseRef.current = chase;
+    moveStartRef.current = performance.now();
+  }, [chase]);
 
   // The selected ship's motion, matching its marker's
   const motionRef = useRef<{ mmsi: number; motion: Motion } | undefined>(undefined);
@@ -953,27 +1268,40 @@ function MapController({
     const followed = motionRef.current;
     if (followedMmsi === undefined || !map || !followed) return;
     const start = motionAt(followed.motion, performance.now());
-    map.easeTo({
-      center: [start.lon, start.lat],
-      zoom: Math.max(map.getZoom(), 13),
-      duration: 500,
+    const options = {
+      center: [start.lon, start.lat] as [number, number],
       essential: true,
       padding: getMapPadding(map, showShipList, shipCamSize),
-    });
-
+    };
     const mapInstance = map.getMap();
+    // TV mode's camera gets there itself, frame by frame, starting gently
+    if (tvFollow) {
+      moveStartRef.current = performance.now();
+    } else {
+      map.easeTo({ ...options, zoom: Math.max(map.getZoom(), 13), duration: 500 });
+    }
+
     let following = true;
     const stopFollowing = () => {
       following = false;
     };
     mapInstance.on("dragstart", stopFollowing);
+    let last = performance.now();
     let frame = requestAnimationFrame(function step(now) {
+      // In 60ths of a second, capped so a stall (a hidden tab) doesn't jump
+      const frames = Math.min(4, Math.max(0, (now - last) / (1000 / 60)));
+      last = now;
       const motion = motionRef.current?.motion;
       // Leave the camera alone while it's easing, or while someone is zooming or rotating it
       if (following && motion && !mapInstance.isMoving()) {
         const { lat, lon } = motionAt(motion, now);
         const center = mapInstance.getCenter();
-        if (center.lat !== lat || center.lng !== lon) mapInstance.jumpTo({ center: [lon, lat] });
+        if (tvFollow) {
+          const ramp = tvRamp(moveStartRef.current, now);
+          mapInstance.jumpTo(tvStep(mapInstance, lat, lon, chaseRef.current, ramp, frames));
+        } else if (center.lat !== lat || center.lng !== lon) {
+          mapInstance.jumpTo({ center: [lon, lat] });
+        }
       }
       frame = requestAnimationFrame(step);
     });
@@ -981,7 +1309,29 @@ function MapController({
       cancelAnimationFrame(frame);
       mapInstance.off("dragstart", stopFollowing);
     };
-  }, [map, followedMmsi, showShipList, shipCamSize]);
+  }, [map, followedMmsi, tvFollow, showShipList, shipCamSize]);
+
+  // Back to the bridge once TV mode has nothing left to follow
+  const tvFollowedMmsi = followShip?.mmsi;
+  const wasTvFollowing = useRef(false);
+  useEffect(() => {
+    if (tvFollowedMmsi !== undefined) {
+      wasTvFollowing.current = true;
+      return;
+    }
+    if (!wasTvFollowing.current || !map) return;
+    wasTvFollowing.current = false;
+    // Glides rather than flies, which zooms out and back in on the way
+    map.easeTo({
+      center: [BRIDGE_CENTER.lng, BRIDGE_CENTER.lat],
+      zoom: DEFAULT_ZOOM,
+      bearing: 0,
+      pitch: 0,
+      duration: TV_FLY_MS,
+      essential: true,
+      padding: getMapPadding(map, showShipList, shipCamSize),
+    });
+  }, [map, tvFollowedMmsi, showShipList, shipCamSize]);
 
   useEffect(() => {
     if (isBridgeSelected && map) {
@@ -1008,7 +1358,7 @@ function MapController({
   return null;
 }
 
-export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectShip, theme, showShipList, onToggleShipList, shipCamSize = null }: ShipMapProps) {
+export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectShip, theme, showShipList, onToggleShipList, shipCamSize = null, hideControls = false, followShip = null, chase = false, tvMode = false, onBearingChange }: ShipMapProps) {
   const [errorCount, setErrorCount] = useState(0);
   // A ship's MMSI, the bridge, or an aircraft's ICAO address
   const [openPopupId, setOpenPopupId] = useState<number | "bridge" | `aircraft:${string}` | null>(null);
@@ -1028,6 +1378,13 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
     setShowAircraft(!showAircraft);
     setStoredShowAircraft(!showAircraft);
   }, [showAircraft]);
+
+  const [satellite, setSatellite] = useState(getStoredSatellite);
+
+  const toggleSatellite = useCallback(() => {
+    setSatellite(!satellite);
+    setStoredSatellite(!satellite);
+  }, [satellite]);
 
   const toggleAircraftPopup = useCallback((hex: string) => {
     setOpenPopupId((open) => (open === `aircraft:${hex}` ? null : `aircraft:${hex}`));
@@ -1097,9 +1454,14 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
   }, [ships, onSelectShip]);
 
   const handleMove = useCallback((e: { viewState: { pitch: number; bearing: number; zoom: number } }) => {
-    setBearing(e.viewState.bearing);
-    setZoom(e.viewState.zoom);
-  }, []);
+    // As soon as it tilts, so the 3D ships and bridge are there on the way
+    setIs3D(e.viewState.pitch > 0);
+    // Rounded: these redraw the whole map, and the camera moves every frame
+    // in TV mode; unchanged values skip the redraw
+    setBearing(Math.round(e.viewState.bearing));
+    setZoom(Math.round(e.viewState.zoom * 4) / 4);
+    onBearingChange?.(e.viewState.bearing);
+  }, [onBearingChange]);
 
   const handleMoveEnd = useCallback((e: { viewState: { pitch: number; bearing: number } }) => {
     setIs3D(e.viewState.pitch > 0);
@@ -1124,6 +1486,8 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
         }}
         minZoom={MIN_ZOOM}
         maxZoom={MAX_ZOOM}
+        maxPitch={MAX_PITCH}
+        sky={SKY[theme]}
         mapStyle={mapStyle}
         onError={handleMapError}
         onLoad={handleStyleLoad}
@@ -1137,15 +1501,27 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
       >
-        <NavigationControl position="top-right" showCompass={false} />
-        <ShipHulls ships={mapShips} zoom={zoom} selectedMmsi={selectedShip?.mmsi} />
-        <BridgeMarker
-          isPopupOpen={openPopupId === "bridge"}
-          onTogglePopup={() =>
-            setOpenPopupId(openPopupId === "bridge" ? null : "bridge")
-          }
-          onSelect={() => onSelectShip?.(null)}
+        {!hideControls && <NavigationControl position="top-right" showCompass={false} />}
+        {/* The flat map stays a map; tilted, it's satellite imagery */}
+        <SatelliteImagery visible={satellite || is3D} bare={tvMode} />
+        {is3D && <BridgeModel />}
+        {is3D && <Perspective3D />}
+        <ShipHulls
+          ships={mapShips}
+          zoom={zoom}
+          selectedMmsi={selectedShip?.mmsi}
+          is3D={is3D}
+          minSize={tvMode ? TV_HULL_MIN_SIZE : HULL_MIN_SIZE}
         />
+        {!tvMode && (
+          <BridgeMarker
+            isPopupOpen={openPopupId === "bridge"}
+            onTogglePopup={() =>
+              setOpenPopupId(openPopupId === "bridge" ? null : "bridge")
+            }
+            onSelect={() => onSelectShip?.(null)}
+          />
+        )}
         {showAircraft &&
           aircraft.map((plane) => (
             <AircraftMarker
@@ -1172,14 +1548,16 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
         ))}
         <MapController
           selectedShip={selectedShip}
+          followShip={followShip}
+          chase={chase}
           ships={ships}
           isBridgeSelected={openPopupId === "bridge"}
           showShipList={showShipList}
           shipCamSize={shipCamSize}
         />
-        <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} showAircraft={showAircraft} onToggleAircraft={toggleAircraft} />
+        {!hideControls && <MapControlGroup theme={theme} is3D={is3D} onToggle3D={setIs3D} bearing={bearing} showShipList={showShipList} onToggleShipList={onToggleShipList} shipCamSize={shipCamSize} hideClassB={hideClassB} onToggleClassB={toggleClassB} showAircraft={showAircraft} onToggleAircraft={toggleAircraft} satellite={satellite} onToggleSatellite={toggleSatellite} />}
       </Map>
-      <AttributionToggle theme={theme} showShipList={showShipList} />
+      {!hideControls && <AttributionToggle theme={theme} showShipList={showShipList} satellite={satellite} />}
     </div>
   );
 }

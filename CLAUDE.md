@@ -30,10 +30,12 @@ src/
 │   ├── StatusBar.tsx  # One status for the connection and every feed, with a dropdown of each
 │   ├── SourceBadge.tsx # Where a ship's last position came from (antenna, AISStream, AISHub)
 │   ├── ShipCam.tsx    # Port Huron YouTube ship cams, toggled from the header
+│   ├── TvMode.tsx     # TV mode: full-screen cam and ship details while a ship goes by
 │   ├── ErrorBoundary.tsx          # App-level error boundary
 │   └── ComponentErrorBoundary.tsx # Component-level error boundary
 ├── hooks/
 │   ├── useAISStream.ts  # WebSocket connection management
+│   ├── useIdle.ts       # Whether the mouse has been still (TV mode hides its buttons)
 │   └── useTheme.ts      # Dark/light theme toggle
 ├── types/
 │   └── ais.ts         # AIS data type definitions
@@ -48,6 +50,7 @@ src/
 │   ├── feedStatus.ts  # Feed health types and server message handling
 │   ├── aircraft.ts    # Aircraft server messages and display helpers
 │   ├── motion.ts      # Dead reckoning and easing between position reports
+│   ├── tvMode.ts      # Which ship TV mode shows on the cam
 │   └── logger.ts      # Logging utility
 ├── test/              # Test infrastructure
 │   ├── setup.ts       # Vitest setup
@@ -223,6 +226,9 @@ See [TESTING.md](TESTING.md) for comprehensive test documentation.
 - Custom ship markers show vessel positions and headings with rotation
 - Map supports dark/light themes and 3D pitch alignment
 - Map updates smoothly without full re-renders
+- TV mode (header TV button, or open `/?tv`; `/?tv=<cam id>` picks the cam): full-screen map with no header or panels, and the map's buttons and cursor hidden after 3s without movement; shows the biggest ship heading for the bridge (the closest of equal ones; kept once followed) from about 12 min out (details, photo, countdown) with the map tilted to frame it and the bridge, looking from the ship to the bridge, then from about 9 min drops lower in behind it; switches to the full-screen ship cam with the ship's details in the corner while a ship under way (the biggest) is within 1 NM of the bridge (until it's 1.3 NM away). Esc or the Exit button leaves
+- In 3D (pitched) view the map fades to satellite imagery (Esri World Imagery), ships become simple 3D models by AIS type with a wake (`utils/shipModel.ts`, `wakeOutline` in `utils/hull.ts`), the bridge is modelled in 3D (`utils/bridgeModel.ts`, spans from OpenStreetMap), and there's a sky and a wider field of view. In TV mode the imagery covers the whole base map (no labels or borders)
+- The map's globe button also shows satellite imagery in the flat view
 - Ships, planes and hulls are dead-reckoned between reports and eased onto each new one (`utils/motion.ts`); the selected ship stays centred until the map is dragged
 
 ## Common Tasks

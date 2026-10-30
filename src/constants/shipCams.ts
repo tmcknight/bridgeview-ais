@@ -15,12 +15,6 @@ export const SHIP_CAMS: ShipCam[] = [
     operator: "StreamTime Live",
     videoId: "AwP_Q6IGwFs",
   },
-  {
-    id: "boatnerd",
-    name: "Port Huron (BoatNerd)",
-    operator: "BoatNerd",
-    videoId: "e9iSSQRHZ4Q",
-  },
 ]
 
 export function shipCamEmbedUrl(cam: ShipCam): string {
