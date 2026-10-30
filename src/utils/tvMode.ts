@@ -5,6 +5,8 @@ import { getUpcomingPassage, type UpcomingPassage } from "./upcoming";
 
 /** A ship this close to the bridge (NM) switches TV mode to the cam */
 export const CAM_ENTER_NM = 1;
+/** ...or this close for a downbound ship, which comes into the cam's view later */
+export const CAM_ENTER_DOWNBOUND_NM = 0.8;
 /** ...and the cam stays on it until it's this far away, so it doesn't flicker */
 export const CAM_EXIT_NM = 1.3;
 /** A ship this many minutes from the bridge and heading for it gets its
@@ -40,8 +42,8 @@ function isBetterPick(a: TrackedShip, aDistanceNM: number, b: TrackedShip, bDist
 /**
  * The ship going by the bridge for TV mode to show on the cam, or null.
  * Sticks with `currentMmsi` while it's still within CAM_EXIT_NM, otherwise
- * picks the biggest ship under way within CAM_ENTER_NM (the closest of
- * equal ones).
+ * picks the biggest ship under way within CAM_ENTER_NM, or
+ * CAM_ENTER_DOWNBOUND_NM for a downbound one (the closest of equal ones).
  */
 export function getPassingShip(
   ships: Iterable<TrackedShip>,
@@ -54,7 +56,8 @@ export function getPassingShip(
       return ship;
     }
     if (
-      ship.distanceToBridge <= CAM_ENTER_NM &&
+      ship.distanceToBridge <=
+        (passageDirection(ship) === "downbound" ? CAM_ENTER_DOWNBOUND_NM : CAM_ENTER_NM) &&
       (!best || isBetterPick(ship, ship.distanceToBridge, best, best.distanceToBridge))
     ) {
       best = ship;
