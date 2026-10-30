@@ -35,21 +35,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         push.didFailToRegister(error)
     }
 
+    // Completion-handler forms, not async: iOS calls an async version's handler on
+    // whatever thread it finished on, and UIKit asserts it's the main thread
+
     // Show bridge alerts even while the app is open
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping @Sendable (UNNotificationPresentationOptions) -> Void
+    ) {
+        Task { @MainActor in completionHandler([.banner, .list, .sound]) }
     }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
+    ) {
         let userInfo = response.notification.request.content.userInfo
         let mmsi = (userInfo["mmsi"] as? Int) ?? (userInfo["mmsi"] as? NSNumber)?.intValue
-        guard let mmsi else { return }
-        await MainActor.run { router.open(mmsi: mmsi) }
+        Task { @MainActor in
+            if let mmsi { router.open(mmsi: mmsi) }
+            completionHandler()
+        }
     }
 }
