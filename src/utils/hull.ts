@@ -41,24 +41,35 @@ export function hullFrame(
   const lengthScale = Math.max(1, minLength / length);
   const beamScale = Math.max(lengthScale, minBeam / beam);
 
-  const heading = headingDeg * DEG_TO_RAD;
-  const sin = Math.sin(heading);
-  const cos = Math.cos(heading);
-  const metresPerDegreeLng = METRES_PER_DEGREE_LAT * Math.cos(latitude * DEG_TO_RAD);
-
   return {
     toBow: dimensions.toBow * lengthScale,
     toStern: dimensions.toStern * lengthScale,
     toPort: dimensions.toPort * beamScale,
     toStarboard: dimensions.toStarboard * beamScale,
-    place: (local) =>
-      local.map(([x, y]) => {
-        // Heading is clockwise from north
-        const east = x * cos + y * sin;
-        const north = -x * sin + y * cos;
-        return [longitude + east / metresPerDegreeLng, latitude + north / METRES_PER_DEGREE_LAT];
-      }),
+    place: localPlacer(latitude, longitude, headingDeg),
   };
+}
+
+/**
+ * Turns points in a craft's local frame (metres from its position: x to
+ * starboard, y forward) into [lng, lat] at its heading
+ */
+export function localPlacer(
+  latitude: number,
+  longitude: number,
+  headingDeg: number
+): (local: [number, number][]) => [number, number][] {
+  const heading = headingDeg * DEG_TO_RAD;
+  const sin = Math.sin(heading);
+  const cos = Math.cos(heading);
+  const metresPerDegreeLng = METRES_PER_DEGREE_LAT * Math.cos(latitude * DEG_TO_RAD);
+  return (local) =>
+    local.map(([x, y]) => {
+      // Heading is clockwise from north
+      const east = x * cos + y * sin;
+      const north = -x * sin + y * cos;
+      return [longitude + east / metresPerDegreeLng, latitude + north / METRES_PER_DEGREE_LAT];
+    });
 }
 
 /**

@@ -21,6 +21,7 @@ import MovingMarker from "./MovingMarker";
 import type { ShipCamSize } from "./ShipCam";
 import { hullHeights, hullOutline, hasHull, metresPerPixel, wakeOutline } from "../utils/hull";
 import { shipKind, shipModel, type ModelPart } from "../utils/shipModel";
+import { aircraftHeight, aircraftModel, aircraftShape, type AircraftPart } from "../utils/aircraftModel";
 import {
   AIRCRAFT_MAX_AGE_MS,
   SHIP_MAX_AGE_MS,
@@ -124,6 +125,8 @@ const OWN_LAYERS = new Set([
   "ship-hulls-3d",
   "ship-hulls-ripple",
   "bridge-model",
+  "aircraft-shadows",
+  "aircraft-models",
 ]);
 // How long satellite imagery takes to fade in or out (ms)
 const SATELLITE_FADE_MS = 2500;
@@ -398,7 +401,8 @@ function buildHullFeatures(
 const HULL_FILL_LAYER = "ship-hulls-fill";
 // Invisible band around each hull, so thin hulls are easy to click
 const HULL_HIT_LAYER = "ship-hulls-hit";
-const HULL_INTERACTIVE_LAYERS = [HULL_FILL_LAYER, HULL_HIT_LAYER];
+const AIRCRAFT_MODEL_LAYER = "aircraft-models";
+const HULL_INTERACTIVE_LAYERS = [HULL_FILL_LAYER, HULL_HIT_LAYER, AIRCRAFT_MODEL_LAYER];
 const HULL_RIPPLE_LAYER = "ship-hulls-ripple";
 // Same rhythm as the selected arrow's pulse-selected animation
 const HULL_RIPPLE_MS = 1500;
@@ -691,6 +695,133 @@ function AircraftPopupContent({ aircraft }: { aircraft: Aircraft }) {
   );
 }
 
+// The smallest a 3D aircraft is drawn, nose to tail, on screen
+const AIRCRAFT_MIN_LENGTH_PX = 28;
+
+const AIRCRAFT_PART_COLORS: Record<Exclude<AircraftPart, "body" | "wing">, string> = {
+  engine: "#475569",
+  rotor: "#1f2937",
+};
+
+// Each aircraft whose height is known as a 3D model at that height, and its
+// shadow on the ground below
+function buildAircraftFeatures(
+  aircraft: Aircraft[],
+  zoom: number,
+  position: (plane: Aircraft) => MotionPosition
+): FeatureCollection<Polygon> {
+  const features: FeatureCollection<Polygon>["features"] = [];
+  for (const plane of aircraft) {
+    const height = aircraftHeight(plane);
+    if (height === null) continue;
+    const { lat, lon, rotation } = position(plane);
+    const minLength = AIRCRAFT_MIN_LENGTH_PX * metresPerPixel(zoom, lat);
+    const color = getAircraftColor(plane);
+    for (const block of aircraftModel(lat, lon, rotation, height, aircraftShape(plane), minLength)) {
+      const blockColor = block.part === "body" || block.part === "wing" ? color : AIRCRAFT_PART_COLORS[block.part];
+      features.push({
+        type: "Feature",
+        properties: { hex: plane.hex, part: "model", color: blockColor, base: block.base, height: block.height },
+        geometry: { type: "Polygon", coordinates: [block.outline] },
+      });
+      // Nothing to cast while it's on the ground
+      if (block.casts && height > 0) {
+        features.push({
+          type: "Feature",
+          properties: { hex: plane.hex, part: "shadow" },
+          geometry: { type: "Polygon", coordinates: [block.outline] },
+        });
+      }
+    }
+  }
+  return { type: "FeatureCollection", features };
+}
+
+const AIRCRAFT_MODELS_ONLY: FilterSpecification = ["==", ["get", "part"], "model"];
+const AIRCRAFT_SHADOWS_ONLY: FilterSpecification = ["==", ["get", "part"], "shadow"];
+
+// Aircraft in the tilted map: 3D models flying at their altitude, moved
+// between reports like the ship hulls
+function AircraftModels({ aircraft, zoom }: { aircraft: Aircraft[]; zoom: number }) {
+  const { current: map } = useMap();
+  const motionsRef = useRef(new globalThis.Map<string, Motion>());
+
+  // Before paint, so a new report never shows for a frame at its raw position
+  useLayoutEffect(() => {
+    const motions = motionsRef.current;
+    const now = performance.now();
+    for (const plane of aircraft) {
+      const fix = aircraftFix(plane);
+      const prev = motions.get(plane.hex);
+      if (!prev || !sameFix(prev.fix, fix)) {
+        motions.set(plane.hex, startMotion(prev, fix, now, AIRCRAFT_MAX_AGE_MS));
+      }
+    }
+    const current = new Set(aircraft.map((plane) => plane.hex));
+    for (const hex of motions.keys()) {
+      if (!current.has(hex)) motions.delete(hex);
+    }
+  }, [aircraft]);
+
+  // The source's data is set here every frame while aircraft are moving, not from props
+  useEffect(() => {
+    if (!map) return;
+    const mapInstance = map.getMap();
+    const motions = motionsRef.current;
+    let drawn = false;
+    // A new map style brings the source back empty
+    const redraw = () => {
+      drawn = false;
+    };
+    mapInstance.on("styledata", redraw);
+    let frame = requestAnimationFrame(function step(now) {
+      const moving = aircraft.some((plane) => {
+        const motion = motions.get(plane.hex);
+        return motion !== undefined && !motionSettled(motion, now);
+      });
+      const source = mapInstance.getSource<maplibregl.GeoJSONSource>("aircraft-models");
+      if ((!drawn || moving) && source) {
+        source.setData(
+          buildAircraftFeatures(aircraft, zoom, (plane) => {
+            const motion = motions.get(plane.hex);
+            return motion ? motionAt(motion, now) : { lat: plane.lat, lon: plane.lon, rotation: plane.track ?? 0 };
+          })
+        );
+        drawn = true;
+      }
+      frame = requestAnimationFrame(step);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      mapInstance.off("styledata", redraw);
+    };
+  }, [map, aircraft, zoom]);
+
+  return (
+    <Source id="aircraft-models" type="geojson" data={EMPTY_FEATURES}>
+      <Layer
+        id="aircraft-shadows"
+        type="fill"
+        filter={AIRCRAFT_SHADOWS_ONLY}
+        paint={{
+          "fill-color": "#000000",
+          "fill-opacity": 0.3,
+        }}
+      />
+      <Layer
+        id={AIRCRAFT_MODEL_LAYER}
+        type="fill-extrusion"
+        filter={AIRCRAFT_MODELS_ONLY}
+        paint={{
+          "fill-extrusion-color": ["get", "color"],
+          "fill-extrusion-base": ["get", "base"],
+          "fill-extrusion-height": ["get", "height"],
+        }}
+      />
+    </Source>
+  );
+}
+
 const AircraftMarker = memo(
   ({
     aircraft,
@@ -716,21 +847,24 @@ const AircraftMarker = memo(
         pitchAlignment={is3D ? "map" : "viewport"}
         popup={isPopupOpen && <AircraftPopupContent aircraft={aircraft} />}
       >
-        <div className="aircraft-marker" title={aircraftLabel(aircraft)}>
-          {isRotorcraft(aircraft) ? (
-            <HelicopterIcon color={getAircraftColor(aircraft)} />
-          ) : (
-            <svg width={20} height={20} viewBox="0 0 24 24">
-              {/* Material Design "flight" icon, nose up */}
-              <path
-                d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
-                fill={getAircraftColor(aircraft)}
-                stroke="#fff"
-                strokeWidth="1"
-              />
-            </svg>
-          )}
-        </div>
+        {/* While it's drawn as a 3D model, the marker only anchors its popup, on the ground below */}
+        {!(is3D && aircraftHeight(aircraft) !== null) && (
+          <div className="aircraft-marker" title={aircraftLabel(aircraft)}>
+            {isRotorcraft(aircraft) ? (
+              <HelicopterIcon color={getAircraftColor(aircraft)} />
+            ) : (
+              <svg width={20} height={20} viewBox="0 0 24 24">
+                {/* Material Design "flight" icon, nose up */}
+                <path
+                  d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
+                  fill={getAircraftColor(aircraft)}
+                  stroke="#fff"
+                  strokeWidth="1"
+                />
+              </svg>
+            )}
+          </div>
+        )}
       </MovingMarker>
     );
   },
@@ -1443,6 +1577,11 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
 
   // Hulls are map features rather than markers, so clicks on them arrive here
   const handleMapClick = useCallback((e: MapLayerMouseEvent) => {
+    const hex = e.features?.[0]?.properties?.hex as string | undefined;
+    if (hex !== undefined) {
+      toggleAircraftPopup(hex);
+      return;
+    }
     const mmsi = e.features?.[0]?.properties?.mmsi as number | undefined;
     const ship = mmsi !== undefined ? ships.get(mmsi) : undefined;
     if (!ship) {
@@ -1451,7 +1590,7 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
     }
     setOpenPopupId((open) => (open === ship.mmsi ? null : ship.mmsi));
     onSelectShip?.(ship);
-  }, [ships, onSelectShip]);
+  }, [ships, onSelectShip, toggleAircraftPopup]);
 
   const handleMove = useCallback((e: { viewState: { pitch: number; bearing: number; zoom: number } }) => {
     // As soon as it tilts, so the 3D ships and bridge are there on the way
@@ -1513,6 +1652,7 @@ export default function ShipMap({ ships, aircraft = [], selectedShip, onSelectSh
           is3D={is3D}
           minSize={tvMode ? TV_HULL_MIN_SIZE : HULL_MIN_SIZE}
         />
+        {is3D && showAircraft && <AircraftModels aircraft={aircraft} zoom={zoom} />}
         {!tvMode && (
           <BridgeMarker
             isPopupOpen={openPopupId === "bridge"}

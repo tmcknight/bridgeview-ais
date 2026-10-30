@@ -92,7 +92,7 @@ src/
   - Reported as the `aishub` feed in feed status; needs `AISHUB_API_KEY` (AISHub's docs call it a username)
 - `server/aircraft.js`: Aircraft layer; polls an ADS-B feed every 5s, backing off on errors (doubling, honouring a 429's `Retry-After`, capped at 5 min; default adsb.fi's free open-data API, 40 NM around the bridge; or a local readsb/tar1090 `aircraft.json` via `ADSB_URL`)
   - Sends `{type: "aircraft", aircraft}` on subscribe and after each poll; reported as the `adsb` feed in feed status; `AIRCRAFT_TRACKING=false` turns it off
-  - Shown on the map as amber planes (helicopters, ADS-B category A7, get their own icon), hideable with the map's plane button
+  - Shown on the map as amber planes (helicopters, ADS-B category A7, get their own icon), hideable with the map's plane button; in 3D, as plane or helicopter models sized by category, flying at their altitude above the river with a shadow below (`utils/aircraftModel.ts`)
 - `server/ship-cams.js`: Follows each ship cam's live YouTube video when its stream restarts with a new ID (`YOUTUBE_API_KEY`, YouTube Data API)
   - Checks the current video is still live every 5 min (1 quota unit); only when it isn't, searches the cam's channel for a live video whose title matches (100 units, at most every 20 min)
   - Sends `{type: "shipCams", videoIds}` on subscribe and when one changes; without a key the cam uses the ID in `src/constants/shipCams.ts`
@@ -232,7 +232,7 @@ See [TESTING.md](TESTING.md) for comprehensive test documentation.
 - Map supports dark/light themes and 3D pitch alignment
 - Map updates smoothly without full re-renders
 - TV mode (header TV button, or open `/?tv`; `/?tv=<cam id>` picks the cam): full-screen map with no header or panels, and the map's buttons and cursor hidden after 3s without movement; shows the biggest ship heading for the bridge (the closest of equal ones; kept once followed) from about 12 min out (details, photo, countdown) with the map tilted to frame it and the bridge, looking from the ship to the bridge, then from about 9 min drops lower in behind it; switches to the full-screen ship cam with the ship's details in the corner while a ship under way (the biggest) is within 1 NM of the bridge (0.8 NM downbound; until it's 1.3 NM away). Esc or the Exit button leaves
-- In 3D (pitched) view the map fades to satellite imagery (Esri World Imagery), ships become simple 3D models by AIS type with a wake (`utils/shipModel.ts`, `wakeOutline` in `utils/hull.ts`), the bridge is modelled in 3D (`utils/bridgeModel.ts`, spans from OpenStreetMap), and there's a sky and a wider field of view. In TV mode the imagery covers the whole base map (no labels or borders)
+- In 3D (pitched) view the map fades to satellite imagery (Esri World Imagery), ships become simple 3D models by AIS type with a wake (`utils/shipModel.ts`, `wakeOutline` in `utils/hull.ts`), the bridge is modelled in 3D (`utils/bridgeModel.ts`, spans from OpenStreetMap), aircraft fly as 3D models at their altitude (`utils/aircraftModel.ts`), and there's a sky and a wider field of view. In TV mode the imagery covers the whole base map (no labels or borders)
 - The map's globe button also shows satellite imagery in the flat view
 - Ships, planes and hulls are dead-reckoned between reports and eased onto each new one (`utils/motion.ts`); the selected ship stays centred until the map is dragged
 
