@@ -21,6 +21,7 @@ import { useTheme } from "./hooks/useTheme"
 import { useIdle } from "./hooks/useIdle"
 import { useTvShips } from "./hooks/useTvShips"
 import { isInTrackingBounds } from "./utils/geo"
+import { hasFeed, isAdsbFiFeed } from "./utils/feedStatus"
 import type { TrackedShip } from "./types/ais"
 
 // TV mode hides the buttons and the cursor after this long without movement
@@ -201,6 +202,8 @@ function App() {
               // there when the cam goes
               followShip={tvShips.passing ? null : tvShips.approaching?.ship}
               chase={!!tvShips.following}
+              creditAishub={hasFeed(feeds, "aishub")}
+              creditAdsbFi={isAdsbFiFeed(feeds)}
             />
           </ComponentErrorBoundary>
           {tvMode && (

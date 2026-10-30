@@ -1,0 +1,15 @@
+{
+  "Simulator Target Bundle": "com.example.bridgeview",
+  "aps": {
+    "alert": {
+      "title": "ALGOMA EQUINOX in ~8 min",
+      "subtitle": "Upbound · Cargo · 225 m",
+      "body": "Heading for Thunder Bay. Likely going to load grain."
+    },
+    "sound": "default",
+    "thread-id": "bridge",
+    "interruption-level": "time-sensitive",
+    "relevance-score": 1
+  },
+  "mmsi": 316001234
+}

@@ -32,3 +32,20 @@ export function parseFeedStatusMessage(data: unknown): FeedStatus[] | null {
   const message = data as FeedStatusMessage | null;
   return message?.type === "feedStatus" && Array.isArray(message.feeds) ? message.feeds : null;
 }
+
+/** Whether the server reports using this feed, whatever its health */
+export function hasFeed(feeds: FeedStatus[] | null | undefined, source: FeedSource): boolean {
+  return feeds?.some((feed) => feed.source === source) ?? false;
+}
+
+/** Whether the aircraft feed is adsb.fi's (the server links it to adsb.fi's map), which must be credited */
+export function isAdsbFiFeed(feeds: FeedStatus[] | null | undefined): boolean {
+  const url = feeds?.find((feed) => feed.source === "adsb")?.url;
+  if (!url) return false;
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "adsb.fi" || hostname.endsWith(".adsb.fi");
+  } catch {
+    return false;
+  }
+}

@@ -1,0 +1,721 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		052F679801C49D202877CA96 /* ShipRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F5E147BDB8F9F2087E07C7 /* ShipRow.swift */; };
+		13F46E249030CC75A40F3D99 /* ShipApproachAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */; };
+		1F6F0FF9B5FF8AEC3457F54C /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B53116F5EFC8F811D2E5DD28 /* DecodingTests.swift */; };
+		2066A311A64132CE0AF6233D /* BridgeViewWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = ED3934528FE4A2ABEAFAC063 /* BridgeViewWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		252135A11951D3501F0044D3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E44BBC8CC9F474C64A9C5467 /* Assets.xcassets */; };
+		256A93ABF3E3E59DBB476B71 /* ShipListContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C2A84AB1FC5EC6E812B4AE4 /* ShipListContainer.swift */; };
+		32AF51BA6D65A28F0AB5A065 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6563CDA9382F3FACCECC11D5 /* AppConfig.swift */; };
+		3D0D1F5AE7BDB35A64AE13F4 /* ShipApproachLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADB196A6C9A56B92D2E4085 /* ShipApproachLiveActivity.swift */; };
+		470933C76D5CD09563E7FAA1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60E5519C186118EB3A8F4D5 /* ContentView.swift */; };
+		5E1316ACDAD8F2D65E194EBA /* Ship.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */; };
+		5FF62D0418FE53BB655F4414 /* DataCredits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24430F125C406E2C675F0B2E /* DataCredits.swift */; };
+		608B08BC6D5829E6F4654BED /* PushManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 539D87963D317C7BB73071FF /* PushManager.swift */; };
+		62D986B8D7B1AF91F6355251 /* Bridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 503DCAD5B5AB5C38E0A4D226 /* Bridge.swift */; };
+		693C5C29771B24DF906314A9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F30DE6D55D2F51B3A6D977D /* Theme.swift */; };
+		69F81F664C50492502DB45E1 /* BridgeViewWidgets.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA0D81E969AF93E5B15C8860 /* BridgeViewWidgets.swift */; };
+		6C24063CB47D10037230D84E /* ShipDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A22234AA77247990094DBD /* ShipDetailView.swift */; };
+		71F05A35E71239CC40ED97E0 /* LiveActivityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CB8A002850BB6795D236889 /* LiveActivityTests.swift */; };
+		78607F02DD78AD8E66B21F7B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F30DE6D55D2F51B3A6D977D /* Theme.swift */; };
+		7D9997CFC0EDB375ED03CCA4 /* Styling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31E02C1136412D57948C12EE /* Styling.swift */; };
+		7FAD626E74ADAEBB66252E16 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9340F6CAE409E5F921DBC5E1 /* AppDelegate.swift */; };
+		8ECCD712A4094938D4D89F00 /* AlertPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB43B6FFC18F7C6898D237C /* AlertPreferences.swift */; };
+		9A95F303D34A90963F980A4F /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = C821C394745D90E7253117E9 /* Formatting.swift */; };
+		9B4A213005AE2962EA1467E0 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3BB4F4BB8D96E723198DB15 /* Appearance.swift */; };
+		A4EDAB291529DB155B7B3CC6 /* ShipLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58249D7D6116316BEE01D28C /* ShipLinks.swift */; };
+		B77B06C4E56D45ACA50BCA7B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD8396ACF185B879591B53E /* APIClient.swift */; };
+		B8B3E538A6ECBD9BCD21AD34 /* BridgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BA6836038BA3192E5BFC11 /* BridgeStore.swift */; };
+		BEF1DAFCDB0B08D08F07304F /* ShipApproachAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */; };
+		C405753687C588EADE470F58 /* NearBridgeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38534D0D76DCC506DF9390E8 /* NearBridgeMonitor.swift */; };
+		C9BED5BAC70378773863558B /* RegistrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B633CB45C2138852905A82 /* RegistrationTests.swift */; };
+		D682A2DB996586269E00400B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1803C12C123A310A829E6F4 /* SettingsView.swift */; };
+		E0DCE9B44D842C48099F7830 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC39982F5302200CF991BF1 /* Router.swift */; };
+		E6C9DDC2F748232DD0CD506E /* BridgeViewApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B717E8DB26102D4BB6B8A5B /* BridgeViewApp.swift */; };
+		F69F276B8A2D587A94ED3C0B /* JSONCoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1469E1995D33123C5CCC3CC5 /* JSONCoding.swift */; };
+		FD321BECBC886F88744A7C9A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9377380908DBA6722E691DB0 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		301B9F55092DAA375A5E3A26 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4CB63B3C79C62E0F5BFAEBC9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5984FBA1A22D4BD7144E457E;
+			remoteInfo = BridgeViewWidgets;
+		};
+		4FD95717E95080667F27A7FC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4CB63B3C79C62E0F5BFAEBC9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F5FB73C635D999E8D4C6829A;
+			remoteInfo = BridgeView;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		91B65466646D0D4F8027BBF4 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				2066A311A64132CE0AF6233D /* BridgeViewWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		0CC39982F5302200CF991BF1 /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
+		1469E1995D33123C5CCC3CC5 /* JSONCoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONCoding.swift; sourceTree = "<group>"; };
+		1C2A84AB1FC5EC6E812B4AE4 /* ShipListContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipListContainer.swift; sourceTree = "<group>"; };
+		24430F125C406E2C675F0B2E /* DataCredits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCredits.swift; sourceTree = "<group>"; };
+		31E02C1136412D57948C12EE /* Styling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Styling.swift; sourceTree = "<group>"; };
+		38534D0D76DCC506DF9390E8 /* NearBridgeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearBridgeMonitor.swift; sourceTree = "<group>"; };
+		4689E76E92B8436F3085D4AE /* BridgeViewTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BridgeViewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		503DCAD5B5AB5C38E0A4D226 /* Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.swift; sourceTree = "<group>"; };
+		5111A81BAD38EA80B9DEC594 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		539D87963D317C7BB73071FF /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
+		58249D7D6116316BEE01D28C /* ShipLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipLinks.swift; sourceTree = "<group>"; };
+		61BA6836038BA3192E5BFC11 /* BridgeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeStore.swift; sourceTree = "<group>"; };
+		6563CDA9382F3FACCECC11D5 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		68A22234AA77247990094DBD /* ShipDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipDetailView.swift; sourceTree = "<group>"; };
+		6A87CC73C64460960A2D5957 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		6CB8A002850BB6795D236889 /* LiveActivityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityTests.swift; sourceTree = "<group>"; };
+		6EB43B6FFC18F7C6898D237C /* AlertPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertPreferences.swift; sourceTree = "<group>"; };
+		6F30DE6D55D2F51B3A6D977D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		74B633CB45C2138852905A82 /* RegistrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationTests.swift; sourceTree = "<group>"; };
+		80C70708A663AF386FF9BE04 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		8B67AA18BDBF6895758D5247 /* BridgeView.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BridgeView.entitlements; sourceTree = "<group>"; };
+		9340F6CAE409E5F921DBC5E1 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		9377380908DBA6722E691DB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		94F5E147BDB8F9F2087E07C7 /* ShipRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipRow.swift; sourceTree = "<group>"; };
+		9B717E8DB26102D4BB6B8A5B /* BridgeViewApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeViewApp.swift; sourceTree = "<group>"; };
+		A1803C12C123A310A829E6F4 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipApproachAttributes.swift; sourceTree = "<group>"; };
+		A3BB4F4BB8D96E723198DB15 /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
+		AADB196A6C9A56B92D2E4085 /* ShipApproachLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipApproachLiveActivity.swift; sourceTree = "<group>"; };
+		AC9A5504C8D35B1873A34818 /* BridgeView.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BridgeView.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B53116F5EFC8F811D2E5DD28 /* DecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingTests.swift; sourceTree = "<group>"; };
+		BCD8396ACF185B879591B53E /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		C821C394745D90E7253117E9 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
+		CA0D81E969AF93E5B15C8860 /* BridgeViewWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeViewWidgets.swift; sourceTree = "<group>"; };
+		D60E5519C186118EB3A8F4D5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		E44BBC8CC9F474C64A9C5467 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		ED3934528FE4A2ABEAFAC063 /* BridgeViewWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BridgeViewWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		F14CB327A8C0E5B83CF84743 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ship.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		166A1463D34BE45E23EAD960 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */,
+				6F30DE6D55D2F51B3A6D977D /* Theme.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		5A09F2B88DBC90A1DE768E83 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AC9A5504C8D35B1873A34818 /* BridgeView.app */,
+				4689E76E92B8436F3085D4AE /* BridgeViewTests.xctest */,
+				ED3934528FE4A2ABEAFAC063 /* BridgeViewWidgets.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5D764025CD16B2C73C8817DD /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E44BBC8CC9F474C64A9C5467 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		7D1C5DF4BACB86E0070B200E /* Push */ = {
+			isa = PBXGroup;
+			children = (
+				9340F6CAE409E5F921DBC5E1 /* AppDelegate.swift */,
+				38534D0D76DCC506DF9390E8 /* NearBridgeMonitor.swift */,
+				539D87963D317C7BB73071FF /* PushManager.swift */,
+				0CC39982F5302200CF991BF1 /* Router.swift */,
+			);
+			path = Push;
+			sourceTree = "<group>";
+		};
+		7F3D9CE96128BC0BC638F9E6 /* Networking */ = {
+			isa = PBXGroup;
+			children = (
+				BCD8396ACF185B879591B53E /* APIClient.swift */,
+				6563CDA9382F3FACCECC11D5 /* AppConfig.swift */,
+				1469E1995D33123C5CCC3CC5 /* JSONCoding.swift */,
+			);
+			path = Networking;
+			sourceTree = "<group>";
+		};
+		8E37BF9273F063014B8965D0 /* BridgeViewTests */ = {
+			isa = PBXGroup;
+			children = (
+				B53116F5EFC8F811D2E5DD28 /* DecodingTests.swift */,
+				6CB8A002850BB6795D236889 /* LiveActivityTests.swift */,
+				74B633CB45C2138852905A82 /* RegistrationTests.swift */,
+			);
+			path = BridgeViewTests;
+			sourceTree = "<group>";
+		};
+		9A5EB55E1D6BB45D67985739 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				80C70708A663AF386FF9BE04 /* Debug.xcconfig */,
+				6A87CC73C64460960A2D5957 /* Release.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		C91465BBFE72F9067524E9E6 = {
+			isa = PBXGroup;
+			children = (
+				E83DD4047D25408E55894CC3 /* BridgeView */,
+				8E37BF9273F063014B8965D0 /* BridgeViewTests */,
+				DA3DB3EA0296E29F5708B91E /* BridgeViewWidgets */,
+				9A5EB55E1D6BB45D67985739 /* Config */,
+				166A1463D34BE45E23EAD960 /* Shared */,
+				5A09F2B88DBC90A1DE768E83 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		CE8590B64C461ADD010BA6C9 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				6EB43B6FFC18F7C6898D237C /* AlertPreferences.swift */,
+				A3BB4F4BB8D96E723198DB15 /* Appearance.swift */,
+				503DCAD5B5AB5C38E0A4D226 /* Bridge.swift */,
+				FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */,
+				58249D7D6116316BEE01D28C /* ShipLinks.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		DA3DB3EA0296E29F5708B91E /* BridgeViewWidgets */ = {
+			isa = PBXGroup;
+			children = (
+				9377380908DBA6722E691DB0 /* Assets.xcassets */,
+				CA0D81E969AF93E5B15C8860 /* BridgeViewWidgets.swift */,
+				5111A81BAD38EA80B9DEC594 /* Info.plist */,
+				AADB196A6C9A56B92D2E4085 /* ShipApproachLiveActivity.swift */,
+			);
+			path = BridgeViewWidgets;
+			sourceTree = "<group>";
+		};
+		DCDB7F8F4C21D36393B82AA0 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				61BA6836038BA3192E5BFC11 /* BridgeStore.swift */,
+				D60E5519C186118EB3A8F4D5 /* ContentView.swift */,
+				24430F125C406E2C675F0B2E /* DataCredits.swift */,
+				C821C394745D90E7253117E9 /* Formatting.swift */,
+				A1803C12C123A310A829E6F4 /* SettingsView.swift */,
+				68A22234AA77247990094DBD /* ShipDetailView.swift */,
+				1C2A84AB1FC5EC6E812B4AE4 /* ShipListContainer.swift */,
+				94F5E147BDB8F9F2087E07C7 /* ShipRow.swift */,
+				31E02C1136412D57948C12EE /* Styling.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		E83DD4047D25408E55894CC3 /* BridgeView */ = {
+			isa = PBXGroup;
+			children = (
+				8B67AA18BDBF6895758D5247 /* BridgeView.entitlements */,
+				9B717E8DB26102D4BB6B8A5B /* BridgeViewApp.swift */,
+				F14CB327A8C0E5B83CF84743 /* Info.plist */,
+				CE8590B64C461ADD010BA6C9 /* Models */,
+				7F3D9CE96128BC0BC638F9E6 /* Networking */,
+				7D1C5DF4BACB86E0070B200E /* Push */,
+				5D764025CD16B2C73C8817DD /* Resources */,
+				DCDB7F8F4C21D36393B82AA0 /* Views */,
+			);
+			path = BridgeView;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5984FBA1A22D4BD7144E457E /* BridgeViewWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE9DA600157B34A883A3F1C5 /* Build configuration list for PBXNativeTarget "BridgeViewWidgets" */;
+			buildPhases = (
+				57269ABA76C0ABEDBA219CCE /* Sources */,
+				84C5F723F8E0B5478719F53F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BridgeViewWidgets;
+			packageProductDependencies = (
+			);
+			productName = BridgeViewWidgets;
+			productReference = ED3934528FE4A2ABEAFAC063 /* BridgeViewWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		887AC74B681BD467A9476745 /* BridgeViewTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3C02A7737CF8D85834519264 /* Build configuration list for PBXNativeTarget "BridgeViewTests" */;
+			buildPhases = (
+				7B5DF3457A94EF0E41CACC14 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				834274BB13099603FB454BCA /* PBXTargetDependency */,
+			);
+			name = BridgeViewTests;
+			packageProductDependencies = (
+			);
+			productName = BridgeViewTests;
+			productReference = 4689E76E92B8436F3085D4AE /* BridgeViewTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		F5FB73C635D999E8D4C6829A /* BridgeView */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8E477ACB5EE702854B9B7BC0 /* Build configuration list for PBXNativeTarget "BridgeView" */;
+			buildPhases = (
+				CB8E174FBCC52F64FB36B3C3 /* Sources */,
+				5655165EAF581FC4313FA985 /* Resources */,
+				91B65466646D0D4F8027BBF4 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BDBD242917E3B6FCA5BE9C5A /* PBXTargetDependency */,
+			);
+			name = BridgeView;
+			packageProductDependencies = (
+			);
+			productName = BridgeView;
+			productReference = AC9A5504C8D35B1873A34818 /* BridgeView.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4CB63B3C79C62E0F5BFAEBC9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					5984FBA1A22D4BD7144E457E = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					887AC74B681BD467A9476745 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					F5FB73C635D999E8D4C6829A = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 681E16D0C8F5DB43B596DA0E /* Build configuration list for PBXProject "BridgeView" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = C91465BBFE72F9067524E9E6;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5A09F2B88DBC90A1DE768E83 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F5FB73C635D999E8D4C6829A /* BridgeView */,
+				5984FBA1A22D4BD7144E457E /* BridgeViewWidgets */,
+				887AC74B681BD467A9476745 /* BridgeViewTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5655165EAF581FC4313FA985 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				252135A11951D3501F0044D3 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		84C5F723F8E0B5478719F53F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD321BECBC886F88744A7C9A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		57269ABA76C0ABEDBA219CCE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				69F81F664C50492502DB45E1 /* BridgeViewWidgets.swift in Sources */,
+				13F46E249030CC75A40F3D99 /* ShipApproachAttributes.swift in Sources */,
+				3D0D1F5AE7BDB35A64AE13F4 /* ShipApproachLiveActivity.swift in Sources */,
+				693C5C29771B24DF906314A9 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7B5DF3457A94EF0E41CACC14 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1F6F0FF9B5FF8AEC3457F54C /* DecodingTests.swift in Sources */,
+				71F05A35E71239CC40ED97E0 /* LiveActivityTests.swift in Sources */,
+				C9BED5BAC70378773863558B /* RegistrationTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CB8E174FBCC52F64FB36B3C3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B77B06C4E56D45ACA50BCA7B /* APIClient.swift in Sources */,
+				8ECCD712A4094938D4D89F00 /* AlertPreferences.swift in Sources */,
+				32AF51BA6D65A28F0AB5A065 /* AppConfig.swift in Sources */,
+				7FAD626E74ADAEBB66252E16 /* AppDelegate.swift in Sources */,
+				9B4A213005AE2962EA1467E0 /* Appearance.swift in Sources */,
+				62D986B8D7B1AF91F6355251 /* Bridge.swift in Sources */,
+				B8B3E538A6ECBD9BCD21AD34 /* BridgeStore.swift in Sources */,
+				E6C9DDC2F748232DD0CD506E /* BridgeViewApp.swift in Sources */,
+				470933C76D5CD09563E7FAA1 /* ContentView.swift in Sources */,
+				5FF62D0418FE53BB655F4414 /* DataCredits.swift in Sources */,
+				9A95F303D34A90963F980A4F /* Formatting.swift in Sources */,
+				F69F276B8A2D587A94ED3C0B /* JSONCoding.swift in Sources */,
+				C405753687C588EADE470F58 /* NearBridgeMonitor.swift in Sources */,
+				608B08BC6D5829E6F4654BED /* PushManager.swift in Sources */,
+				E0DCE9B44D842C48099F7830 /* Router.swift in Sources */,
+				D682A2DB996586269E00400B /* SettingsView.swift in Sources */,
+				5E1316ACDAD8F2D65E194EBA /* Ship.swift in Sources */,
+				BEF1DAFCDB0B08D08F07304F /* ShipApproachAttributes.swift in Sources */,
+				6C24063CB47D10037230D84E /* ShipDetailView.swift in Sources */,
+				A4EDAB291529DB155B7B3CC6 /* ShipLinks.swift in Sources */,
+				256A93ABF3E3E59DBB476B71 /* ShipListContainer.swift in Sources */,
+				052F679801C49D202877CA96 /* ShipRow.swift in Sources */,
+				7D9997CFC0EDB375ED03CCA4 /* Styling.swift in Sources */,
+				78607F02DD78AD8E66B21F7B /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		834274BB13099603FB454BCA /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F5FB73C635D999E8D4C6829A /* BridgeView */;
+			targetProxy = 4FD95717E95080667F27A7FC /* PBXContainerItemProxy */;
+		};
+		BDBD242917E3B6FCA5BE9C5A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5984FBA1A22D4BD7144E457E /* BridgeViewWidgets */;
+			targetProxy = 301B9F55092DAA375A5E3A26 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		724691EC2E589D03A0293010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = BridgeView/BridgeView.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = BridgeView/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BRIDGEVIEW_BUNDLE_ID)";
+				PRODUCT_NAME = BridgeView;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		80217FC022C47619DBF82183 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 80C70708A663AF386FF9BE04 /* Debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		845E4E1D4EC8946969F483D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BRIDGEVIEW_BUNDLE_ID).tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BridgeView.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BridgeView";
+			};
+			name = Debug;
+		};
+		881FE4F665F3086C41816C62 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 6A87CC73C64460960A2D5957 /* Release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		9ED35DD34F106DB10093D286 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = BridgeView/BridgeView.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = BridgeView/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BRIDGEVIEW_BUNDLE_ID)";
+				PRODUCT_NAME = BridgeView;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A601788E6C3B727D39E045C7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BRIDGEVIEW_BUNDLE_ID).tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BridgeView.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BridgeView";
+			};
+			name = Release;
+		};
+		BEE700247940755BC27C1BA8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = BridgeViewWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BRIDGEVIEW_BUNDLE_ID).widgets";
+				PRODUCT_NAME = BridgeViewWidgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		DDCD622E0DC9143CBBA1CCC5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = BridgeViewWidgets/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BRIDGEVIEW_BUNDLE_ID).widgets";
+				PRODUCT_NAME = BridgeViewWidgets;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		3C02A7737CF8D85834519264 /* Build configuration list for PBXNativeTarget "BridgeViewTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				845E4E1D4EC8946969F483D8 /* Debug */,
+				A601788E6C3B727D39E045C7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		681E16D0C8F5DB43B596DA0E /* Build configuration list for PBXProject "BridgeView" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				80217FC022C47619DBF82183 /* Debug */,
+				881FE4F665F3086C41816C62 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8E477ACB5EE702854B9B7BC0 /* Build configuration list for PBXNativeTarget "BridgeView" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				724691EC2E589D03A0293010 /* Debug */,
+				9ED35DD34F106DB10093D286 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		CE9DA600157B34A883A3F1C5 /* Build configuration list for PBXNativeTarget "BridgeViewWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEE700247940755BC27C1BA8 /* Debug */,
+				DDCD622E0DC9143CBBA1CCC5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4CB63B3C79C62E0F5BFAEBC9 /* Project object */;
+}

@@ -9,6 +9,16 @@ import { EventEmitter } from "node:events";
 export const DEFAULT_ADSB_URL = "https://opendata.adsb.fi/api/v2/lat/42.9982/lon/-82.423/dist/40";
 // adsb.fi's live map, linked from the feed status when the default feed is in use
 export const DEFAULT_ADSB_WEB_URL = "https://globe.adsb.fi/?lat=42.9982&lon=-82.423&zoom=9";
+
+// Whether an ADS-B feed URL is adsb.fi's, whose open data terms ask to be credited
+export function isAdsbFi(url) {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "adsb.fi" || hostname.endsWith(".adsb.fi");
+  } catch {
+    return false;
+  }
+}
 const POLL_INTERVAL_MS = 5_000;
 // Each failed poll in a row doubles the wait, up to this; a 429's Retry-After can ask for longer, up to this too
 const MAX_BACKOFF_MS = 5 * 60_000;

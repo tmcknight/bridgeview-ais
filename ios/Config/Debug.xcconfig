@@ -1,0 +1,5 @@
+#include "Base.xcconfig"
+
+// Debug builds get APNs sandbox tokens
+APS_ENVIRONMENT = development
+BRIDGEVIEW_PUSH_ENVIRONMENT = sandbox

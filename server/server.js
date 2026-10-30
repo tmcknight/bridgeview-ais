@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import http from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 import {
   createLocalReceiver,
@@ -12,8 +14,12 @@ import { createUpstream, mergeSubscriptions } from "./upstream.js";
 import { createVesselDetails } from "./vessel-details.js";
 import { fetchVesselInfo } from "./wikidata.js";
 import { withClassBTypes } from "./class-b.js";
-import { createAircraftFeed, DEFAULT_ADSB_URL, DEFAULT_ADSB_WEB_URL } from "./aircraft.js";
-import { createShipCamFinder } from "./ship-cams.js";
+import { createAircraftFeed, DEFAULT_ADSB_URL, DEFAULT_ADSB_WEB_URL, isAdsbFi } from "./aircraft.js";
+import { createShipCamFinder, SHIP_CAMS } from "./ship-cams.js";
+import { attributionFor, createBridgeApi } from "./bridge-api.js";
+import { createPushDevices } from "./push-devices.js";
+import { createApnsClient } from "./apns.js";
+import { createApproachAlerts } from "./approach-alerts.js";
 
 // An http(s) URL safe to hand clients as a link; undefined for anything else
 function webUrlOrUndefined(value) {
@@ -71,6 +77,15 @@ const AIRCRAFT_TRACKING = process.env.AIRCRAFT_TRACKING !== "false";
 const ADSB_URL = process.env.ADSB_URL || DEFAULT_ADSB_URL;
 // Find each ship cam's live video on YouTube, following it when the stream restarts
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
+// iOS bridge alerts through APNs: the auth key's ID, the team ID, the .p8 key itself
+// (APNS_KEY, PEM text; or APNS_KEY_FILE, its path) and the app's bundle ID
+const APNS_KEY_ID = process.env.APNS_KEY_ID;
+const APNS_TEAM_ID = process.env.APNS_TEAM_ID;
+const APNS_BUNDLE_ID = process.env.APNS_BUNDLE_ID;
+const APNS_KEY =
+  process.env.APNS_KEY?.replace(/\\n/g, "\n") ||
+  (process.env.APNS_KEY_FILE ? fs.readFileSync(process.env.APNS_KEY_FILE, "utf8") : undefined);
+const PUSH_ALERTS = Boolean(APNS_KEY_ID && APNS_TEAM_ID && APNS_BUNDLE_ID && APNS_KEY);
 
 // Logger utility - keep errors in production, suppress debug logs
 const isDev = process.env.NODE_ENV !== "production";
@@ -158,7 +173,8 @@ const feedStatus = createFeedStatus({
     aisstream: "https://aisstream.io",
     local: LOCAL_AIS_WEB_URL,
     aishub: "https://www.aishub.net",
-    adsb: ADSB_URL === DEFAULT_ADSB_URL ? DEFAULT_ADSB_WEB_URL : undefined,
+    // Any adsb.fi URL links to its map, which also tells the browser to credit adsb.fi
+    adsb: isAdsbFi(ADSB_URL) ? DEFAULT_ADSB_WEB_URL : undefined,
   },
 });
 const subscribedClients = new Set();
@@ -208,10 +224,37 @@ shipLog.on("entry", (entry) => {
   broadcast(JSON.stringify({ type: "shipLogEntry", entry }));
 });
 
+// HTTP API for the iOS app, and its bridge alerts when APNs is configured
+const pushDevices = PUSH_ALERTS ? createPushDevices({ file: DB_FILE, logger }) : null;
+const bridgeApi = createBridgeApi({
+  vesselDetails,
+  latestPositions,
+  shipLog,
+  pushDevices,
+  shipCamVideoId: () => shipCamFinder?.videoIds()[SHIP_CAMS[0].id] ?? SHIP_CAMS[0].videoId,
+  attribution: attributionFor([...AIS_SOURCES]),
+  logger,
+});
+const apns = PUSH_ALERTS
+  ? createApnsClient({ keyId: APNS_KEY_ID, teamId: APNS_TEAM_ID, key: APNS_KEY, bundleId: APNS_BUNDLE_ID })
+  : null;
+const approachAlerts = apns ? createApproachAlerts({ apns, pushDevices, ship: bridgeApi.ship, logger }) : null;
+if (approachAlerts) {
+  shipLog.on("entry", (entry) => approachAlerts.handleShipLogEntry(entry));
+  approachAlerts.cleanUp().catch((err) => logger.warn(`[alerts] clean-up failed: ${err.message}`));
+}
+
+// Alerts work off the same deduplicated stream as the ship log, after the latest
+// position (which the alert reads) has been stored
+function feedApproachAlerts(message) {
+  if (approachAlerts && inBoundingBoxes(message, [SHIP_LOG_BOUNDING_BOX])) approachAlerts.handleMessage(message);
+}
+
 if (localReceiver) {
   localReceiver.on("message", (message) => vesselDetails.handleMessage(message));
   localReceiver.on("message", (message) => latestPositions.handleMessage(message));
   localReceiver.on("message", feedShipLog);
+  localReceiver.on("message", feedApproachAlerts);
 }
 
 // One AISStream connection shared by every client and the ship log
@@ -236,6 +279,7 @@ if (upstream) {
   upstream.on("message", (message) => vesselDetails.handleMessage(message));
   upstream.on("message", (message) => latestPositions.handleMessage(message));
   upstream.on("message", feedShipLog);
+  upstream.on("message", feedApproachAlerts);
   updateUpstreamSubscription();
 }
 
@@ -255,6 +299,7 @@ if (aishub) {
   aishub.on("message", (message) => vesselDetails.handleMessage(message));
   aishub.on("message", (message) => latestPositions.handleMessage(message));
   aishub.on("message", feedShipLog);
+  aishub.on("message", feedApproachAlerts);
   aishub.start();
 }
 
@@ -266,6 +311,9 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     aishub?.stop();
     aircraftFeed?.stop();
     shipCamFinder?.stop();
+    approachAlerts?.stop();
+    apns?.close();
+    pushDevices?.close();
     process.exit(0);
   });
 }
@@ -411,7 +459,14 @@ function validateSubscription(subscription) {
   return { valid: true, subscription: sanitized };
 }
 
-const wss = new WebSocketServer({ port: PORT });
+// The iOS app's /api/ over HTTP, and the WebSocket on the same port
+const httpServer = http.createServer((req, res) => {
+  if (bridgeApi.handleRequest(req, res, getClientIP(req))) return;
+  res.writeHead(426, { "content-type": "text/plain" });
+  res.end("Connect with a WebSocket, or use /api/");
+});
+const wss = new WebSocketServer({ server: httpServer });
+httpServer.listen(PORT);
 
 // client -> heartbeat check. A link that dies without a close (a sleeping laptop, a dropped
 // tunnel) would otherwise hold its IP's connection slot until TCP gives up, hours later.
@@ -637,6 +692,7 @@ wss.on("connection", (client, req) => {
 logger.info(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
 logger.info(`[proxy] AIS sources: ${[...AIS_SOURCES].join(", ")}${USE_LOCAL ? ` (AIS-catcher at ${LOCAL_AIS_HOST}:${LOCAL_AIS_PORT})` : ""}`);
 logger.info(`[proxy] Aircraft: ${AIRCRAFT_TRACKING ? ADSB_URL : "off"}`);
+logger.info(`[proxy] iOS bridge alerts: ${PUSH_ALERTS ? `on (${APNS_BUNDLE_ID})` : "off (set APNS_KEY_ID, APNS_TEAM_ID, APNS_KEY, APNS_BUNDLE_ID)"}`);
 logger.info(`[proxy] Ship cam lookup: ${YOUTUBE_API_KEY ? "on" : "off (set YOUTUBE_API_KEY)"}`);
 if (AUTH_TOKEN) {
   logger.info(`[proxy] Authentication enabled`);

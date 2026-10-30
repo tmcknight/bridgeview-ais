@@ -25,6 +25,7 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 - **Dark/Light Theme**: Toggle between dark and light modes
 - **Modern UI**: Built with Tailwind CSS and Headless UI for a clean, responsive interface
 - **Notification System**: Real-time approach and close-approach alerts
+- **iOS App**: Ships coming up and recently passed, with a push notification or Live Activity about 10 minutes before a ship reaches the bridge ([ios/README.md](ios/README.md))
 - **Error Boundaries**: Graceful error handling with component-level and app-level boundaries
 - **Secure WebSocket Proxy**: Rate limiting, authentication support, and input validation
 
@@ -151,6 +152,7 @@ This project was mostly vibe coded with [Claude](https://claude.ai) - an AI assi
 ## 📖 Documentation
 
 - [infra/DOCKER.md](infra/DOCKER.md) - Docker containerization setup and usage
+- [ios/README.md](ios/README.md) - iOS app setup; [ios/API.md](ios/API.md) - its API and push payloads
 - [TESTING.md](TESTING.md) - Comprehensive test documentation and coverage details
 - [SECURITY.md](SECURITY.md) - Security policies and vulnerability reporting
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
