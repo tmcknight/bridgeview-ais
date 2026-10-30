@@ -33,3 +33,6 @@ coverage
 
 # Shared ship log written by the WebSocket server
 data/
+
+# Playwright MCP browser snapshots and logs
+.playwright-mcp/
