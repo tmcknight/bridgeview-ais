@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { EventEmitter } from "node:events";
-import { attributionFor, createBridgeApi, createRateLimiter, RATE_LIMITS } from "./bridge-api.js";
+import { attributionFor, createBridgeApi, createRateLimiter, RATE_LIMITS, withAbsolutePhotoUrls } from "./bridge-api.js";
 import { createVesselDetails } from "./vessel-details.js";
 import { createLatestPositions } from "./latest-positions.js";
 import { createPushDevices } from "./push-devices.js";
@@ -269,5 +269,24 @@ describe("createRateLimiter", () => {
     expect(allow("a", "write")).toBe(false);
     t = 1001;
     expect(allow("a", "read")).toBe(true);
+  });
+});
+
+describe("withAbsolutePhotoUrls", () => {
+  const ORIGIN = "https://bridgeview.example";
+  const UPLOADED = `/api/photos/${"a".repeat(32)}.jpg`;
+
+  it("makes photos uploaded to this server whole URLs for the app", () => {
+    const ship = { mmsi: 1, info: { imageUrl: UPLOADED, photos: [{ url: UPLOADED, artist: "Me" }, { url: "https://x/a.jpg" }] } };
+    expect(withAbsolutePhotoUrls(ship, ORIGIN).info).toEqual({
+      imageUrl: `${ORIGIN}${UPLOADED}`,
+      photos: [{ url: `${ORIGIN}${UPLOADED}`, artist: "Me" }, { url: "https://x/a.jpg" }],
+    });
+  });
+
+  it("leaves ships without uploaded photos as they are", () => {
+    const ship = { mmsi: 1, info: { imageUrl: "https://x/a.jpg" } };
+    expect(withAbsolutePhotoUrls(ship, ORIGIN)).toBe(ship);
+    expect(withAbsolutePhotoUrls({ mmsi: 2 }, ORIGIN)).toEqual({ mmsi: 2 });
   });
 });

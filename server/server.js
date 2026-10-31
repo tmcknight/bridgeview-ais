@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import http from "node:http";
+import path from "node:path";
 import { WebSocketServer, WebSocket } from "ws";
 import {
   createLocalReceiver,
@@ -23,6 +24,8 @@ import { attributionFor, createBridgeApi } from "./bridge-api.js";
 import { createPushDevices } from "./push-devices.js";
 import { createApnsClient } from "./apns.js";
 import { createApproachAlerts } from "./approach-alerts.js";
+import { createAdminApi } from "./admin-api.js";
+import { createR2PhotoStore, r2ConfigFromEnv } from "./photo-store.js";
 
 // An http(s) URL safe to hand clients as a link; undefined for anything else
 function webUrlOrUndefined(value) {
@@ -73,6 +76,12 @@ const USE_AISHUB = AIS_SOURCES.has("aishub");
 const MULTIPLE_SOURCES = AIS_SOURCES.size > 1;
 const SHIP_LOG_FILE = process.env.SHIP_LOG_FILE || "data/ship-log.json";
 const DB_FILE = process.env.DB_FILE || "data/bridgeview.db";
+// Password for the admin page (/admin); the page is off without one
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+// Photos uploaded on the admin page: in a Cloudflare R2 bucket when R2_* and
+// PHOTOS_PUBLIC_URL are set, else in PHOTOS_DIR (next to the database by default)
+const PHOTOS_DIR = process.env.PHOTOS_DIR || path.join(path.dirname(DB_FILE), "photos");
+const R2_PHOTOS = r2ConfigFromEnv(process.env);
 // Look ships up on Wikidata (photo, build year, operator) and Commons (more photos), and store the result
 const VESSEL_INFO_LOOKUP = process.env.VESSEL_INFO_LOOKUP !== "false";
 // Import Transport Canada's vessel register weekly (build year, tonnage, port of registry for lakers)
@@ -253,6 +262,22 @@ const bridgeApi = createBridgeApi({
   attribution: attributionFor([...AIS_SOURCES]),
   logger,
 });
+// The admin page's API, and photos uploaded there
+if (R2_PHOTOS?.error) {
+  logger.error(`[admin] ${R2_PHOTOS.error}`);
+  process.exit(1);
+}
+const adminApi = createAdminApi({
+  password: ADMIN_PASSWORD,
+  vesselDetails,
+  photosDir: PHOTOS_DIR,
+  photoStore: R2_PHOTOS ? createR2PhotoStore(R2_PHOTOS.config) : null,
+  logger,
+});
+if (ADMIN_PASSWORD) logger.log(`[admin] photos stored in ${R2_PHOTOS ? `R2 (${R2_PHOTOS.config.bucket})` : PHOTOS_DIR}`);
+if (ADMIN_PASSWORD && ADMIN_PASSWORD.length < 12) {
+  logger.warn("[admin] ADMIN_PASSWORD is short; use at least 12 characters");
+}
 const apns = PUSH_ALERTS
   ? createApnsClient({ keyId: APNS_KEY_ID, teamId: APNS_TEAM_ID, key: APNS_KEY, bundleId: APNS_BUNDLE_ID })
   : null;
@@ -480,6 +505,7 @@ function validateSubscription(subscription) {
 
 // The iOS app's /api/ over HTTP, and the WebSocket on the same port
 const httpServer = http.createServer((req, res) => {
+  if (adminApi.handleRequest(req, res, getClientIP(req))) return;
   if (bridgeApi.handleRequest(req, res, getClientIP(req))) return;
   res.writeHead(426, { "content-type": "text/plain" });
   res.end("Connect with a WebSocket, or use /api/");

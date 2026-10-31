@@ -59,7 +59,7 @@ export default function PhotoCarousel({ photos, alt, imageClassName, autoAdvance
           href={photo.pageUrl ?? photo.url}
           target="_blank"
           rel="noopener noreferrer"
-          title="View image on Wikimedia Commons"
+          title={photo.pageUrl ? "View image on Wikimedia Commons" : undefined}
           onClick={(e) => e.stopPropagation()}
           {...stopCardSelect}
         >

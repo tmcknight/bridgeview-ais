@@ -211,3 +211,69 @@ describe("createVesselDetails", () => {
     expect(details.vesselInfo(1)).toBeUndefined();
   });
 });
+
+describe("admin corrections", () => {
+  let details;
+  afterEach(() => {
+    details?.close();
+    vi.useRealTimers();
+  });
+
+  it("applies corrections over lookups, keeps them through the next lookup, and emits them", async () => {
+    vi.useFakeTimers();
+    const fetchInfo = vi.fn().mockResolvedValue({ operator: "Old", builder: "Yard" });
+    details = createVesselDetails({ fetchInfo, lookupIntervalMs: 1 });
+    details.handleMessage(staticData(316000001, "LAKER"));
+    await vi.advanceTimersByTimeAsync(10);
+
+    const onInfo = vi.fn();
+    details.on("info", onInfo);
+    details.setOverrides(316000001, { fields: { operator: "New" } });
+    expect(onInfo).toHaveBeenLastCalledWith(316000001, { operator: "New", builder: "Yard" });
+    expect(details.vesselInfo(316000001)).toEqual({ operator: "New", builder: "Yard" });
+
+    fetchInfo.mockResolvedValue({ operator: "Old", builder: "Other yard" });
+    expect(details.refresh(316000001)).toBe(true);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(fetchInfo).toHaveBeenCalledTimes(2);
+    expect(onInfo).toHaveBeenLastCalledWith(316000001, { operator: "New", builder: "Other yard" });
+
+    const view = details.adminView(316000001);
+    expect(view.lookedUp).toEqual({ operator: "Old", builder: "Other yard" });
+    expect(view.overrides).toEqual({ fields: { operator: "New" } });
+    expect(view.record.name).toBe("LAKER");
+
+    details.setOverrides(316000001, {});
+    expect(details.vesselInfo(316000001).operator).toBe("Old");
+    expect(details.overrides(316000001)).toEqual({});
+  });
+
+  it("gives corrections to ships not looked up yet", () => {
+    details = createVesselDetails();
+    details.handleMessage(position(2, "FERRY"));
+    expect(details.vesselInfo(2)).toBeUndefined();
+    details.setOverrides(2, { fields: { operator: "Ferry Co" } });
+    expect(details.vesselInfo(2)).toEqual({ operator: "Ferry Co" });
+  });
+
+  it("can't refresh with lookups off", () => {
+    details = createVesselDetails();
+    expect(details.refresh(1)).toBe(false);
+  });
+
+  it("finds ships by name, MMSI, IMO number and call sign", () => {
+    details = createVesselDetails();
+    details.handleMessage(staticData(316000001, "ALGOMA 100%"));
+    details.handleMessage(position(366000002, "FERRY"));
+    details.setOverrides(366000002, { fields: { name: "Ferry" } });
+
+    expect(details.search({ query: "algoma" }).map((s) => s.mmsi)).toEqual([316000001]);
+    expect(details.search({ query: "3660" }).map((s) => s.mmsi)).toEqual([366000002]);
+    expect(details.search({ query: "96000" }).map((s) => s.mmsi)).toEqual([316000001]);
+    expect(details.search({ query: "vcxy" }).map((s) => s.mmsi)).toEqual([316000001]);
+    expect(details.search({ query: "100%" }).map((s) => s.mmsi)).toEqual([316000001]);
+    expect(details.search({ query: "_" })).toEqual([]);
+    expect(details.search({ overriddenOnly: true }).map((s) => s.mmsi)).toEqual([366000002]);
+    expect(details.search()).toHaveLength(2);
+  });
+});
