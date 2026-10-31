@@ -163,8 +163,8 @@ Every ship heard in the last 10 minutes, for the app's map. The app polls it eve
 {
   "generatedAt": "2026-10-30T14:02:11.000Z",
   "attribution": [ /* as in GET /api/bridge */ ],
-  "ships": [ /* Ship with only mmsi, name, shipTypeName, category, length, flag,
-                classB, position and approach (when heading for the bridge) */ ]
+  "ships": [ /* Ship with only mmsi, name, shipTypeName, category, length, width,
+                flag, classB, position and approach (when heading for the bridge) */ ]
 }
 ```
 

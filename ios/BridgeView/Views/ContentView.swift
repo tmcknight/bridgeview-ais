@@ -17,7 +17,7 @@ struct ContentView: View {
             Tab("Map", systemImage: "map", value: Router.Tab.map) {
                 LiveMapView()
             }
-            Tab("Passed", systemImage: "clock.arrow.circlepath", value: Router.Tab.recent) {
+            Tab("Recent", systemImage: "clock.arrow.circlepath", value: Router.Tab.recent) {
                 RecentView()
             }
             Tab("Settings", systemImage: "gearshape", value: Router.Tab.settings) {

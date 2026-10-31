@@ -73,6 +73,10 @@ type ShipsAction =
 function shipsReducer(state: Map<number, TrackedShip>, action: ShipsAction): Map<number, TrackedShip> {
   switch (action.type) {
     case "UPDATE_SHIP": {
+      // With two feeds, one's report can land after a newer one from the
+      // other; drawing it would pull the ship back
+      const existing = state.get(action.mmsi);
+      if (existing && Date.parse(action.ship.lastUpdate) < Date.parse(existing.lastUpdate)) return state;
       const newState = new Map(state);
       newState.set(action.mmsi, action.ship);
       return newState;

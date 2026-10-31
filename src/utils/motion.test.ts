@@ -63,9 +63,35 @@ describe('startMotion', () => {
 
     expect(motionAt(next, 5000).lat).toBeCloseTo(LAT, 9)
     const halfway = motionAt(next, 5000 + BLEND_MS / 2).lat
-    expect(halfway).toBeGreaterThan(LAT + 0.0005)
-    expect(halfway).toBeLessThan(LAT + 0.001)
+    expect(halfway).toBeCloseTo(LAT + 0.0005, 9)
+    // Gentle at both ends
+    expect(motionAt(next, 5000 + BLEND_MS / 10).lat).toBeLessThan(LAT + 0.0001)
+    expect(motionAt(next, 5000 + (BLEND_MS * 9) / 10).lat).toBeGreaterThan(LAT + 0.0009)
     expect(motionAt(next, 5000 + BLEND_MS).lat).toBeCloseTo(LAT + 0.001, 9)
+  })
+
+  it('reckons from when the report was made, not when it arrived', () => {
+    const motion = startMotion(undefined, north({ reportedAt: 50_000 }), 0, 60_000, 60_000)
+    // Ten seconds old on arrival, so already ten seconds along
+    expect(motionAt(motion, 0).lat).toBeCloseTo(LAT + 10 * 10_000 * KNOT_DEG_PER_MS, 12)
+  })
+
+  it('does not pull a moving ship back when a delayed report lands', () => {
+    const prev = startMotion(undefined, north({ reportedAt: 0 }), 0, 60_000, 0)
+    // The next report was made 10s in but only arrives 15s in, where the ship is drawn
+    const next = startMotion(
+      prev,
+      north({ lat: LAT + 10 * 10_000 * KNOT_DEG_PER_MS, reportedAt: 10_000 }),
+      15_000,
+      60_000,
+      15_000
+    )
+    expect(next.offset.lat).toBeCloseTo(0, 12)
+  })
+
+  it('caps how old a report is taken to be, against a wrong clock', () => {
+    const motion = startMotion(undefined, north({ reportedAt: 0 }), 0, 600_000, 3_600_000)
+    expect(motion.lagMs).toBe(30_000)
   })
 
   it('turns the shortest way round', () => {

@@ -161,6 +161,7 @@ describe("createBridgeApi", () => {
     expect(body.ships.find((s) => s.mmsi === 316001234)).toMatchObject({
       category: "cargo",
       length: 225,
+      width: 24,
       position: { sog: 12, cog: 0 },
       approach: { direction: "upbound" },
     });

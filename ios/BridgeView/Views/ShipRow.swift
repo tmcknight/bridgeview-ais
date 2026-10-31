@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// One ship in the "Coming up" or "Passed" list
+/// One ship in the "Coming up" or "Recent" list
 struct ShipRow: View {
     enum Mode {
         case upcoming, recent
@@ -11,7 +11,11 @@ struct ShipRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            DirectionBadge(direction: direction, course: mode == .upcoming ? ship.position?.course : nil)
+            DirectionBadge(
+                direction: direction,
+                course: mode == .upcoming ? ship.position?.course : nil,
+                followsCompass: mode == .upcoming
+            )
             VStack(alignment: .leading, spacing: 2) {
                 Text(ship.name)
                     .font(Theme.hull(.subheadline))
@@ -26,6 +30,9 @@ struct ShipRow: View {
             }
             Spacer(minLength: 8)
             trailing
+            if mode == .upcoming {
+                LiveActivityToggle(mmsi: ship.mmsi, style: .icon)
+            }
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.tertiary)
@@ -79,10 +86,11 @@ struct ShipRow: View {
 struct DirectionBadge: View {
     var direction: Direction?
     var course: Double?
+    var followsCompass = true
 
     var body: some View {
         let color = Theme.color(for: direction)
-        DirectionArrow(direction: direction, course: course)
+        DirectionArrow(direction: direction, course: course, followsCompass: followsCompass)
             .font(.body.weight(.heavy))
             .foregroundStyle(.white)
             .frame(width: 38, height: 38)
@@ -96,12 +104,15 @@ struct DirectionBadge: View {
 
 /// Arrow pointing along a ship's course (or its direction through the river),
 /// turned by the phone's compass heading like a compass needle, so it points the
-/// way the ship is going as seen by whoever holds the phone (north up without one)
+/// way the ship is going as seen by whoever holds the phone (north up without one).
+/// Ships that have already gone by keep a plain up or down arrow
 struct DirectionArrow: View {
     var direction: Direction?
     var course: Double?
+    var followsCompass = true
 
-    @Environment(Compass.self) private var compass: Compass?
+    @Environment(Compass.self) private var environmentCompass: Compass?
+    private var compass: Compass? { followsCompass ? environmentCompass : nil }
 
     var body: some View {
         if let direction {

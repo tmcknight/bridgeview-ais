@@ -59,6 +59,7 @@ private struct ShipDetailContent: View {
     @State private var sharingPhoto = false
     @State private var reportingPhoto: VesselPhoto?
     @State private var reportResult: String?
+    @State private var mapExpanded = false
     @Environment(\.openURL) private var openURL
 
     private let api = APIClient()
@@ -72,13 +73,43 @@ private struct ShipDetailContent: View {
                 }
                 if let position = ship.position {
                     VStack(alignment: .leading, spacing: 6) {
-                        ShipMap(position: position, name: ship.name)
-                            .frame(height: 230)
-                            .clipShape(.rect(cornerRadius: Theme.cornerRadius))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: Theme.cornerRadius)
-                                    .strokeBorder(Theme.hairline)
+                        // A still preview; tapping opens it full screen to pan and zoom
+                        Button {
+                            mapExpanded = true
+                        } label: {
+                            ShipMap(ship: ship, position: position, interactive: false)
+                                .frame(height: 230)
+                                .clipShape(.rect(cornerRadius: Theme.cornerRadius))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Theme.cornerRadius)
+                                        .strokeBorder(Theme.hairline)
+                                }
+                                .overlay(alignment: .topTrailing) {
+                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 28, height: 28)
+                                        .glassPill()
+                                        .environment(\.colorScheme, .dark)
+                                        .padding(10)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Map of \(ship.name)")
+                        .accessibilityHint("Opens the map full screen")
+                        .fullScreenCover(isPresented: $mapExpanded) {
+                            NavigationStack {
+                                ShipMap(ship: ship, position: position, interactive: true)
+                                    .ignoresSafeArea(edges: .bottom)
+                                    .navigationTitle(ship.name)
+                                    .toolbarTitleDisplayMode(.inline)
+                                    .toolbar {
+                                        ToolbarItem(placement: .confirmationAction) {
+                                            Button("Done") { mapExpanded = false }
+                                        }
+                                    }
                             }
+                        }
                         Text("Last position \(position.time, format: .relative(presentation: .named))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -155,10 +186,20 @@ private struct ShipDetailContent: View {
                 .frame(height: 220)
                 .overlay { photo }
                 .clipped()
-                // The shade and name let touches through, so the photos can be swiped
+                // The shade and name let touches through, so the photos can be swiped.
+                // Shaded at the top too, so the buttons and credit read on a light photo
                 .overlay {
-                    LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
-                        .allowsHitTesting(false)
+                    LinearGradient(
+                        stops: [
+                            .init(color: .black.opacity(0.45), location: 0),
+                            .init(color: .clear, location: 0.3),
+                            .init(color: .clear, location: 0.5),
+                            .init(color: .black.opacity(0.65), location: 1),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .allowsHitTesting(false)
                 }
                 .overlay(alignment: .bottomLeading) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -184,7 +225,7 @@ private struct ShipDetailContent: View {
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
-                                    .glassPill(clear: true)
+                                    .glassPill()
                             }
                             .accessibilityLabel("Share a photo of \(ship.name)")
                         }
@@ -196,11 +237,13 @@ private struct ShipDetailContent: View {
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(.white)
                                     .frame(width: 28, height: 28)
-                                    .glassPill(clear: true)
+                                    .glassPill()
                             }
                             .accessibilityLabel("Photo options")
                         }
                     }
+                    // Dark glass, whatever the app's appearance, so white reads on it
+                    .environment(\.colorScheme, .dark)
                     .padding(10)
                 }
             if ship.info?.description != nil || ship.cargo != nil || !ship.summary.isEmpty {
@@ -265,11 +308,11 @@ private struct ShipDetailContent: View {
                         Text(credit).lineLimit(1)
                     }
                 }
-                .font(.caption2.weight(.medium))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(.black.opacity(0.45), in: .rect(cornerRadius: 6))
+                .background(.black.opacity(0.6), in: .rect(cornerRadius: 6))
                 .padding(10)
                 .allowsHitTesting(false)
             }
@@ -305,8 +348,7 @@ private struct ShipDetailContent: View {
                     }
                 }
             }
-            LiveActivityToggle(mmsi: ship.mmsi)
-                .tint(Theme.signal)
+            LiveActivityToggle(mmsi: ship.mmsi, style: .pill)
         }
         .card()
     }
@@ -437,24 +479,76 @@ private struct PhotoPlaceholder: View {
     }
 }
 
+/// The ship and the bridge on a map, the ship drawn as on the live map
 private struct ShipMap: View {
+    var ship: Ship
     var position: Position
-    var name: String
+    /// Pan and zoom, with every other ship heard lately (full screen), or a still preview
+    var interactive: Bool
+
+    @State private var metresPerPoint: Double = 30
+    @State private var mapHeight: CGFloat = 0
+    /// Every ship from GET /api/map, while full screen
+    @State private var snapshot: MapSnapshot?
+
+    private let api = APIClient()
 
     var body: some View {
-        let ship = CLLocationCoordinate2D(latitude: position.latitude, longitude: position.longitude)
-        Map(initialPosition: .rect(Self.rect(ship, Bridge.center)), interactionModes: [.pan, .zoom]) {
-            Marker(Bridge.name, systemImage: "road.lanes", coordinate: Bridge.center)
-                .tint(.gray)
-            Annotation(name, coordinate: ship) {
-                Image(systemName: "location.north.fill")
-                    .font(.title3)
-                    .foregroundStyle(Theme.signal)
-                    .rotationEffect(.degrees(position.course ?? 0))
-                    .shadow(radius: 2)
+        let coordinate = CLLocationCoordinate2D(latitude: position.latitude, longitude: position.longitude)
+        // Redrawn a couple of times a second so moving ships glide between reports
+        TimelineView(.animation(minimumInterval: 0.5, paused: !interactive)) { context in
+            Map(
+                initialPosition: .rect(Self.rect(coordinate, Bridge.center)),
+                interactionModes: interactive ? [.pan, .zoom] : []
+            ) {
+                Marker(Bridge.name, systemImage: "road.lanes", coordinate: Bridge.center)
+                    .tint(.gray)
+                ForEach(others) { other in
+                    if let position = other.position {
+                        Annotation(other.name, coordinate: position.coordinate(at: context.date), anchor: .center) {
+                            MapShipMarker(ship: other, isSelected: false, metresPerPoint: metresPerPoint)
+                        }
+                        .annotationTitles(.hidden)
+                    }
+                }
+                // This ship last, so it's drawn over the others; picked out when they're shown
+                let current = latestPosition
+                Annotation(ship.name, coordinate: current.coordinate(at: context.date), anchor: .center) {
+                    MapShipMarker(ship: ship, isSelected: interactive, metresPerPoint: metresPerPoint)
+                }
+            }
+            .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+            .mapControls {
+                if interactive {
+                    MapCompass()
+                    MapScaleView()
+                }
+            }
+            .onMapCameraChange(frequency: .continuous) { context in
+                guard mapHeight > 0 else { return }
+                metresPerPoint = context.region.span.latitudeDelta * LiveMapView.metresPerDegreeLatitude / mapHeight
             }
         }
-        .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
+        .task(id: interactive) {
+            guard interactive else { return }
+            // Polls only while full screen; a failed poll just keeps the last ships
+            while !Task.isCancelled {
+                if let latest = try? await api.map() { snapshot = latest }
+                try? await Task.sleep(for: LiveMapView.pollInterval)
+            }
+        }
+    }
+
+    private var others: [Ship] {
+        snapshot?.ships.filter { $0.mmsi != ship.mmsi && $0.position != nil } ?? []
+    }
+
+    /// This ship's position from the map's latest poll when newer than the page's
+    private var latestPosition: Position {
+        guard let polled = snapshot?.ships.first(where: { $0.mmsi == ship.mmsi })?.position,
+              polled.time > position.time else { return position }
+        return polled
     }
 
     /// A rect around both points with some margin

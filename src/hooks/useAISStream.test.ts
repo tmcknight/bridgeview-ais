@@ -125,6 +125,25 @@ describe('useAISStream', () => {
       })
     })
 
+    it('ignores a report older than the one it already has', async () => {
+      const { result } = renderHook(() => useAISStream())
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      const newer = mockAISPositionMessage(367123456, 43.04, -82.42, 180, 10.5)
+      const older = mockAISPositionMessage(367123456, 43.05, -82.42, 180, 10.5)
+      older.MetaData.time_utc = new Date(Date.parse(newer.MetaData.time_utc) - 5000).toISOString()
+      act(() => {
+        mockServer.sendPositionReport(newer)
+        mockServer.sendPositionReport(older)
+      })
+
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)?.latitude).toBe(43.04)
+      })
+    })
+
     it('handles multiple ships simultaneously', async () => {
       const { result } = renderHook(() => useAISStream())
 
