@@ -152,6 +152,10 @@ struct BridgeSnapshot: Codable, Sendable {
     var shipCamVideoId: String?
     /// Credits for the AIS feeds the server uses, shown near the ship lists
     var attribution: [Attribution]?
+    /// Whether the server takes photos shared from the app
+    var photoSharing: Bool?
+    /// Whether the server takes photo reports from the app
+    var photoReporting: Bool?
     var upcoming: [Ship]
     var recent: [Ship]
 }

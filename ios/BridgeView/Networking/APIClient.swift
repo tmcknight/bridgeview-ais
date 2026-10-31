@@ -3,6 +3,8 @@ import Foundation
 enum APIError: LocalizedError {
     case status(Int)
     case notFound
+    /// The server's own explanation, for requests where it has one worth showing
+    case server(String)
 
     var errorDescription: String? {
         switch self {
@@ -10,6 +12,7 @@ enum APIError: LocalizedError {
         case .status(let code) where code >= 500: "BridgeView's server is having trouble (\(code)). Try again in a few minutes."
         case .status(let code): "BridgeView's server answered with an error (\(code))."
         case .notFound: "This ship isn't known to the server."
+        case .server(let message): message
         }
     }
 
@@ -61,6 +64,41 @@ struct APIClient: Sendable {
         request.httpBody = try JSONEncoder.api.encode(registration)
         let (_, response) = try await session.data(for: request)
         try check(response)
+    }
+
+    /// Shares a photo of a ship; it waits for approval before anyone sees it
+    func sharePhoto(mmsi: Int, jpeg: Data, credit: String?, note: String?) async throws {
+        var query: [URLQueryItem] = []
+        if let credit, !credit.isEmpty { query.append(URLQueryItem(name: "artist", value: credit)) }
+        if let note, !note.isEmpty { query.append(URLQueryItem(name: "note", value: note)) }
+        var request = URLRequest(url: baseURL.appending(path: "api/ships/\(mmsi)/photos").appending(queryItems: query))
+        request.httpMethod = "POST"
+        request.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
+        request.setValue(DeviceID.current, forHTTPHeaderField: "X-BridgeView-Device")
+        request.timeoutInterval = 120
+        let (data, response) = try await session.upload(for: request, from: jpeg)
+        try checkExplained(data, response)
+    }
+
+    /// Like check(_:), but uses the server's own explanation when it has one
+    /// (for requests it refuses for reasons worth showing: banned, too many, …)
+    private func checkExplained(_ data: Data, _ response: URLResponse) throws {
+        if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode),
+           let body = try? JSONDecoder().decode([String: String].self, from: data), let message = body["error"] {
+            throw APIError.server(message)
+        }
+        try check(response)
+    }
+
+    /// Reports one of the ship's photos; BridgeView checks it and may hide it
+    func reportPhoto(mmsi: Int, _ report: PhotoReport) async throws {
+        var request = URLRequest(url: baseURL.appending(path: "api/ships/\(mmsi)/photos/report"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(DeviceID.current, forHTTPHeaderField: "X-BridgeView-Device")
+        request.httpBody = try JSONEncoder.api.encode(report)
+        let (data, response) = try await session.data(for: request)
+        try checkExplained(data, response)
     }
 
     /// API v2: ship details may come from the vessel registers alone, without Wikidata

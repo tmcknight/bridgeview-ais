@@ -45,6 +45,39 @@
         the record the next time it tries to alert you.
       </p>
 
+      <h2>Photos you share</h2>
+      <p>
+        If you share a photo of a ship from the iPhone app, our server stores:
+      </p>
+      <ul>
+        <li>
+          The photo, with its location, camera and other details removed (the app redraws it before
+          sending, and the server strips anything left)
+        </li>
+        <li>The name you asked to be credited as and your note to us, if you gave them</li>
+        <li>Which ship it's of, when you sent it, and its size in pixels</li>
+        <li>
+          A fingerprint of the photo (a one-way hash of the file), so the same photo isn't sent twice
+        </li>
+        <li>
+          A random ID the app makes for itself (it says nothing about your phone or you), and a
+          scrambled, one-way form of your IP address
+        </li>
+      </ul>
+      <p>
+        The ID and scrambled address are used only to stop people who send unsuitable photos from
+        sending more; they're never shown to anyone. Until it's checked, your photo is seen only by
+        BridgeView. Once approved, it and the name you gave are public, in the app and on the
+        website; a photo we decline is deleted, though we keep its fingerprint so it can't be sent
+        again. If we block someone from sharing, we keep their
+        app's ID for good and their scrambled IP address for 30 days. To have a photo taken down,
+        email us.
+      </p>
+      <p>
+        The app uses the camera only when you tap <strong>Take a photo</strong>, and sees only the
+        photos you pick from your library.
+      </p>
+
       <h2>Server logs</h2>
       <p>
         Like most websites, the server sees your IP address when the app or site connects, and keeps
@@ -57,12 +90,15 @@
       <p>
         Ship positions come from AIS, the radio signals ships broadcast publicly, received by a local
         antenna and the data feeds credited in the app. Ship photos and details come from Wikidata and
-        Wikimedia Commons. Links to VesselFinder, MarineTraffic, Wikipedia and the YouTube ship cam open
+        Wikimedia Commons, and from people who share them in the app. Links to VesselFinder, MarineTraffic, Wikipedia and the YouTube ship cam open
         those sites, which have their own privacy policies.
       </p>
 
       <h2>Sharing</h2>
-      <p>We don't sell or share your information. Push notifications are delivered through Apple.</p>
+      <p>
+        We don't sell or share your information. Push notifications are delivered through Apple;
+        shared photos are stored with Cloudflare (R2).
+      </p>
 
       <h2>Children</h2>
       <p>BridgeView isn't directed at children and doesn't knowingly collect anything from them.</p>
