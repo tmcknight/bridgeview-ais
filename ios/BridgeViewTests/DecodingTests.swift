@@ -97,6 +97,38 @@ struct DecodingTests {
         #expect(ship.approach == nil)
     }
 
+    @Test func decodesRegisterDetailsWithoutWikidata() throws {
+        let json = """
+        {
+          "mmsi": 316001234, "name": "ALGOMA EQUINOX",
+          "info": {
+            "yearBuilt": 2012, "grossTonnage": 24451,
+            "photos": [
+              { "url": "https://upload.wikimedia.org/a.jpg", "pageUrl": "https://commons.wikimedia.org/wiki/File:A.jpg",
+                "artist": "Pete Markham", "license": "CC BY-SA 2.0", "year": 2012 },
+              { "url": "https://upload.wikimedia.org/b.jpg" }
+            ],
+            "registry": { "source": "transport-canada", "officialNumber": "837491", "hullNumber": "MD-149-GB-01",
+                          "portOfRegistry": "ST. CATHARINES", "enginePowerKw": 6929 },
+            "uscg": { "source": "uscg", "vesselId": 1225032, "serviceType": "Freight Ship",
+                      "serviceSubType": "General", "deadweight": 36480 }
+          }
+        }
+        """
+        let ship = try JSONDecoder.api.decode(Ship.self, from: Data(json.utf8))
+        #expect(ship.info?.wikidataId == nil)
+        #expect(ship.info?.yearBuilt == 2012)
+        #expect(ship.info?.registry?.portOfRegistry == "ST. CATHARINES")
+        #expect(ship.info?.uscg?.deadweight == 36480)
+        #expect(ship.info?.registry?.hullNumber == "MD-149-GB-01")
+        #expect(ship.info?.allPhotos.count == 2)
+        #expect(ship.info?.allPhotos.first?.credit == "Pete Markham · CC BY-SA 2.0")
+        let titles = ShipLinks.for(ship).map(\.title)
+        #expect(titles.contains("USCG vessel records"))
+        #expect(titles.contains("Transport Canada vessel register"))
+        #expect(!titles.contains("Wikidata"))
+    }
+
     @Test func rejectsBadDates() {
         let json = #"{ "time": "yesterday", "direction": "upbound" }"#
         #expect(throws: DecodingError.self) {

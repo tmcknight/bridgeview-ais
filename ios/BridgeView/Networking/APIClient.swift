@@ -34,8 +34,11 @@ struct APIClient: Sendable {
         try check(response)
     }
 
+    /// API v2: ship details may come from the vessel registers alone, without Wikidata
+    private static let version = URLQueryItem(name: "v", value: "2")
+
     private func get<T: Decodable>(_ path: String) async throws -> T {
-        var request = URLRequest(url: baseURL.appending(path: path))
+        var request = URLRequest(url: baseURL.appending(path: path).appending(queryItems: [Self.version]))
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await session.data(for: request)
         try check(response)

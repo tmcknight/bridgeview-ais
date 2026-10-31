@@ -69,10 +69,11 @@ struct Passage: Codable, Hashable, Sendable {
     var direction: Direction
 }
 
-/// Wikidata details: photo, build year, operator
+/// Ship details: photo, builder and operator from Wikidata; build year, tonnage,
+/// service type and registry from the USCG and Transport Canada registers
 struct VesselInfo: Codable, Hashable, Sendable {
-    var wikidataId: String
-    var wikidataUrl: URL
+    var wikidataId: String?
+    var wikidataUrl: URL?
     var name: String?
     var description: String?
     var imageUrl: URL?
@@ -82,6 +83,47 @@ struct VesselInfo: Codable, Hashable, Sendable {
     var `operator`: String?
     var grossTonnage: Double?
     var wikipediaUrl: URL?
+    var photos: [VesselPhoto]?
+    var registry: RegistryRecord?
+    var uscg: UscgRecord?
+
+    /// Every photo, best first: the server's list, else Wikidata's one photo
+    var allPhotos: [VesselPhoto] {
+        if let photos, !photos.isEmpty { return photos }
+        return imageUrl.map { [VesselPhoto(url: $0, pageUrl: imagePageUrl)] } ?? []
+    }
+}
+
+/// A photo on Wikimedia Commons, with the credit its licence asks for
+struct VesselPhoto: Codable, Hashable, Sendable {
+    var url: URL
+    var pageUrl: URL?
+    var artist: String?
+    var license: String?
+    var year: Int?
+
+    /// "Pete Markham · CC BY-SA 2.0"
+    var credit: String? {
+        let parts = [artist, license].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+}
+
+/// The ship's entry in Transport Canada's register of large vessels
+struct RegistryRecord: Codable, Hashable, Sendable {
+    var officialNumber: String?
+    var hullNumber: String?
+    var portOfRegistry: String?
+    var enginePowerKw: Double?
+}
+
+/// The ship's record in the USCG's Port State Information Exchange
+struct UscgRecord: Codable, Hashable, Sendable {
+    var vesselId: Int
+    var officialNumber: String?
+    var serviceType: String?
+    var serviceSubType: String?
+    var deadweight: Double?
 }
 
 enum ShipCategory: String, Codable, CaseIterable, Hashable, Sendable {

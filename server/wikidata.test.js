@@ -18,6 +18,7 @@ describe("parseVesselBinding", () => {
       img: { value: "http://commons.wikimedia.org/wiki/Special:FilePath/Indiana%20Harbor.jpg" },
       built: { value: "1979-01-01T00:00:00Z" },
       grossTonnage: { value: "35923.4" },
+      commons: { value: "Indiana Harbor (ship, 1979)" },
     });
     expect(info).toEqual({
       wikidataId: "Q6719625",
@@ -27,6 +28,7 @@ describe("parseVesselBinding", () => {
       imagePageUrl: "https://commons.wikimedia.org/wiki/File:Indiana%20Harbor.jpg",
       yearBuilt: 1979,
       grossTonnage: 35923,
+      commonsCategory: "Indiana Harbor (ship, 1979)",
     });
   });
 });

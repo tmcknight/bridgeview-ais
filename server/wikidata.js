@@ -26,6 +26,7 @@ export function buildVesselQuery(mmsi, imo) {
   return `SELECT ?ship (SAMPLE(?label) AS ?name) (SAMPLE(?desc) AS ?description)
   (SAMPLE(?image) AS ?img) (MIN(?inception) AS ?built) (SAMPLE(?builderLabel) AS ?builder)
   (SAMPLE(?operatorLabel) AS ?operator) (MAX(?gt) AS ?grossTonnage) (SAMPLE(?article) AS ?wiki)
+  (SAMPLE(?commonsCat) AS ?commons)
 WHERE {
   ${patterns.join(" UNION ")}
   OPTIONAL { ?ship rdfs:label ?label FILTER(LANG(?label) = "en") }
@@ -36,6 +37,7 @@ WHERE {
   OPTIONAL { ?ship wdt:P137 ?o . ?o rdfs:label ?operatorLabel FILTER(LANG(?operatorLabel) = "en") }
   OPTIONAL { ?ship wdt:P1093 ?gt }
   OPTIONAL { ?article schema:about ?ship ; schema:isPartOf <https://en.wikipedia.org/> }
+  OPTIONAL { ?ship wdt:P373 ?commonsCat }
 }
 GROUP BY ?ship
 ORDER BY DESC(BOUND(?img)) DESC(BOUND(?wiki))
@@ -76,6 +78,8 @@ export function parseVesselBinding(row) {
     if (Number.isFinite(gt)) info.grossTonnage = Math.round(gt);
   }
   if (row.wiki?.value) info.wikipediaUrl = row.wiki.value;
+  // Server only (src/utils/wikidata.ts leaves it out): where to look for more photos
+  if (row.commons?.value) info.commonsCategory = row.commons.value;
 
   return info;
 }

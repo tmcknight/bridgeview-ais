@@ -70,8 +70,8 @@ describe("createBridgeApi", () => {
     pushDevices?.close();
   });
 
-  function setup({ log = [], devices = false, attribution } = {}) {
-    vesselDetails = createVesselDetails();
+  function setup({ log = [], devices = false, attribution, details = {} } = {}) {
+    vesselDetails = createVesselDetails(details);
     const latestPositions = createLatestPositions({ now: () => NOW });
     pushDevices = devices ? createPushDevices() : null;
     const api = createBridgeApi({
@@ -196,6 +196,33 @@ describe("createBridgeApi", () => {
     expect((await call(api, "GET", "/api/ships/123")).status).toBe(404);
     expect((await call(api, "GET", "/api/nope")).status).toBe(404);
     expect(await call(api, "GET", "/")).toBeNull();
+  });
+
+  it("sends details from the registers alone only to apps on API v2", async () => {
+    const registry = { lookup: (imo) => (imo === 9613927 ? { source: "transport-canada", yearBuilt: 2012 } : undefined) };
+    const { api, hear } = setup({ details: { fetchInfo: async () => null, registry, lookupIntervalMs: 0 } });
+    hear(staticData(316001234, "ALGOMA EQUINOX", "THUNDER BAY"));
+    hear(position(316001234, -2, { cog: 0, name: "ALGOMA EQUINOX" }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const v2 = await call(api, "GET", "/api/ships/316001234?v=2");
+    expect(v2.body.info).toEqual({ registry: { source: "transport-canada", yearBuilt: 2012 }, yearBuilt: 2012 });
+    expect((await call(api, "GET", "/api/bridge?v=2")).body.upcoming[0].info).toBeDefined();
+
+    expect((await call(api, "GET", "/api/ships/316001234")).body.info).toBeUndefined();
+    expect((await call(api, "GET", "/api/bridge")).body.upcoming[0].info).toBeUndefined();
+  });
+
+  it("leaves USCG inspection history out of the app's API", async () => {
+    const uscg = { source: "uscg", vesselId: 1, deadweight: 36480, inspections: { count: 3, sinceYear: 2023, recent: [] } };
+    const { api, hear } = setup({ details: { fetchInfo: async () => ({ uscg }), lookupIntervalMs: 0 } });
+    hear(staticData(316001234, "ALGOMA EQUINOX", "THUNDER BAY"));
+    hear(position(316001234, -2, { cog: 0, name: "ALGOMA EQUINOX" }));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const ship = await call(api, "GET", "/api/ships/316001234?v=2");
+    expect(ship.body.info.uscg).toEqual({ source: "uscg", vesselId: 1, deadweight: 36480 });
+    expect((await call(api, "GET", "/api/bridge?v=2")).body.upcoming[0].info.uscg.inspections).toBeUndefined();
   });
 
   it("registers and removes devices", async () => {
