@@ -24,3 +24,19 @@ export function vesselPhotos(info: VesselInfo | null | undefined): VesselPhoto[]
   if (info?.photos?.length) return info.photos;
   return info?.imageUrl ? [{ url: info.imageUrl, pageUrl: info.imagePageUrl }] : [];
 }
+
+/**
+ * What makes two photos the same: the Commons file they come from (one file can
+ * have several URLs), else the URL. Mirrors photoKey in server/commons.js
+ */
+export function photoKey(photo: VesselPhoto): string {
+  const match = /^https:\/\/commons\.wikimedia\.org\/wiki\/File:(.+)$/.exec(photo.pageUrl ?? "");
+  if (!match) return photo.url;
+  let name = match[1];
+  try {
+    name = decodeURIComponent(name);
+  } catch {
+    // keep it encoded
+  }
+  return `commons:${name.replace(/_/g, " ")}`;
+}

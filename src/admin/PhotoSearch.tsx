@@ -2,11 +2,12 @@ import { useState } from "react"
 import type { FormEvent } from "react"
 import { searchPhotos } from "./api"
 import type { VesselPhoto } from "../types/vessel"
+import { photoKey } from "../utils/vesselInfo"
 
 interface PhotoSearchProps {
   /** Starting search: the ship's name */
   initialQuery: string
-  /** URLs of the ship's photos already, so they aren't added twice */
+  /** The ship's photos already (by photoKey), so they aren't added twice */
   existing: Set<string>
   busy: boolean
   onAdd: (photo: VesselPhoto) => Promise<unknown>
@@ -67,7 +68,7 @@ export default function PhotoSearch({ initialQuery, existing, busy, onAdd, onErr
       {results && results.length > 0 && (
         <ul className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2">
           {results.map((photo) => {
-            const added = existing.has(photo.url)
+            const added = existing.has(photoKey(photo))
             return (
               <li key={photo.url} className="flex flex-col gap-1 p-1.5 rounded border border-slate-200 dark:border-slate-700">
                 <a href={photo.pageUrl ?? photo.url} target="_blank" rel="noopener noreferrer" title={photo.title}>

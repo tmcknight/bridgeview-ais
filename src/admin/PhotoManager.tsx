@@ -4,6 +4,7 @@ import { uploadPhoto } from "./api"
 import PhotoSearch from "./PhotoSearch"
 import type { AdminShipView, VesselOverrides } from "./api"
 import type { VesselPhoto } from "../types/vessel"
+import { photoKey } from "../utils/vesselInfo"
 
 interface PhotoManagerProps {
   view: AdminShipView
@@ -45,7 +46,7 @@ export default function PhotoManager({ view, busy, onSave, onUploaded, onError }
   const all = [
     ...added.map((photo) => ({ photo, added: true })),
     ...lookedUpPhotos(view)
-      .filter((photo) => !added.some((a) => a.url === photo.url))
+      .filter((photo) => !added.some((a) => photoKey(a) === photoKey(photo)))
       .map((photo) => ({ photo, added: false })),
   ]
 
@@ -155,7 +156,7 @@ export default function PhotoManager({ view, busy, onSave, onUploaded, onError }
       <PhotoSearch
         key={view.mmsi}
         initialQuery={view.record.name ?? view.info?.name ?? ""}
-        existing={new Set(all.map(({ photo }) => photo.url))}
+        existing={new Set(all.map(({ photo }) => photoKey(photo)))}
         busy={busy}
         onAdd={(photo) => onSave({ ...overrides, addedPhotos: [photo, ...added] }, "Photo added")}
         onError={onError}
