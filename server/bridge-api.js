@@ -284,6 +284,7 @@ export function createBridgeApi({
         shipTypeName: s.shipTypeName,
         category: s.category,
         length: s.length,
+        width: s.width,
         flag: s.flag,
         classB: s.classB,
         position: s.position,

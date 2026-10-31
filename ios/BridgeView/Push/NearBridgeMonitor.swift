@@ -32,6 +32,9 @@ final class NearBridgeMonitor: NSObject, CLLocationManagerDelegate {
 
     @ObservationIgnored private let manager = CLLocationManager()
     @ObservationIgnored private var monitor: Task<CLMonitor, Never>?
+    /// The latest settings change being applied; each waits for the one before,
+    /// so a quick off-and-on can't remove the circle after it was added back
+    @ObservationIgnored private var updating: Task<Void, Never>?
     @ObservationIgnored private let logger = Logger(subsystem: "BridgeView", category: "location")
 
     override init() {
@@ -45,6 +48,16 @@ final class NearBridgeMonitor: NSObject, CLLocationManagerDelegate {
     /// too: after iOS relaunches the app for a crossing, the monitor must be
     /// opened again to receive it.
     func update(_ preferences: AlertPreferences) async {
+        let previous = updating
+        let task = Task {
+            await previous?.value
+            await apply(preferences)
+        }
+        updating = task
+        await task.value
+    }
+
+    private func apply(_ preferences: AlertPreferences) async {
         guard preferences.enabled, preferences.nearBridgeOnly else {
             if let monitor {
                 await monitor.value.remove(Self.conditionID)
@@ -103,6 +116,11 @@ final class NearBridgeMonitor: NSObject, CLLocationManagerDelegate {
             guard status != self.authorization else { return }
             self.authorization = status
             self.onChange?()
+            // A circle added before Always access may never report where the
+            // phone is; add it again now that it can
+            if status == .authorizedAlways {
+                await self.update(.load())
+            }
         }
     }
 }

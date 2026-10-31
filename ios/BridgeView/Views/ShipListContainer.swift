@@ -125,6 +125,8 @@ struct NextShipCard: View {
                     .tracking(1.4)
                     .foregroundStyle(Theme.signalOnRiver)
                 Spacer()
+                LiveActivityToggle(mmsi: ship.mmsi, style: .icon)
+                    .environment(\.colorScheme, .dark)
                 Label {
                     Text(approach.direction.label)
                 } icon: {

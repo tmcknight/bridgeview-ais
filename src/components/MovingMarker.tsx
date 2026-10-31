@@ -72,16 +72,16 @@ export default function MovingMarker({
     };
   }, [map, marker]);
 
-  const { lat, lon, speed, course, rotation } = fix;
+  const { lat, lon, speed, course, rotation, reportedAt } = fix;
   // Before paint, so a new report never shows for a frame at its raw position
   useLayoutEffect(() => {
     motionRef.current = startMotion(
       motionRef.current,
-      { lat, lon, speed, course, rotation },
+      { lat, lon, speed, course, rotation, reportedAt },
       performance.now(),
       maxAgeMs
     );
-  }, [lat, lon, speed, course, rotation, maxAgeMs]);
+  }, [lat, lon, speed, course, rotation, reportedAt, maxAgeMs]);
 
   useEffect(
     () =>

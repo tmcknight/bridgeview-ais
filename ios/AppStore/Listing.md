@@ -138,7 +138,7 @@ don't need declaring when they're not kept or used beyond operating the service.
 
 > BridgeView alerts people near the Blue Water Bridge (Port Huron, Michigan) when a
 > ship is about to go under it. Ship traffic depends on the shipping season and time
-> of day, so the "Coming up" list may be short or empty; the "Passed" tab shows ships
+> of day, so the "Coming up" list may be short or empty; the "Recent" tab shows ships
 > from the last 24 hours.
 >
 > Location is optional and only used if the user turns on "Only when I'm near the
