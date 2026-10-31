@@ -14,7 +14,9 @@ struct DataCredits: View {
                 Link(credit.text, destination: credit.url)
             }
         }
-        .font(.caption)
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+        .tint(.secondary)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
         .frame(maxWidth: .infinity)

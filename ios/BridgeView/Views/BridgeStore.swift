@@ -37,7 +37,7 @@ final class BridgeStore {
         } catch let urlError as URLError where urlError.code == .cancelled {
             return
         } catch {
-            self.error = error.localizedDescription
+            self.error = APIError.message(for: error)
         }
     }
 }

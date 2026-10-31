@@ -10,6 +10,11 @@ struct AlertPreferences: Equatable, Sendable {
     /// Worked out on the phone; the server only sees `enabled` turn off and on.
     var nearBridgeOnly = false
     var nearBridgeRadius = AlertPreferences.defaultRadius
+    /// Follow ships with a Live Activity, not just a notification (when iOS allows
+    /// them), unless `liveActivityShips` says otherwise for a ship
+    var liveActivities = true
+    /// MMSI -> Live Activity on or off, for ships the user chose one by one
+    var liveActivityShips: [Int: Bool] = [:]
 
     static let lengthOptions = [0, 100, 150, 200]
     static let radiusOptions = [2, 5, 10, 25]
@@ -25,9 +30,12 @@ struct DeviceRegistration: Codable, Equatable, Sendable {
     var categories: [ShipCategory]
     var minLength: Int
     var directions: [Direction]
+    /// Per-ship choices, by MMSI; nil when there are none or iOS doesn't allow Live Activities
+    var liveActivityShips: [String: Bool]?
 
     /// `nearBridge`: whether the phone is near the bridge, nil when unknown
-    /// (location off or not yet worked out), which doesn't hold alerts back
+    /// (location off or not yet worked out), which doesn't hold alerts back.
+    /// `liveActivities`: whether iOS allows them; the user can still turn them off
     init(
         environment: String,
         preferences: AlertPreferences,
@@ -38,11 +46,19 @@ struct DeviceRegistration: Codable, Equatable, Sendable {
         self.environment = environment
         enabled = preferences.enabled && (!preferences.nearBridgeOnly || nearBridge != false)
         self.pushToStartToken = pushToStartToken
-        self.liveActivities = liveActivities
+        self.liveActivities = liveActivities && preferences.liveActivities
         // Sorted so the body is stable and easy to compare
         categories = ShipCategory.allCases.filter(preferences.categories.contains)
         minLength = preferences.minLength
         directions = Direction.allCases.filter(preferences.directions.contains)
+        if liveActivities, !preferences.liveActivityShips.isEmpty {
+            // The server takes up to 50; only ships coming up are kept, so this is plenty
+            liveActivityShips = Dictionary(
+                uniqueKeysWithValues: preferences.liveActivityShips.sorted { $0.key < $1.key }
+                    .prefix(50)
+                    .map { (String($0.key), $0.value) }
+            )
+        }
     }
 }
 
@@ -54,6 +70,8 @@ extension AlertPreferences {
         static let directions = "alerts.directions"
         static let nearBridgeOnly = "alerts.nearBridgeOnly"
         static let nearBridgeRadius = "alerts.nearBridgeRadius"
+        static let liveActivities = "alerts.liveActivities"
+        static let liveActivityShips = "alerts.liveActivityShips"
     }
 
     /// Defaults: alerts on, commercial ships of any length, both directions
@@ -67,8 +85,25 @@ extension AlertPreferences {
             minLength: defaults.integer(forKey: Key.minLength),
             directions: decodeSet(defaults.string(forKey: Key.directions) ?? defaultDirections),
             nearBridgeOnly: defaults.bool(forKey: Key.nearBridgeOnly),
-            nearBridgeRadius: defaults.object(forKey: Key.nearBridgeRadius) as? Int ?? defaultRadius
+            nearBridgeRadius: defaults.object(forKey: Key.nearBridgeRadius) as? Int ?? defaultRadius,
+            liveActivities: defaults.object(forKey: Key.liveActivities) as? Bool ?? true,
+            liveActivityShips: decodeShips(defaults.string(forKey: Key.liveActivityShips) ?? "")
         )
+    }
+
+    /// Per-ship choices are stored as "mmsi:1,mmsi:0" so @AppStorage can hold them
+    static func decodeShips(_ text: String) -> [Int: Bool] {
+        var ships: [Int: Bool] = [:]
+        for pair in text.split(separator: ",") {
+            let parts = pair.split(separator: ":")
+            guard parts.count == 2, let mmsi = Int(parts[0]) else { continue }
+            ships[mmsi] = parts[1] == "1"
+        }
+        return ships
+    }
+
+    static func encodeShips(_ ships: [Int: Bool]) -> String {
+        ships.keys.sorted().map { "\($0):\(ships[$0]! ? 1 : 0)" }.joined(separator: ",")
     }
 
     /// Sets are stored as comma-separated raw values so @AppStorage can hold them

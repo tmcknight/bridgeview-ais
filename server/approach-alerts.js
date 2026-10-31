@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import { wantsLiveActivity } from "./push-devices.js";
 
 // Bridge alerts for the iOS app: when a ship's ETA at the bridge falls to 10
 // minutes, every registered iPhone whose settings match gets told, either with a
@@ -205,11 +206,12 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
   async function sendAlert(current) {
     const t = now();
     const devices = pushDevices.matching({
+      mmsi: current.mmsi,
       category: current.category,
       length: current.length,
       direction: current.approach.direction,
     });
-    const wantsActivity = devices.filter((d) => d.liveActivities && d.pushToStartToken);
+    const wantsActivity = devices.filter((d) => wantsLiveActivity(d, current.mmsi));
     const environments = [...new Set(wantsActivity.map((d) => d.environment))];
     const channels = new Map();
     for (const environment of environments) {
@@ -232,7 +234,7 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
     let notified = 0;
     let liveActivities = 0;
     await inBatches(devices, async (device) => {
-      const channel = device.liveActivities && device.pushToStartToken && channels.get(device.environment);
+      const channel = wantsLiveActivity(device, current.mmsi) && channels.get(device.environment);
       try {
         if (channel) {
           await apns.sendLiveActivity({

@@ -118,13 +118,15 @@ every 30 s while open and on pull-to-refresh.
 - `category`: one of `cargo`, `tanker`, `passenger`, `other` (from AIS ship type 70–79,
   80–89, 60–69, anything else). Alert preferences filter on it.
 - `direction`: `upbound` (northbound, into Lake Huron) or `downbound` (southbound).
+- `cargo`: a guess from `destination` at a port with a well-known bulk trade, only
+  for cargo ships and tankers (`shipType` 70–89) of 100 m or more.
 - `flag`: ISO 3166 alpha-2 from the MMSI's country code, when known.
 - `position` is missing for a ship not heard in the last 10 minutes, and when the
   ship's latest position came from AISHub: its terms don't allow passing on positions
   (live or historical) through an open API. `approach` is still sent for such a ship,
   since it's worked out by the server; so a ship can have an `approach` and no
-  `position`. Nothing else in the API carries positions or tracks: `passage` and
-  `passages` are only times and directions.
+  `position`. Only `GET /api/map` carries other positions, under the same rule, and
+  nothing carries tracks: `passage` and `passages` are only times and directions.
 - `info` is missing when the ship hasn't been looked up or no source has it. Its
   Wikidata fields (`wikidataId`, photo, builder, operator, …) come from Wikidata;
   `registry` is the ship's Transport Canada register record and `uscg` its USCG PSIX
@@ -145,6 +147,25 @@ every 30 s while open and on pull-to-refresh.
 One ship, as above, with `passages` (newest first, up to 50) in place of `passage`,
 and `approach` when it's heading for the bridge. 404 for an unknown ship.
 
+## `GET /api/map`
+
+Every ship heard in the last 10 minutes, for the app's map. The app polls it every
+5 s while the map is on screen and moves ships along their course in between.
+
+```json
+{
+  "generatedAt": "2026-10-30T14:02:11.000Z",
+  "attribution": [ /* as in GET /api/bridge */ ],
+  "ships": [ /* Ship with only mmsi, name, shipTypeName, category, length, flag,
+                classB, position and approach (when heading for the bridge) */ ]
+}
+```
+
+- Every ship has a `position`. Ships whose latest position came from AISHub are left
+  out (see `position` above).
+- `classB`: `true` for Class B transponders (pleasure craft, small workboats);
+  omitted otherwise. They never have an `approach`.
+
 ## `PUT /api/devices/:token`
 
 Register or update this device for bridge alerts. `:token` is the APNs device
@@ -158,7 +179,8 @@ token (hex). Idempotent; call on every launch and whenever a setting changes.
   "liveActivities": true,
   "categories": ["cargo", "tanker", "passenger"],
   "minLength": 100,
-  "directions": ["upbound", "downbound"]
+  "directions": ["upbound", "downbound"],
+  "liveActivityShips": { "316001234": true, "366999000": false }
 }
 ```
 
@@ -171,7 +193,12 @@ token (hex). Idempotent; call on every launch and whenever a setting changes.
   (hex), when the app has one.
 - `liveActivities`: `ActivityAuthorizationInfo().areActivitiesEnabled`. With it and a
   push-to-start token, the alert starts a Live Activity (which shows its own alert);
-  otherwise the device gets a normal notification.
+  otherwise the device gets a normal notification. The user's default when iOS allows
+  them; false when it doesn't.
+- `liveActivityShips`: up to 50 ships (MMSI as a string) the user turned Live
+  Activities on or off for, overriding `liveActivities` for that ship. `true` also
+  alerts for that ship when `categories`, `minLength` or `directions` would skip it
+  (still not while `enabled` is false). Optional; the app sends only ships coming up.
 - `minLength`: 0 for any; ships of unknown length count as 0.
 
 204 on success, 400 with `{ "error": "…" }` on bad input.

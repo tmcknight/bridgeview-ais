@@ -6,9 +6,34 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .status(let code): "The server answered with an error (\(code))."
+        case .status(429): "Too many requests to BridgeView. Try again in a minute."
+        case .status(let code) where code >= 500: "BridgeView's server is having trouble (\(code)). Try again in a few minutes."
+        case .status(let code): "BridgeView's server answered with an error (\(code))."
         case .notFound: "This ship isn't known to the server."
         }
+    }
+
+    /// What to tell the user about a failed request, in plain words
+    static func message(for error: Error) -> String {
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
+                return "You're offline. Ships will show again once you're connected."
+            case .timedOut:
+                return "BridgeView's server is taking too long to answer. Check your connection, or try again in a few minutes."
+            case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed, .badServerResponse:
+                return "BridgeView's server isn't answering right now. It may be restarting; try again in a few minutes."
+            case .secureConnectionFailed, .serverCertificateUntrusted, .serverCertificateHasBadDate,
+                 .serverCertificateNotYetValid, .serverCertificateHasUnknownRoot:
+                return "Couldn't make a secure connection to BridgeView. If you're on public Wi-Fi, you may need to sign in to it first."
+            default:
+                break
+            }
+        }
+        if error is DecodingError {
+            return "BridgeView's server sent something this version of the app can't read. Check for an app update."
+        }
+        return error.localizedDescription
     }
 }
 
@@ -19,6 +44,10 @@ struct APIClient: Sendable {
 
     func bridge() async throws -> BridgeSnapshot {
         try await get("api/bridge")
+    }
+
+    func map() async throws -> MapSnapshot {
+        try await get("api/map")
     }
 
     func ship(mmsi: Int) async throws -> Ship {

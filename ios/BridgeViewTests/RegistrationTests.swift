@@ -51,6 +51,41 @@ struct RegistrationTests {
         #expect(!enabled(near: true))
     }
 
+    @Test func turnsLiveActivitiesOffWhenTheUserDoes() {
+        var preferences = AlertPreferences(enabled: true, categories: [.cargo], minLength: 0, directions: [.upbound])
+        func liveActivities(allowed: Bool) -> Bool {
+            DeviceRegistration(
+                environment: "sandbox", preferences: preferences,
+                pushToStartToken: nil, liveActivities: allowed
+            ).liveActivities
+        }
+        #expect(liveActivities(allowed: true))
+        #expect(!liveActivities(allowed: false))
+        preferences.liveActivities = false
+        #expect(!liveActivities(allowed: true))
+    }
+
+    @Test func sendsPerShipChoicesOnlyWhenLiveActivitiesAreAllowed() throws {
+        var preferences = AlertPreferences(enabled: true, categories: [.cargo], minLength: 0, directions: [.upbound])
+        func ships(allowed: Bool) -> [String: Bool]? {
+            DeviceRegistration(
+                environment: "sandbox", preferences: preferences,
+                pushToStartToken: nil, liveActivities: allowed
+            ).liveActivityShips
+        }
+        #expect(ships(allowed: true) == nil)
+        preferences.liveActivityShips = [316001234: true, 366999000: false]
+        #expect(ships(allowed: true) == ["316001234": true, "366999000": false])
+        #expect(ships(allowed: false) == nil)
+    }
+
+    @Test func storesPerShipChoicesAsText() {
+        let ships = [366999000: false, 316001234: true]
+        #expect(AlertPreferences.encodeShips(ships) == "316001234:1,366999000:0")
+        #expect(AlertPreferences.decodeShips("316001234:1,366999000:0,junk") == ships)
+        #expect(AlertPreferences.decodeShips("").isEmpty)
+    }
+
     @Test func loadsDefaultPreferences() throws {
         let defaults = try #require(UserDefaults(suiteName: "RegistrationTests-\(UUID())"))
         let preferences = AlertPreferences.load(from: defaults)
@@ -58,6 +93,7 @@ struct RegistrationTests {
         #expect(preferences.categories == [.cargo, .tanker, .passenger])
         #expect(preferences.directions == [.upbound, .downbound])
         #expect(preferences.minLength == 0)
+        #expect(preferences.liveActivities)
         #expect(!preferences.nearBridgeOnly)
         #expect(preferences.nearBridgeRadius == 5)
 

@@ -38,10 +38,21 @@ describe("bridgeApproach", () => {
 
 describe("ship facts", () => {
   it("guesses cargo from the destination", () => {
-    expect(describeCargo("THUNDER BAY")).toBe("Likely going to load grain");
-    expect(describeCargo("zug island")).toBe("Likely delivering iron ore or coal");
-    expect(describeCargo("TOLEDO")).toBeUndefined();
-    expect(describeCargo(undefined)).toBeUndefined();
+    const laker = { shipType: 70, length: 225 };
+    expect(describeCargo({ ...laker, destination: "THUNDER BAY" })).toBe("Likely going to load grain");
+    expect(describeCargo({ ...laker, destination: "zug island" })).toBe("Likely delivering iron ore or coal");
+    expect(describeCargo({ ...laker, destination: "TOLEDO" })).toBeUndefined();
+    expect(describeCargo({ ...laker, destination: undefined })).toBeUndefined();
+    expect(describeCargo()).toBeUndefined();
+  });
+
+  it("guesses cargo only for cargo ships and tankers of 100 m or more", () => {
+    const destination = "DULUTH";
+    expect(describeCargo({ destination, shipType: 84, length: 100 })).toBe("Likely going to load iron ore");
+    expect(describeCargo({ destination, shipType: 70, length: 99 })).toBeUndefined();
+    expect(describeCargo({ destination, shipType: 70 })).toBeUndefined();
+    expect(describeCargo({ destination, shipType: 52, length: 225 })).toBeUndefined();
+    expect(describeCargo({ destination, length: 225 })).toBeUndefined();
   });
 
   it("groups AIS ship types", () => {

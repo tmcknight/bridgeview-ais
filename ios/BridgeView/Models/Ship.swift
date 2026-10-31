@@ -15,6 +15,8 @@ struct Ship: Codable, Identifiable, Hashable, Sendable {
     var destination: String?
     var cargo: String?
     var flag: String?
+    /// Class B transponder (pleasure craft, small workboats)
+    var classB: Bool?
     var position: Position?
     var approach: Approach?
     var passage: Passage?
@@ -152,6 +154,13 @@ struct BridgeSnapshot: Codable, Sendable {
     var attribution: [Attribution]?
     var upcoming: [Ship]
     var recent: [Ship]
+}
+
+/// GET /api/map: every ship heard lately, each with a position
+struct MapSnapshot: Codable, Sendable {
+    var generatedAt: Date
+    var attribution: [Attribution]?
+    var ships: [Ship]
 }
 
 /// A data credit: `text` linking to `url`. AISHub's terms require its credit near the data.

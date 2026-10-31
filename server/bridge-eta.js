@@ -55,9 +55,13 @@ const CARGO_PORTS = [
   { pattern: /BURNS HARBOR|INDIANA HARBOR|GARY|ZUG ISLAND|NANTICOKE/, cargo: "iron ore or coal", role: "deliver" },
 ];
 
-// e.g. "Likely going to load limestone", or undefined for a port with no well-known trade
-export function describeCargo(destination) {
-  if (!destination) return undefined;
+// Shortest ship guessed for, in metres; mirrors MIN_CARGO_LENGTH_M in src/utils/cargo.ts
+const MIN_CARGO_LENGTH_M = 100;
+
+// e.g. "Likely going to load limestone", or undefined for a port with no well-known
+// trade. Only for cargo ships and tankers (AIS types 70–89) of 100 m or more.
+export function describeCargo({ destination, shipType, length } = {}) {
+  if (!destination || !(shipType >= 70 && shipType <= 89) || !(length >= MIN_CARGO_LENGTH_M)) return undefined;
   const dest = destination.toUpperCase();
   const port = CARGO_PORTS.find(({ pattern }) => pattern.test(dest));
   if (!port) return undefined;

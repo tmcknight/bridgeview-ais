@@ -28,15 +28,15 @@ struct ShipApproachLiveActivity: Widget {
                         .foregroundStyle(Theme.signalOnRiver)
                         .multilineTextAlignment(.trailing)
                 }
-                DynamicIslandExpandedRegion(.center) {
-                    Text(context.attributes.name)
-                        .font(Theme.hull(.subheadline))
-                        .lineLimit(1)
-                }
+                // Name below the camera, across the whole width, not squeezed beside it
                 DynamicIslandExpandedRegion(.bottom) {
-                    DetailLine(attributes: context.attributes, state: context.state)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        ShipName(name: context.attributes.name, style: .subheadline)
+                        DetailLine(attributes: context.attributes, state: context.state)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
                 HStack(spacing: 2) {
@@ -66,29 +66,33 @@ private struct LockScreenView: View {
     var state: ShipApproachAttributes.ContentState
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            Image("LogoMark")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 48, height: 48)
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(attributes.name)
-                    .font(Theme.hull(.headline))
-                    .lineLimit(1)
-                Label(headline, systemImage: attributes.direction.symbol)
-                    .font(.subheadline.weight(.medium))
-                DetailLine(attributes: attributes, state: state)
-                    .font(.caption)
-                    .opacity(0.8)
+        VStack(alignment: .leading, spacing: 10) {
+            // The name on a row of its own, so it has the full width
+            HStack(spacing: 10) {
+                Image("LogoMark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 26, height: 26)
+                    .accessibilityHidden(true)
+                ShipName(name: attributes.name, style: .headline)
             }
-            Spacer(minLength: 8)
-            Countdown(state: state)
-                .font(Theme.figure(.title, weight: .heavy))
-                .foregroundStyle(Theme.signalOnRiver)
-                .multilineTextAlignment(.trailing)
-                .frame(maxWidth: 110, alignment: .trailing)
+            HStack(alignment: .lastTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Label(headline, systemImage: attributes.direction.symbol)
+                        .font(.subheadline.weight(.medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    DetailLine(attributes: attributes, state: state)
+                        .font(.caption)
+                        .opacity(0.8)
+                }
+                Spacer(minLength: 8)
+                Countdown(state: state)
+                    .font(Theme.figure(.title, weight: .heavy))
+                    .foregroundStyle(Theme.signalOnRiver)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 110, alignment: .trailing)
+            }
         }
         .foregroundStyle(.white)
     }
@@ -99,6 +103,19 @@ private struct LockScreenView: View {
         case .passed: "Went under the bridge"
         case .lost: "No longer heading for the bridge"
         }
+    }
+}
+
+/// The ship's name in hull lettering, shrinking to fit long names on one line
+private struct ShipName: View {
+    var name: String
+    var style: Font.TextStyle
+
+    var body: some View {
+        Text(name)
+            .font(Theme.hull(style))
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
     }
 }
 
@@ -154,7 +171,7 @@ private struct DetailLine: View {
 extension ShipApproachAttributes {
     fileprivate static let preview = ShipApproachAttributes(
         mmsi: 316_001_234,
-        name: "ALGOMA EQUINOX",
+        name: "FEDERAL ST. LAURENT",
         direction: .upbound,
         shipTypeName: "Cargo",
         length: 225,

@@ -48,7 +48,7 @@ src/
 ├── utils/
 │   ├── geo.ts         # Geographic calculations (distance, bearing, etc.)
 │   ├── upcoming.ts    # Ships heading for the bridge, with rough ETAs
-│   ├── cargo.ts       # Cargo guesses from AIS destination ports
+│   ├── cargo.ts       # Cargo guesses from AIS destination ports (cargo ships and tankers of 100 m+)
 │   ├── shipLog.ts     # Ship log types and server message handling
 │   ├── feedStatus.ts  # Feed health types and server message handling
 │   ├── aircraft.ts    # Aircraft server messages and display helpers
@@ -111,12 +111,13 @@ src/
 - `server/class-b.js`: Class B transponders (pleasure craft, small workboats) send messages 18/19/24; both feeds turn them into `PositionReport`/`ShipStaticData` with `MetaData.AisClass = "B"`
   - Shown on the map (hideable with the map's "B" button) and in the lists, but left out of the ship log and of bridge alerts (browser and vessel-notifier)
 - `server/bridge-api.js`: HTTP API for the iOS app on the same port as the WebSocket (nginx proxies `/api/`); contract in `ios/API.md`
-  - `GET /api/bridge` (ships coming up within 3 h and passed in the last 24 h, plus `attribution`: credits for the AIS feeds in `AIS_SOURCES`), `GET /api/ships/:mmsi`, `PUT`/`DELETE /api/devices/:token`; open (the app can't keep a secret), rate-limited per IP
+  - `GET /api/bridge` (ships coming up within 3 h and passed in the last 24 h, plus `attribution`: credits for the AIS feeds in `AIS_SOURCES`), `GET /api/ships/:mmsi`, `GET /api/map` (every ship heard lately, for the app's map; leaves out ships placed by AISHub), `PUT`/`DELETE /api/devices/:token`; open (the app can't keep a secret), rate-limited per IP
   - `?v=2` sends `info` for ships only the registers know (no `wikidataId`); older app builds, which need it, get Wikidata-backed `info` only
   - Leaves out USCG inspection history (`info.uscg.inspections`): shown on the web map only
   - Ships whose latest position came from AISHub are sent without `position` (its terms forbid passing on raw data); their `approach` (ETA, distance, direction) is still sent. Alerts use the full position internally
   - ETAs, ship categories, cargo guesses and flags in `server/bridge-eta.js` (mirrors `src/utils/upcoming.ts` and `src/utils/cargo.ts`)
 - `server/approach-alerts.js`: iOS bridge alerts when a ship's ETA falls to 10 min (not under 3, at 2 kn or more), once per ship per 45 min, to devices whose settings match (category, minimum length, direction)
+  - Live Activity or plain notification per the device's default, overridden per ship by `liveActivityShips` (a ship turned on is alerted even if its settings wouldn't match)
   - Devices with Live Activities get one started by push-to-start on a broadcast channel opened for that ship, updated as the ETA moves and ended when the ship log records the passage (or after 30 min); others get a time-sensitive notification
   - APNs client in `server/apns.js` (token auth, HTTP/2, no dependencies); devices and open channels in SQLite (`server/push-devices.js`, `DB_FILE`). Off unless `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID` and `APNS_KEY` (or `APNS_KEY_FILE`) are set
 

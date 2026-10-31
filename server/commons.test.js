@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fetchCommonsPhotos, fileName, MAX_PHOTOS, parsePhoto, rankPhotos } from "./commons.js";
+import { fetchCommonsPhotos, fileName, MAX_PHOTOS, parsePhoto, rankPhotos, searchCommonsPhotos } from "./commons.js";
 
 function filePage(title, { mime = "image/jpeg", artist = "<a href='x'>Pete Markham</a>", date = "2012-09-01 13:19:40" } = {}) {
   const slug = title.replace(/ /g, "_");
@@ -54,6 +54,34 @@ describe("rankPhotos", () => {
       { name: "INDIANA HARBOR", preferredFile: "https://commons.wikimedia.org/wiki/File:Official.jpg" }
     );
     expect(ranked.map((p) => p.title)).toEqual(["Official", "Indiana Harbor new", "Indiana Harbor old", "Harbour view"]);
+  });
+});
+
+describe("searchCommonsPhotos", () => {
+  it("searches files for photos, best match first", async () => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        query: {
+          pages: [
+            { ...filePage("Northern Venture at Sarnia.jpg"), index: 2 },
+            { ...filePage("Northern Venture plan.svg", { mime: "image/svg+xml" }), index: 3 },
+            { ...filePage("Da Shen 2019.jpg"), index: 1 },
+          ],
+        },
+      }),
+    }));
+    const photos = await searchCommonsPhotos("Northern Venture", fetchImpl);
+    expect(photos.map((p) => p.title)).toEqual(["Da Shen 2019", "Northern Venture at Sarnia"]);
+    expect(photos[0]).toMatchObject({ artist: "Pete Markham", license: "CC BY-SA 2.0" });
+    const params = new URL(fetchImpl.mock.calls[0][0]).searchParams;
+    expect(params.get("gsrsearch")).toBe("Northern Venture filetype:bitmap");
+    expect(params.get("gsrnamespace")).toBe("6");
+  });
+
+  it("rejects when Commons can't be reached", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 503 }));
+    await expect(searchCommonsPhotos("Northern Venture", fetchImpl)).rejects.toThrow("503");
   });
 });
 
