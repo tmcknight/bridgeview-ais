@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import crypto from "node:crypto";
-import { appConfig, checkNotes, credentials, exportOptions, nextBuildNumber, NOTES_MAX, releaseVersion, token } from "./testflight.js";
+import { appConfig, checkNotes, credentials, exportOptions, groupNames, nextBuildNumber, NOTES_MAX, releaseVersion, token } from "./testflight.js";
 
 const decode = (part) => JSON.parse(Buffer.from(part, "base64url").toString("utf8"));
 
@@ -23,6 +23,12 @@ describe("TestFlight upload script", () => {
     expect(() => checkNotes("x".repeat(NOTES_MAX + 1))).toThrow(/4000/);
     expect(() => checkNotes("New: 🚢 Live Activities.")).toThrow(/emoji.*🚢/);
     expect(checkNotes("Upbound — toward Lake Huron.")).toBe("Upbound — toward Lake Huron.");
+  });
+
+  it("takes TestFlight groups from repeated or comma-separated --group options", () => {
+    expect(groupNames(["Friends, Public beta", "Crew", "Friends"])).toEqual(["Friends", "Public beta", "Crew"]);
+    expect(groupNames(["", " , "])).toEqual([]);
+    expect(groupNames(undefined)).toEqual([]);
   });
 
   it("reads the bundle ID and team from Local.xcconfig", () => {
