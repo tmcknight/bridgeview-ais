@@ -44,6 +44,7 @@ targets:
         BridgeViewAPIURL: $(BRIDGEVIEW_API_URL)
         BridgeViewPushEnvironment: $(BRIDGEVIEW_PUSH_ENVIRONMENT)
         NSSupportsLiveActivities: true
+        NSCameraUsageDescription: Take a photo of a ship to share with BridgeView.
         NSLocationWhenInUseUsageDescription: BridgeView uses your location to pause bridge alerts while you're away from the bridge. It stays on your phone.
         NSLocationAlwaysAndWhenInUseUsageDescription: To pause bridge alerts while you're away from the Blue Water Bridge, and start them again when you come back, BridgeView needs to notice when you arrive and leave, even when it isn't open. Your location stays on your phone.
         UILaunchScreen:

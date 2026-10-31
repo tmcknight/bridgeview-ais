@@ -16,7 +16,9 @@ struct ShipDetailView: View {
             if let ship = ship ?? cachedShip {
                 ShipDetailContent(
                     ship: ship,
-                    attribution: store.snapshot?.attribution ?? []
+                    attribution: store.snapshot?.attribution ?? [],
+                    photoSharing: store.snapshot?.photoSharing ?? false,
+                    photoReporting: store.snapshot?.photoReporting ?? false
                 )
             } else if let error {
                 ContentUnavailableView("Ship unavailable", systemImage: "ferry", description: Text(error))
@@ -51,7 +53,15 @@ struct ShipDetailView: View {
 private struct ShipDetailContent: View {
     var ship: Ship
     var attribution: [Attribution]
+    var photoSharing: Bool
+    var photoReporting: Bool
     @State private var photoIndex = 0
+    @State private var sharingPhoto = false
+    @State private var reportingPhoto: VesselPhoto?
+    @State private var reportResult: String?
+    @Environment(\.openURL) private var openURL
+
+    private let api = APIClient()
 
     var body: some View {
         ScrollView {
@@ -87,6 +97,53 @@ private struct ShipDetailContent: View {
             .padding(.bottom, 24)
         }
         .background { RiverBackground() }
+        .sheet(isPresented: $sharingPhoto) {
+            SharePhotoView(mmsi: ship.mmsi, shipName: ship.name)
+        }
+        .confirmationDialog(
+            "Why are you reporting this photo?",
+            isPresented: Binding { reportingPhoto != nil } set: { if !$0 { reportingPhoto = nil } },
+            titleVisibility: .visible,
+            presenting: reportingPhoto
+        ) { photo in
+            ForEach(PhotoReportReason.allCases, id: \.self) { reason in
+                Button(reason.label) { Task { await report(photo, reason) } }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("BridgeView checks every report and takes down photos that shouldn't be here.")
+        }
+        .alert(
+            reportResult ?? "",
+            isPresented: Binding { reportResult != nil } set: { if !$0 { reportResult = nil } }
+        ) {
+            Button("OK") {}
+        }
+    }
+
+    /// The photo being shown, if there is one
+    private var currentPhoto: VesselPhoto? {
+        let photos = ship.info?.allPhotos ?? []
+        return photos.isEmpty ? nil : photos[min(photoIndex, photos.count - 1)]
+    }
+
+    /// Asks why the photo is being reported; without reporting on the server,
+    /// opens the support page, which says how to report one by email
+    private func startReport(_ photo: VesselPhoto) {
+        if photoReporting {
+            reportingPhoto = photo
+        } else {
+            openURL(AppConfig.apiURL.appending(path: "support.html"))
+        }
+    }
+
+    private func report(_ photo: VesselPhoto, _ reason: PhotoReportReason) async {
+        do {
+            try await api.reportPhoto(mmsi: ship.mmsi, PhotoReport(url: photo.url, reason: reason))
+            reportResult = "Thanks. We'll take a look at this photo."
+        } catch {
+            reportResult = APIError.message(for: error)
+        }
     }
 
     @ViewBuilder private var header: some View {
@@ -115,6 +172,36 @@ private struct ShipDetailContent: View {
                     .shadow(radius: 4)
                     .padding(16)
                     .allowsHitTesting(false)
+                }
+                .overlay(alignment: .topLeading) {
+                    HStack(spacing: 6) {
+                        if photoSharing {
+                            Button {
+                                sharingPhoto = true
+                            } label: {
+                                Label("Add photo", systemImage: "camera.fill")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .glassPill(clear: true)
+                            }
+                            .accessibilityLabel("Share a photo of \(ship.name)")
+                        }
+                        if let photo = currentPhoto {
+                            Menu {
+                                Button("Report this photo", systemImage: "flag") { startReport(photo) }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 28, height: 28)
+                                    .glassPill(clear: true)
+                            }
+                            .accessibilityLabel("Photo options")
+                        }
+                    }
+                    .padding(10)
                 }
             if ship.info?.description != nil || ship.cargo != nil || !ship.summary.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {

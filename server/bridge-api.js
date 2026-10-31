@@ -131,6 +131,8 @@ export function createBridgeApi({
   pushDevices = null,
   shipCamVideoId = () => undefined,
   attribution = [],
+  photoSharing = false,
+  photoReporting = false,
   now = Date.now,
   logger,
 }) {
@@ -235,6 +237,8 @@ export function createBridgeApi({
       generatedAt: new Date(t).toISOString(),
       shipCamVideoId: shipCamVideoId(),
       attribution,
+      photoSharing,
+      photoReporting,
       upcoming,
       recent,
     };

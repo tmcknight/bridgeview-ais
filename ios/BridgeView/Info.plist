@@ -37,6 +37,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a ship to share with BridgeView.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>To pause bridge alerts while you're away from the Blue Water Bridge, and start them again when you come back, BridgeView needs to notice when you arrive and leave, even when it isn't open. Your location stays on your phone.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

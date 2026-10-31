@@ -7,7 +7,10 @@ on the Lock Screen and in the Dynamic Island until the ship has passed.
 
 It also lists the ships heading for the bridge ("Coming up") and those that went
 under it in the last day ("Passed"). Each ship has a page with its photo and details
-from Wikidata, a map, and links to VesselFinder, MarineTraffic and Wikipedia. "Coming
+from Wikidata, a map, and links to VesselFinder, MarineTraffic and Wikipedia. "Add
+photo" on a ship's page takes or picks a photo of it and sends it to the server
+(`Views/SharePhotoView.swift`), where it waits for approval on the admin page; the
+button shows only when the server takes them (`photoSharing` in `GET /api/bridge`). "Coming
 up" links to the Port Huron ship cam, to watch the next ship go under the bridge.
 
 It has its own look (river blue, international-orange accents, ship names in wide

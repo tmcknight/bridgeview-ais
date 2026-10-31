@@ -2,7 +2,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { createLocalPhotoStore, createR2PhotoStore, photoType, r2ConfigFromEnv, signRequest } from "./photo-store.js";
+import {
+  createLocalPhotoStore,
+  createR2PhotoStore,
+  inspectJpeg,
+  photoType,
+  r2ConfigFromEnv,
+  signRequest,
+  stripJpegMetadata,
+} from "./photo-store.js";
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
 const ACCOUNT = "0123456789abcdef0123456789abcdef";
@@ -87,6 +95,20 @@ describe("createR2PhotoStore", () => {
     expect(init.headers.host).toBeUndefined();
   });
 
+  it("keeps photos shared from the app in their own folder", async () => {
+    const { store, fetch } = setup();
+    const url = await store.save(JPEG, "jpg", "shared");
+    expect(url).toMatch(/^https:\/\/photos\.example\/shared\/[a-f0-9]{32}\.jpg$/);
+    expect(fetch.mock.calls[0][0]).toBe(`https://${ACCOUNT}.r2.cloudflarestorage.com/bridgeview-photos/shared/${url.split("/").pop()}`);
+    expect(store.owns(url)).toBe(true);
+    expect(store.owns(`https://photos.example/other/${"c".repeat(32)}.jpg`)).toBe(false);
+    expect(store.owns(`https://photos.example/shared/x/${"c".repeat(32)}.jpg`)).toBe(false);
+    await store.remove(url);
+    expect(fetch.mock.calls[1][0]).toBe(fetch.mock.calls[0][0]);
+    expect(fetch.mock.calls[1][1].method).toBe("DELETE");
+    await expect(store.save(JPEG, "jpg", "../etc")).rejects.toThrow(/folder/);
+  });
+
   it("deletes only its own photos, and doesn't mind ones already gone", async () => {
     const { store, fetch } = setup({ ok: false, status: 404 });
     await store.remove("https://elsewhere.example/ships/a.jpg");
@@ -119,5 +141,35 @@ describe("r2ConfigFromEnv", () => {
     expect(r2ConfigFromEnv({ ...ENV, R2_BUCKET: "" }).error).toMatch(/R2_BUCKET/);
     expect(r2ConfigFromEnv({ ...ENV, PHOTOS_PUBLIC_URL: "http://photos.example" }).error).toMatch(/https/);
     expect(r2ConfigFromEnv({ ...ENV, R2_ACCOUNT_ID: "nope" }).error).toMatch(/32 hex/);
+  });
+});
+
+describe("JPEG checks", () => {
+  const SOI = [0xff, 0xd8];
+  const EXIF = [0xff, 0xe1, 0x00, 0x06, 0x45, 0x78, 0x69, 0x66];
+  const ICC = [0xff, 0xe2, 0x00, 0x04, 0x01, 0x02];
+  const FRAME = [0xff, 0xc2, 0x00, 0x0b, 8, 0x03, 0x00, 0x04, 0x00, 1, 1, 0x11, 0]; // progressive, 1024×768
+  const SCAN = [0xff, 0xda, 0x00, 0x04, 0x01, 0x02, 0x12, 0xff, 0x00, 0x34];
+  const EOI = [0xff, 0xd9];
+  const jpeg = (...parts) => Buffer.from(parts.flat());
+
+  it("strips EXIF but keeps colour profiles and the picture", () => {
+    expect(stripJpegMetadata(jpeg(SOI, EXIF, ICC, FRAME, SCAN, EOI))).toEqual(jpeg(SOI, ICC, FRAME, SCAN, EOI));
+  });
+
+  it("reads the size and where the picture ends", () => {
+    const bytes = jpeg(SOI, ICC, FRAME, SCAN, EOI, [0x50, 0x4b, 0xff, 0xd9]);
+    expect(inspectJpeg(bytes)).toEqual({ width: 1024, height: 768, end: SOI.length + ICC.length + FRAME.length + SCAN.length + 2 });
+  });
+
+  it.each([
+    ["no frame", jpeg(SOI, SCAN, EOI)],
+    ["no scan", jpeg(SOI, FRAME, EOI)],
+    ["no end", jpeg(SOI, FRAME, SCAN)],
+    ["two frames", jpeg(SOI, FRAME, FRAME, SCAN, EOI)],
+    ["a segment running past the end", jpeg(SOI, [0xff, 0xe2, 0x10, 0x00], FRAME)],
+    ["not a JPEG", Buffer.from("GIF89a")],
+  ])("refuses a JPEG with %s", (_, bytes) => {
+    expect(inspectJpeg(bytes).error).toBeDefined();
   });
 });

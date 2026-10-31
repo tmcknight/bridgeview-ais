@@ -22,6 +22,8 @@ import { createAircraftFeed, DEFAULT_ADSB_URL, DEFAULT_ADSB_WEB_URL, isAdsbFi } 
 import { createShipCamFinder, SHIP_CAMS } from "./ship-cams.js";
 import { attributionFor, createBridgeApi } from "./bridge-api.js";
 import { createPushDevices } from "./push-devices.js";
+import { createPhotoSubmissions } from "./photo-submissions.js";
+import { createPhotoReports } from "./photo-reports.js";
 import { createApnsClient } from "./apns.js";
 import { createApproachAlerts } from "./approach-alerts.js";
 import { createAdminApi } from "./admin-api.js";
@@ -260,6 +262,10 @@ const bridgeApi = createBridgeApi({
   pushDevices,
   shipCamVideoId: () => shipCamFinder?.videoIds()[SHIP_CAMS[0].id] ?? SHIP_CAMS[0].videoId,
   attribution: attributionFor([...AIS_SOURCES]),
+  // Photos shared from the app go to R2 and wait for the admin page, so both need to be on
+  photoSharing: Boolean(ADMIN_PASSWORD && R2_PHOTOS?.config),
+  // Photo reports wait for the admin page too
+  photoReporting: Boolean(ADMIN_PASSWORD),
   logger,
 });
 // The admin page's API, and photos uploaded there
@@ -267,11 +273,17 @@ if (R2_PHOTOS?.error) {
   logger.error(`[admin] ${R2_PHOTOS.error}`);
   process.exit(1);
 }
+// Photos shared from the iOS app (stored in R2), waiting for approval on the admin page
+const photoSubmissions = ADMIN_PASSWORD && R2_PHOTOS?.config ? createPhotoSubmissions({ file: DB_FILE }) : null;
+// Photos reported from the iOS app, waiting for the admin page
+const photoReports = ADMIN_PASSWORD ? createPhotoReports({ file: DB_FILE }) : null;
 const adminApi = createAdminApi({
   password: ADMIN_PASSWORD,
   vesselDetails,
   photosDir: PHOTOS_DIR,
   photoStore: R2_PHOTOS ? createR2PhotoStore(R2_PHOTOS.config) : null,
+  photoSubmissions,
+  photoReports,
   logger,
 });
 if (ADMIN_PASSWORD) logger.log(`[admin] photos stored in ${R2_PHOTOS ? `R2 (${R2_PHOTOS.config.bucket})` : PHOTOS_DIR}`);
@@ -358,6 +370,8 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     approachAlerts?.stop();
     apns?.close();
     pushDevices?.close();
+    photoSubmissions?.close();
+    photoReports?.close();
     process.exit(0);
   });
 }

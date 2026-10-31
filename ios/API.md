@@ -20,6 +20,7 @@ every 30 s while open and on pull-to-refresh.
     { "text": "Data: AISHub contributors", "url": "https://www.aishub.net" },
     { "text": "AISStream.io", "url": "https://aisstream.io" }
   ],
+  "photoSharing": true,
   "upcoming": [ /* Ship with "approach", soonest first, ETA within 3 h */ ],
   "recent":   [ /* Ship with "passage", newest first, within the last 24 h */ ]
 }
@@ -30,6 +31,12 @@ every 30 s while open and on pull-to-refresh.
   when only the local antenna is used. The app must show each as a link (`text`
   opening `url`) clearly visible near the ship lists; AISHub's terms require its
   credit near the data.
+- `photoSharing`: whether the server takes photos shared from the app (it needs the
+  admin page and R2 photo storage set up)
+  (`POST /api/ships/:mmsi/photos`). Hide the button when it's false or missing.
+- `photoReporting`: whether the server takes photo reports
+  (`POST /api/ships/:mmsi/photos/report`). When it's false or missing, "Report this
+  photo" opens the support page, which says how to report one by email.
 
 ### Ship
 
@@ -165,6 +172,49 @@ Every ship heard in the last 10 minutes, for the app's map. The app polls it eve
   out (see `position` above).
 - `classB`: `true` for Class B transponders (pleasure craft, small workboats);
   omitted otherwise. They never have an `approach`.
+
+## `POST /api/ships/:mmsi/photos`
+
+Share a photo of a ship. It waits for approval on the admin page before anyone
+sees it; once approved it's the ship's first photo in `info.photos`, with `artist`
+the name given and `license` "Used with permission" (neither when no name was
+given). The sharer keeps the copyright and licenses it to BridgeView (terms.html).
+
+- Body: the photo as a JPEG (`Content-Type: image/jpeg`), at most 10 MB. The app
+  redraws it at most 2048 px across (SDR), which also drops its metadata. The
+  server checks it's a whole JPEG (one frame, a scan, an end-of-image marker),
+  strips EXIF, IPTC and comments, and cuts off anything after the picture (an HDR
+  gain map, or data hidden there).
+- Size: 640 px or more on the longest side, at most 8192 px a side and 40 MP, and
+  no longer than 4:1.
+- The same file (by SHA-256 once cleaned) can't be sent twice: 409 while it's
+  waiting or once it's approved, 422 once it's been rejected.
+- Query: `artist` (optional, up to 80 characters): the name to credit; `note`
+  (optional, up to 500): for the admin only.
+- Header `X-BridgeView-Device`: a random UUID the app keeps in its keychain, so a
+  sender can be banned. Optional, but without it only the IP address can be.
+
+202 `{ "status": "pending" }` when queued. Errors carry `{ "error": "…" }` meant for
+the user: 400 bad input, 403 banned, 404 unknown ship, 409 already shared, 413 too big,
+415 not a (whole) JPEG, 422 the wrong size or rejected before, 429 more than 10 an
+hour from one IP address, 503 sharing off or too many waiting.
+
+## `POST /api/ships/:mmsi/photos/report`
+
+Report one of the ship's photos (from `info.photos`) for the admin page to check.
+
+```json
+{ "url": "https://photos.example/shared/….jpg", "reason": "wrong-ship", "details": "…" }
+```
+
+- `reason`: `wrong-ship`, `offensive`, `privacy`, `copyright` or `other`.
+- `details`: optional, up to 500 characters.
+- Header `X-BridgeView-Device` as for sharing; one report per photo counts per device
+  (or IP address without it).
+
+202 `{ "status": "received" }`. Errors carry `{ "error": "…" }` meant for the user: 400
+bad input, 404 not one of the ship's photos, 429 more than 20 an hour from one IP
+address, 503 reporting off.
 
 ## `PUT /api/devices/:token`
 

@@ -189,3 +189,88 @@ export async function searchPhotos(query: string): Promise<VesselPhoto[]> {
   const { photos } = await request<{ photos: VesselPhoto[] }>(`/api/admin/photos/search?${new URLSearchParams({ q: query })}`);
   return photos;
 }
+
+/** A photo shared from the iOS app, waiting for approval */
+export interface PhotoSubmission {
+  id: number;
+  mmsi: number;
+  shipName?: string;
+  url: string;
+  /** The name the sharer asked to be credited as */
+  artist?: string;
+  note?: string;
+  /** Size in pixels */
+  width?: number;
+  height?: number;
+  createdAt: string;
+}
+
+/** A sender banned from sharing photos */
+export interface PhotoBan {
+  id: number;
+  reason?: string;
+  /** Whether the app's device ID is banned too, not just the IP address */
+  device: boolean;
+  createdAt: string;
+}
+
+export async function getSubmissions(): Promise<PhotoSubmission[]> {
+  const { submissions } = await request<{ submissions: PhotoSubmission[] }>("/api/admin/submissions");
+  return submissions;
+}
+
+/** Adds the photo to its ship, first */
+export function approveSubmission(id: number): Promise<AdminShipView> {
+  return request(`/api/admin/submissions/${id}/approve`, { method: "POST" });
+}
+
+/** Deletes the photo */
+export function rejectSubmission(id: number): Promise<void> {
+  return request(`/api/admin/submissions/${id}`, { method: "DELETE" });
+}
+
+/** Bans whoever sent the photo, deleting it and everything else they've sent */
+export function banSubmitter(id: number, reason: string): Promise<{ rejected: number[] }> {
+  return request(`/api/admin/submissions/${id}/ban`, json("POST", { reason }));
+}
+
+export async function getBans(): Promise<PhotoBan[]> {
+  const { bans } = await request<{ bans: PhotoBan[] }>("/api/admin/submissions/bans");
+  return bans;
+}
+
+export function liftBan(id: number): Promise<void> {
+  return request(`/api/admin/submissions/bans/${id}`, { method: "DELETE" });
+}
+
+/** Why a photo was reported from the app (REPORT_REASONS in server/photo-reports.js) */
+export const REPORT_REASONS: Record<string, string> = {
+  "wrong-ship": "Not this ship",
+  offensive: "Offensive",
+  privacy: "Privacy",
+  copyright: "Copyright",
+  other: "Other",
+};
+
+/** A photo reported from the app, with its reports */
+export interface ReportedPhoto {
+  url: string;
+  mmsi: number;
+  shipName?: string;
+  reports: { reason: string; details?: string; createdAt: string }[];
+}
+
+export async function getReportedPhotos(): Promise<ReportedPhoto[]> {
+  const { photos } = await request<{ photos: ReportedPhoto[] }>("/api/admin/reports");
+  return photos;
+}
+
+/** Hides the photo on its ship (removes it if it was added by hand), closing its reports */
+export function hideReportedPhoto(url: string): Promise<AdminShipView> {
+  return request("/api/admin/reports/hide", json("POST", { url }));
+}
+
+/** Closes the photo's reports, leaving it shown */
+export function dismissReports(url: string): Promise<void> {
+  return request("/api/admin/reports/dismiss", json("POST", { url }));
+}
