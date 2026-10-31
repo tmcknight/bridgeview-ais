@@ -35,6 +35,8 @@ export const UPCOMING_MAX_ETA_MINUTES = 3 * 60;
 export const RECENT_WINDOW_MS = 24 * 60 * 60_000;
 // The snapshot is rebuilt at most this often, however many phones ask
 const SNAPSHOT_CACHE_MS = 5000;
+// The map's ships likewise; the app polls them more often, to keep ships moving
+const MAP_CACHE_MS = 2000;
 const MAX_BODY_BYTES = 4096;
 
 export const RATE_LIMITS = {
@@ -135,6 +137,8 @@ export function createBridgeApi({
   const allow = createRateLimiter({ now });
   let cachedSnapshot = null;
   let cachedAt = -Infinity;
+  let cachedMap = null;
+  let cachedMapAt = -Infinity;
 
   function positionOf(mmsi) {
     const latest = latestPositions.latest(mmsi);
@@ -185,7 +189,7 @@ export function createBridgeApi({
       width: record?.width,
       draught: record?.draught,
       destination: record?.destination,
-      cargo: describeCargo(record?.destination),
+      cargo: describeCargo({ destination: record?.destination, shipType: record?.shipType, length: record?.length }),
       flag: flagForMmsi(mmsi),
       classB: heard?.classB || undefined,
       position,
@@ -263,6 +267,36 @@ export function createBridgeApi({
     };
   }
 
+  // Every ship heard lately, for the app's map. Ships whose latest position came
+  // from AISHub are left out, since there'd be nothing to draw.
+  function buildMap() {
+    const ships = [];
+    for (const message of latestPositions.messages()) {
+      const s = ship(message.MetaData.MMSI);
+      if (!s?.position || s.positionSource === "aishub") continue;
+      ships.push({
+        mmsi: s.mmsi,
+        name: s.name,
+        shipTypeName: s.shipTypeName,
+        category: s.category,
+        length: s.length,
+        flag: s.flag,
+        classB: s.classB,
+        position: s.position,
+        approach: s.approach ?? undefined,
+      });
+    }
+    return { generatedAt: new Date(now()).toISOString(), attribution, ships };
+  }
+
+  function map() {
+    if (!cachedMap || now() - cachedMapAt >= MAP_CACHE_MS) {
+      cachedMap = buildMap();
+      cachedMapAt = now();
+    }
+    return cachedMap;
+  }
+
   function shipWithPassages(mmsi) {
     const s = ship(mmsi);
     if (!s) return undefined;
@@ -314,6 +348,8 @@ export function createBridgeApi({
           { ...s, upcoming: s.upcoming.map(absolute), recent: s.recent.map(absolute) },
           { "cache-control": "public, max-age=5" }
         );
+      } else if (url.pathname === "/api/map" && req.method === "GET") {
+        sendJson(res, 200, map(), { "cache-control": "public, max-age=2" });
       } else if (shipMatch && req.method === "GET") {
         const s = shipWithPassages(Number(shipMatch[1]));
         if (s) sendJson(res, 200, withAbsolutePhotoUrls(forApiVersion(s, v2), origin), { "cache-control": "public, max-age=5" });
@@ -333,5 +369,5 @@ export function createBridgeApi({
     return true;
   }
 
-  return { ship, snapshot, handleRequest };
+  return { ship, snapshot, map, handleRequest };
 }

@@ -5,7 +5,7 @@ import Observation
 @Observable
 final class Router {
     enum Tab: Hashable {
-        case upcoming, recent, settings
+        case upcoming, map, recent, settings
     }
 
     var tab: Tab = .upcoming

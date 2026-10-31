@@ -76,6 +76,35 @@ export function rankPhotos(photos, { name, preferredFile } = {}) {
   return [...photos].sort((a, b) => score(b) - score(a) || (b.year ?? 0) - (a.year ?? 0));
 }
 
+const IMAGE_INFO = {
+  prop: "imageinfo",
+  iiprop: "url|mime|extmetadata",
+  iiextmetadatafilter: "Artist|LicenseShortName|DateTimeOriginal",
+  iiurlwidth: String(THUMBNAIL_WIDTH),
+};
+// Results for the admin page's photo search
+export const MAX_SEARCH_RESULTS = 30;
+
+// Photos on Commons matching free text, best match first, for the admin page:
+// finds photos filed outside a ship's IMO category, e.g. under a former name
+export async function searchCommonsPhotos(text, fetchImpl = fetch) {
+  const data = await query(
+    {
+      generator: "search",
+      gsrsearch: `${text} filetype:bitmap`,
+      gsrnamespace: "6",
+      gsrlimit: String(MAX_SEARCH_RESULTS),
+      ...IMAGE_INFO,
+    },
+    fetchImpl
+  );
+  // Generator results come unordered, with their search rank as `index`
+  return (data.query?.pages ?? [])
+    .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
+    .map(parsePhoto)
+    .filter(Boolean);
+}
+
 // Resolves to the ship's photos (at most MAX_PHOTOS, best first), [] when
 // Commons has none. Rejects when Commons can't be reached.
 export async function fetchCommonsPhotos({ imo, category, name, preferredFile } = {}, fetchImpl = fetch) {
@@ -99,10 +128,7 @@ export async function fetchCommonsPhotos({ imo, category, name, preferredFile } 
         gcmtitle: title,
         gcmtype: "file",
         gcmlimit: "50",
-        prop: "imageinfo",
-        iiprop: "url|mime|extmetadata",
-        iiextmetadatafilter: "Artist|LicenseShortName|DateTimeOriginal",
-        iiurlwidth: String(THUMBNAIL_WIDTH),
+        ...IMAGE_INFO,
       },
       fetchImpl
     );

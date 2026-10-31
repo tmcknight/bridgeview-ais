@@ -56,12 +56,12 @@ describe("createAdminApi", () => {
     if (dir) fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  function setup({ password = PASSWORD, fetchInfo, photoStore } = {}) {
+  function setup({ password = PASSWORD, fetchInfo, photoStore, searchPhotos } = {}) {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), "admin-api-"));
     vesselDetails = createVesselDetails({ fetchInfo });
     vesselDetails.handleMessage(staticData(316000001, "LAKER"));
     clock = Date.parse("2026-10-31T12:00:00Z");
-    return createAdminApi({ password, vesselDetails, photosDir: path.join(dir, "photos"), photoStore, now: () => clock });
+    return createAdminApi({ password, vesselDetails, photosDir: path.join(dir, "photos"), photoStore, searchPhotos, now: () => clock });
   }
 
   async function loggedIn(api) {
@@ -144,6 +144,20 @@ describe("createAdminApi", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("searches Commons for photos", async () => {
+    const photo = { url: "https://upload.wikimedia.org/a.jpg", artist: "Pete Markham", license: "CC BY-SA 2.0" };
+    const searchPhotos = vi.fn().mockResolvedValueOnce([photo]).mockRejectedValueOnce(new Error("down"));
+    const api = setup({ searchPhotos });
+    expect((await call(api, "GET", "/api/admin/photos/search?q=Venture")).status).toBe(401);
+    const token = await loggedIn(api);
+
+    const res = await call(api, "GET", "/api/admin/photos/search?q=%20Northern%20Venture%20", { token });
+    expect(res.body).toEqual({ photos: [photo] });
+    expect(searchPhotos).toHaveBeenCalledWith("Northern Venture");
+    expect((await call(api, "GET", "/api/admin/photos/search?q=N", { token })).status).toBe(400);
+    expect((await call(api, "GET", "/api/admin/photos/search?q=Northern", { token })).status).toBe(502);
   });
 
   it("says when lookups are off", async () => {

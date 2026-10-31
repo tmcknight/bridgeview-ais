@@ -13,6 +13,9 @@ export const MAX_DEVICES = 100_000;
 
 const DEFAULT_CATEGORIES = ["cargo", "tanker", "passenger"];
 const TOKEN_PATTERN = /^[0-9a-f]{32,400}$/i;
+const MMSI_PATTERN = /^\d{9}$/;
+// Ships a device can choose Live Activities for, one by one; only those coming up matter
+const MAX_LIVE_ACTIVITY_SHIPS = 50;
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS push_devices (
@@ -24,6 +27,7 @@ const SCHEMA = `
     categories TEXT NOT NULL,
     min_length INTEGER NOT NULL,
     directions TEXT NOT NULL,
+    live_activity_ships TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -35,6 +39,23 @@ const SCHEMA = `
     PRIMARY KEY (channel_id, environment)
   );
 `;
+
+// Columns added since the table was first made
+function migrate(db) {
+  const columns = db.prepare("PRAGMA table_info(push_devices)").all().map((c) => c.name);
+  if (!columns.includes("live_activity_ships")) {
+    db.exec("ALTER TABLE push_devices ADD COLUMN live_activity_ships TEXT NOT NULL DEFAULT '{}'");
+  }
+}
+
+function isLiveActivityShips(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  return (
+    entries.length <= MAX_LIVE_ACTIVITY_SHIPS &&
+    entries.every(([mmsi, on]) => MMSI_PATTERN.test(mmsi) && typeof on === "boolean")
+  );
+}
 
 function isSubsetOf(value, allowed) {
   return Array.isArray(value) && value.every((item) => allowed.includes(item));
@@ -52,6 +73,7 @@ export function parseDeviceRegistration(token, body) {
     categories = DEFAULT_CATEGORIES,
     minLength = 0,
     directions = DIRECTIONS,
+    liveActivityShips = {},
   } = body;
   if (!ENVIRONMENTS.includes(environment)) return { error: `environment must be one of ${ENVIRONMENTS.join(", ")}` };
   if (typeof enabled !== "boolean") return { error: "enabled must be a boolean" };
@@ -62,6 +84,9 @@ export function parseDeviceRegistration(token, body) {
   if (!isSubsetOf(categories, SHIP_CATEGORIES)) return { error: `categories must be from ${SHIP_CATEGORIES.join(", ")}` };
   if (!Number.isInteger(minLength) || minLength < 0 || minLength > 500) return { error: "minLength must be 0-500" };
   if (!isSubsetOf(directions, DIRECTIONS)) return { error: `directions must be from ${DIRECTIONS.join(", ")}` };
+  if (!isLiveActivityShips(liveActivityShips)) {
+    return { error: `liveActivityShips must map up to ${MAX_LIVE_ACTIVITY_SHIPS} MMSIs to true or false` };
+  }
   return {
     device: {
       token: token.toLowerCase(),
@@ -72,18 +97,27 @@ export function parseDeviceRegistration(token, body) {
       categories: [...new Set(categories)],
       minLength,
       directions: [...new Set(directions)],
+      liveActivityShips: { ...liveActivityShips },
     },
   };
 }
 
-// Whether a device wants an alert for this ship ({ category, length, direction })
-export function wantsAlert(device, { category, length, direction }) {
+// Whether a device wants an alert for this ship ({ mmsi, category, length, direction }).
+// A ship the user chose a Live Activity for is alerted even if its settings would skip it.
+export function wantsAlert(device, { mmsi, category, length, direction }) {
+  if (!device.enabled) return false;
+  if (device.liveActivityShips?.[mmsi] === true) return true;
   return (
-    device.enabled &&
     device.categories.includes(category) &&
     (length ?? 0) >= device.minLength &&
     device.directions.includes(direction)
   );
+}
+
+// Whether this ship's alert should start a Live Activity on the device: the user's
+// choice for that ship, or else their default
+export function wantsLiveActivity(device, mmsi) {
+  return Boolean(device.pushToStartToken) && (device.liveActivityShips?.[mmsi] ?? device.liveActivities);
 }
 
 function rowToDevice(row) {
@@ -96,6 +130,7 @@ function rowToDevice(row) {
     categories: JSON.parse(row.categories),
     minLength: row.min_length,
     directions: JSON.parse(row.directions),
+    liveActivityShips: JSON.parse(row.live_activity_ships),
   };
 }
 
@@ -104,14 +139,15 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
   const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL");
   db.exec(SCHEMA);
+  migrate(db);
 
   const upsert = db.prepare(`
     INSERT INTO push_devices (
       token, environment, enabled, push_to_start_token, live_activities,
-      categories, min_length, directions, created_at, updated_at
+      categories, min_length, directions, live_activity_ships, created_at, updated_at
     ) VALUES (
       :token, :environment, :enabled, :push_to_start_token, :live_activities,
-      :categories, :min_length, :directions, :now, :now
+      :categories, :min_length, :directions, :live_activity_ships, :now, :now
     )
     ON CONFLICT (token) DO UPDATE SET
       environment = :environment,
@@ -121,6 +157,7 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
       categories = :categories,
       min_length = :min_length,
       directions = :directions,
+      live_activity_ships = :live_activity_ships,
       updated_at = :now
   `);
   const exists = db.prepare("SELECT 1 FROM push_devices WHERE token = ?");
@@ -149,6 +186,7 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
         categories: JSON.stringify(device.categories),
         min_length: device.minLength,
         directions: JSON.stringify(device.directions),
+        live_activity_ships: JSON.stringify(device.liveActivityShips ?? {}),
         now: now().toISOString(),
       });
       return true;

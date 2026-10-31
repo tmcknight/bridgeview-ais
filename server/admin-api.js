@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { createRateLimiter } from "./bridge-api.js";
+import { searchCommonsPhotos } from "./commons.js";
 import { createLocalPhotoStore, photoType } from "./photo-store.js";
 import { MAX_ADDED_PHOTOS, parseOverrides } from "./vessel-overrides.js";
 
@@ -64,7 +65,15 @@ async function readJson(req) {
   }
 }
 
-export function createAdminApi({ password, vesselDetails, photosDir, photoStore = null, now = Date.now, logger }) {
+export function createAdminApi({
+  password,
+  vesselDetails,
+  photosDir,
+  photoStore = null,
+  searchPhotos = searchCommonsPhotos,
+  now = Date.now,
+  logger,
+}) {
   const localPhotos = createLocalPhotoStore({ dir: photosDir, logger });
   const uploads = photoStore ?? localPhotos;
   const stores = [localPhotos, ...(photoStore ? [photoStore] : [])];
@@ -177,6 +186,17 @@ export function createAdminApi({ password, vesselDetails, photosDir, photoStore 
         overriddenOnly: url.searchParams.get("overridden") === "1",
       });
       return sendJson(res, 200, { ships });
+    }
+
+    if (pathname === "/api/admin/photos/search" && req.method === "GET") {
+      const text = (url.searchParams.get("q") ?? "").trim();
+      if (text.length < 2 || text.length > 200) return sendJson(res, 400, { error: "Search for 2 to 200 characters" });
+      try {
+        return sendJson(res, 200, { photos: await searchPhotos(text) });
+      } catch (err) {
+        logger?.warn(`[admin] photo search failed: ${err.message}`);
+        return sendJson(res, 502, { error: "Couldn't reach Wikimedia Commons" });
+      }
     }
 
     const shipMatch = pathname.match(/^\/api\/admin\/ships\/(\d{1,9})(\/.*)?$/);

@@ -73,7 +73,7 @@ export function getUpcomingPassage(ship: TrackedShip): UpcomingPassage | null {
     etaMinutes: (distanceNM / ship.sog) * 60,
     distanceNM,
     direction,
-    cargo: guessCargo(ship.destination),
+    cargo: guessCargo(ship),
   };
 }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { createPushDevices, parseDeviceRegistration, wantsAlert } from "./push-devices.js";
+import { createPushDevices, parseDeviceRegistration, wantsAlert, wantsLiveActivity } from "./push-devices.js";
 
 const TOKEN = "ab".repeat(32);
 const START_TOKEN = "cd".repeat(40);
@@ -19,6 +19,7 @@ describe("parseDeviceRegistration", () => {
       categories: ["cargo", "tanker", "passenger"],
       minLength: 0,
       directions: ["upbound", "downbound"],
+      liveActivityShips: {},
     });
   });
 
@@ -63,6 +64,33 @@ describe("wantsAlert", () => {
     expect(wantsAlert(device, { category: "cargo", length: 200, direction: "upbound" })).toBe(false);
     expect(wantsAlert({ ...device, enabled: false }, { category: "cargo", length: 200, direction: "downbound" })).toBe(false);
   });
+
+  it("alerts for a ship the user chose a Live Activity for, unless alerts are off", () => {
+    const chosen = { ...device, liveActivityShips: { 316001234: true, 366999000: false } };
+    const ship = { mmsi: 316001234, category: "other", length: 50, direction: "upbound" };
+    expect(wantsAlert(chosen, ship)).toBe(true);
+    expect(wantsAlert(chosen, { ...ship, mmsi: 366999000 })).toBe(false);
+    expect(wantsAlert({ ...chosen, enabled: false }, ship)).toBe(false);
+  });
+});
+
+describe("wantsLiveActivity", () => {
+  const device = register({ pushToStartToken: START_TOKEN, liveActivities: true, liveActivityShips: { 366999000: false } }).device;
+
+  it("follows the user's choice for the ship, or else their default", () => {
+    expect(wantsLiveActivity(device, 316001234)).toBe(true);
+    expect(wantsLiveActivity(device, 366999000)).toBe(false);
+    const offByDefault = { ...device, liveActivities: false, liveActivityShips: { 316001234: true } };
+    expect(wantsLiveActivity(offByDefault, 316001234)).toBe(true);
+    expect(wantsLiveActivity(offByDefault, 366999000)).toBe(false);
+    expect(wantsLiveActivity({ ...device, pushToStartToken: undefined }, 316001234)).toBe(false);
+  });
+
+  it("rejects bad per-ship choices", () => {
+    expect(register({ liveActivityShips: { 123: true } }).error).toMatch(/liveActivityShips/);
+    expect(register({ liveActivityShips: { 316001234: "yes" } }).error).toMatch(/liveActivityShips/);
+    expect(register({ liveActivityShips: [316001234] }).error).toMatch(/liveActivityShips/);
+  });
 });
 
 describe("createPushDevices", () => {
@@ -81,6 +109,10 @@ describe("createPushDevices", () => {
     devices.register(register({ pushToStartToken: START_TOKEN, liveActivities: true }).device);
     expect(devices.matching(ship)[0]).toMatchObject({ pushToStartToken: START_TOKEN, liveActivities: true });
 
+    devices.register(register({ liveActivityShips: { 316001234: true } }).device);
+    expect(devices.matching(ship)[0].liveActivityShips).toEqual({ 316001234: true });
+
+    devices.register(register({ pushToStartToken: START_TOKEN, liveActivities: true }).device);
     devices.clearPushToStartToken(START_TOKEN);
     expect(devices.matching(ship)[0].pushToStartToken).toBeUndefined();
 

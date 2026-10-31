@@ -43,7 +43,7 @@ struct ShipDetailView: View {
             ship = try await api.ship(mmsi: mmsi)
             error = nil
         } catch {
-            self.error = error.localizedDescription
+            self.error = APIError.message(for: error)
         }
     }
 }
@@ -98,8 +98,10 @@ private struct ShipDetailContent: View {
                 .frame(height: 220)
                 .overlay { photo }
                 .clipped()
+                // The shade and name let touches through, so the photos can be swiped
                 .overlay {
                     LinearGradient(colors: [.clear, .black.opacity(0.65)], startPoint: .center, endPoint: .bottom)
+                        .allowsHitTesting(false)
                 }
                 .overlay(alignment: .bottomLeading) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -112,6 +114,7 @@ private struct ShipDetailContent: View {
                     .foregroundStyle(.white)
                     .shadow(radius: 4)
                     .padding(16)
+                    .allowsHitTesting(false)
                 }
             if ship.info?.description != nil || ship.cargo != nil || !ship.summary.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
@@ -181,6 +184,7 @@ private struct ShipDetailContent: View {
                 .padding(.vertical, 4)
                 .background(.black.opacity(0.45), in: .rect(cornerRadius: 6))
                 .padding(10)
+                .allowsHitTesting(false)
             }
             .accessibilityLabel("Photos of \(ship.name), \(photoIndex + 1) of \(photos.count)")
         }
@@ -214,6 +218,8 @@ private struct ShipDetailContent: View {
                     }
                 }
             }
+            LiveActivityToggle(mmsi: ship.mmsi)
+                .tint(Theme.signal)
         }
         .card()
     }

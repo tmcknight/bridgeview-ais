@@ -153,3 +153,9 @@ export function uploadPhoto(
     body: file,
   });
 }
+
+/** Photos on Wikimedia Commons matching `query`, best match first, with their credits */
+export async function searchPhotos(query: string): Promise<VesselPhoto[]> {
+  const { photos } = await request<{ photos: VesselPhoto[] }>(`/api/admin/photos/search?${new URLSearchParams({ q: query })}`);
+  return photos;
+}

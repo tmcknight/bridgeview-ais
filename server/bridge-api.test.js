@@ -149,6 +149,25 @@ describe("createBridgeApi", () => {
     expect(api.ship(316001234).positionSource).toBe("aisstream");
   });
 
+  it("lists every ship heard lately for the map, but none placed by AISHub", async () => {
+    const { api, hear } = setup();
+    hear(staticData(316001234, "ALGOMA EQUINOX", "THUNDER BAY"));
+    hear(position(316001234, -2, { cog: 0, name: "ALGOMA EQUINOX" }));
+    hear(position(367000003, 0.5, { name: "DINGHY", aisClass: "B" }));
+    hear(position(367000004, 3, { name: "HIDDEN", source: "aishub" }));
+
+    const { body } = await call(api, "GET", "/api/map");
+    expect(body.ships.map((s) => s.name).sort()).toEqual(["ALGOMA EQUINOX", "DINGHY"]);
+    expect(body.ships.find((s) => s.mmsi === 316001234)).toMatchObject({
+      category: "cargo",
+      length: 225,
+      position: { sog: 12, cog: 0 },
+      approach: { direction: "upbound" },
+    });
+    expect(body.ships.find((s) => s.name === "DINGHY").classB).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("HIDDEN");
+  });
+
   it("credits the feeds in use", () => {
     const attribution = attributionFor(["local", "aishub", "aisstream"]);
     expect(attribution).toEqual([

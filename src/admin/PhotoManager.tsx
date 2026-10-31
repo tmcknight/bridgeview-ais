@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import type { FormEvent } from "react"
 import { uploadPhoto } from "./api"
+import PhotoSearch from "./PhotoSearch"
 import type { AdminShipView, VesselOverrides } from "./api"
 import type { VesselPhoto } from "../types/vessel"
 
@@ -150,6 +151,15 @@ export default function PhotoManager({ view, busy, onSave, onUploaded, onError }
           )
         })}
       </ul>
+
+      <PhotoSearch
+        key={view.mmsi}
+        initialQuery={view.record.name ?? view.info?.name ?? ""}
+        existing={new Set(all.map(({ photo }) => photo.url))}
+        busy={busy}
+        onAdd={(photo) => onSave({ ...overrides, addedPhotos: [photo, ...added] }, "Photo added")}
+        onError={onError}
+      />
 
       <form onSubmit={addLink} className="flex flex-col gap-2 p-3 rounded-md border border-dashed border-slate-300 dark:border-slate-600">
         <h4 className="text-sm font-medium">Add a photo</h4>

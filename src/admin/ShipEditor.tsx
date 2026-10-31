@@ -120,6 +120,11 @@ export default function ShipEditor({ mmsi, onError }: ShipEditorProps) {
   }
 
   const { record, lookedUp } = view
+  // The AIS name is the ship's name now; Wikidata's label can be a former name
+  // (it matches on the IMO number, which stays with the hull through renames)
+  const wikidataName = view.info?.name
+  const otherName =
+    record.name && wikidataName && wikidataName.toUpperCase() !== record.name.toUpperCase() ? wikidataName : undefined
   const inputClass =
     "w-full px-2 py-1 rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm"
   const buttonClass =
@@ -129,7 +134,10 @@ export default function ShipEditor({ mmsi, onError }: ShipEditorProps) {
     <div className="flex flex-col gap-6">
       <section className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold">{view.info?.name ?? record.name ?? `MMSI ${mmsi}`}</h2>
+          <h2 className="text-lg font-bold">
+            {record.name ?? wikidataName ?? `MMSI ${mmsi}`}
+            {otherName && <span className="ml-2 text-sm font-normal text-slate-500">(Wikidata: {otherName})</span>}
+          </h2>
           <p className="text-xs text-slate-500">
             MMSI {mmsi}
             {record.imo ? ` · IMO ${record.imo}` : ""}

@@ -16,6 +16,7 @@ struct SettingsView: View {
     @AppStorage(Key.directions) private var directions = AlertPreferences.defaultDirections
     @AppStorage(Key.nearBridgeOnly) private var nearBridgeOnly = false
     @AppStorage(Key.nearBridgeRadius) private var nearBridgeRadius = AlertPreferences.defaultRadius
+    @AppStorage(Key.liveActivities) private var liveActivities = true
     @AppStorage(Appearance.key) private var appearance = Appearance.system
 
     var body: some View {
@@ -78,12 +79,14 @@ struct SettingsView: View {
                     }
                     .listRowBackground(Theme.surface)
                     Section {
-                        LabeledContent("Live Activities", value: push.liveActivitiesEnabled ? "On" : "Off")
-                        if !push.liveActivitiesEnabled {
+                        if push.liveActivitiesEnabled {
+                            Toggle("Live Activities by default", isOn: $liveActivities)
+                        } else {
+                            LabeledContent("Live Activities", value: "Off")
                             Button("Turn on in Settings") { openSettings() }
                         }
                     } footer: {
-                        Text("With Live Activities on, an alert also puts a countdown on your Lock Screen and in the Dynamic Island until the ship goes under the bridge.")
+                        Text("With Live Activities on, an alert also puts a countdown on your Lock Screen and in the Dynamic Island until the ship goes under the bridge. Off, you get just the notification. To choose for one ship, open it, or press and hold it in Coming up.")
                     }
                     .listRowBackground(Theme.surface)
                 }
@@ -139,6 +142,7 @@ struct SettingsView: View {
             .onChange(of: categories) { push.preferencesChanged() }
             .onChange(of: minLength) { push.preferencesChanged() }
             .onChange(of: directions) { push.preferencesChanged() }
+            .onChange(of: liveActivities) { push.preferencesChanged() }
             .onChange(of: nearBridgeOnly) { locationSettingsChanged() }
             .onChange(of: nearBridgeRadius) { locationSettingsChanged() }
         }

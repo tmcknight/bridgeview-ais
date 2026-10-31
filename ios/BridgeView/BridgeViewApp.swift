@@ -34,8 +34,25 @@ struct BridgeViewApp: App {
             let base = UIFont.systemFont(ofSize: size, weight: weight, width: .expanded)
             return UIFontMetrics(forTextStyle: style).scaledFont(for: base)
         }
-        let appearance = UINavigationBar.appearance()
-        appearance.largeTitleTextAttributes = [.font: font(.largeTitle, .heavy)]
-        appearance.titleTextAttributes = [.font: font(.headline, .bold)]
+        let largeTitle: [NSAttributedString.Key: Any] = [.font: font(.largeTitle, .heavy)]
+        let title: [NSAttributedString.Key: Any] = [.font: font(.headline, .bold)]
+
+        // Set on the bar appearances too: a bar that uses one ignores the plain
+        // title attributes, which left the system font on some first launches
+        func styled(_ configure: (UINavigationBarAppearance) -> Void) -> UINavigationBarAppearance {
+            let appearance = UINavigationBarAppearance()
+            configure(appearance)
+            appearance.largeTitleTextAttributes = largeTitle
+            appearance.titleTextAttributes = title
+            return appearance
+        }
+        let bar = UINavigationBar.appearance()
+        bar.largeTitleTextAttributes = largeTitle
+        bar.titleTextAttributes = title
+        // The system's own backgrounds: material when scrolled, clear at the top
+        bar.standardAppearance = styled { $0.configureWithDefaultBackground() }
+        bar.compactAppearance = styled { $0.configureWithDefaultBackground() }
+        bar.scrollEdgeAppearance = styled { $0.configureWithTransparentBackground() }
+        bar.compactScrollEdgeAppearance = styled { $0.configureWithTransparentBackground() }
     }
 }

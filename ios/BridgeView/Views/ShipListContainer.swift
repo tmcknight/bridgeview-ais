@@ -18,6 +18,11 @@ struct ShipListContainer<Empty: View>: View {
                     ScrollView {
                         LazyVStack(spacing: 10) {
                             content(ships)
+                            // At the end of the list, out of the way but still beside the data
+                            if let attribution = store.snapshot?.attribution, !attribution.isEmpty {
+                                DataCredits(attribution: attribution)
+                                    .padding(.top, 8)
+                            }
                         }
                         .padding(.horizontal)
                         .padding(.bottom)
@@ -34,7 +39,8 @@ struct ShipListContainer<Empty: View>: View {
                 } else if ships == nil {
                     ProgressView()
                 } else {
-                    ScrollView { empty() }
+                    // A little down from the title, not jammed against it
+                    ScrollView { empty().padding(.top, 72) }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -65,13 +71,6 @@ struct ShipListContainer<Empty: View>: View {
                             .padding(.vertical, 6)
                             .glassPill()
                     }
-                    if let attribution = store.snapshot?.attribution, !attribution.isEmpty {
-                        DataCredits(attribution: attribution)
-                            .fixedSize()
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .glassPill()
-                    }
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 4)
@@ -85,6 +84,7 @@ struct ShipListContainer<Empty: View>: View {
                 NextShipCard(ship: next, approach: approach)
             }
             .buttonStyle(.plain)
+            .contextMenu { LiveActivityToggle(mmsi: next.mmsi) }
             if let shipCam {
                 ShipCamCard(url: shipCam)
             }
@@ -105,6 +105,9 @@ struct ShipListContainer<Empty: View>: View {
                     .card(padding: 12)
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                if mode == .upcoming { LiveActivityToggle(mmsi: ship.mmsi) }
+            }
         }
     }
 }
@@ -269,7 +272,7 @@ struct UpcomingView: View {
             ContentUnavailableView(
                 "No ships heading for the bridge",
                 systemImage: "water.waves",
-                description: Text("Ships show here up to three hours before they reach the \(Bridge.name).")
+                description: Text("When a ship is within three hours of the \(Bridge.name), it'll show up here with a countdown.")
             )
         }
     }
@@ -283,7 +286,7 @@ struct RecentView: View {
             ContentUnavailableView(
                 "No ships in the last day",
                 systemImage: "clock",
-                description: Text("Ships that go under the \(Bridge.name) show here for 24 hours.")
+                description: Text("Ships stay here for a day after they go under the \(Bridge.name).")
             )
         }
     }

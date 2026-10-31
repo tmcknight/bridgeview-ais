@@ -206,6 +206,20 @@ describe("createApproachAlerts", () => {
     expect(pushDevices.channels()).toEqual([]);
   });
 
+  it("follows the user's Live Activity choice for each ship", async () => {
+    const pushToStartToken = "ef".repeat(40);
+    // Off for this ship, though on by default: a normal notification
+    pushDevices.register(device(1, { liveActivities: true, pushToStartToken, liveActivityShips: { [MMSI]: false } }));
+    // On for this ship, though off by default and not a category it wants
+    pushDevices.register(device(2, { categories: ["tanker"], pushToStartToken: "aa".repeat(40), liveActivityShips: { [MMSI]: true } }));
+
+    current = shipAt(9);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendAlert.mock.calls.map(([call]) => call.deviceToken)).toEqual([device(1).token]);
+    expect(apns.sendLiveActivity.mock.calls.map(([call]) => call.token)).toEqual(["aa".repeat(40)]);
+  });
+
   it("ends a Live Activity whose ship never arrives", async () => {
     pushDevices.register(device(1, { liveActivities: true, pushToStartToken: "ef".repeat(40) }));
     current = shipAt(9);

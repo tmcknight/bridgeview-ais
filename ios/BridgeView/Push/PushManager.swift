@@ -112,7 +112,7 @@ final class PushManager {
             lastRegistrationError = nil
         } catch {
             logger.error("Device registration failed: \(error.localizedDescription)")
-            lastRegistrationError = error.localizedDescription
+            lastRegistrationError = APIError.message(for: error)
         }
     }
 }

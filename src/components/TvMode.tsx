@@ -114,7 +114,7 @@ function ShipCard({ ship, onCam = false, etaMinutes }: ShipCardProps) {
       : direction === "upbound"
         ? 0
         : 180
-  const cargo = guessCargo(ship.destination)
+  const cargo = guessCargo(ship)
 
   const facts = [
     ship.length
