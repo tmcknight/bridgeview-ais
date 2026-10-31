@@ -5,6 +5,7 @@ import UIKit
 struct BridgeViewApp: App {
     @UIApplicationDelegateAdaptor private var appDelegate: AppDelegate
     @State private var store = BridgeStore()
+    @State private var compass = Compass()
     @AppStorage(Appearance.key) private var appearance = Appearance.system
 
     init() {
@@ -18,6 +19,7 @@ struct BridgeViewApp: App {
                 .environment(appDelegate.push)
                 .environment(appDelegate.nearBridge)
                 .environment(appDelegate.router)
+                .environment(compass)
                 .tint(Theme.signal)
                 .preferredColorScheme(appearance.colorScheme)
                 .task { await appDelegate.push.start() }

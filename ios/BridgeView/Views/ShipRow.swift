@@ -94,17 +94,34 @@ struct DirectionBadge: View {
     }
 }
 
-/// Up or down arrow, or with a course, an arrow pointing along it (north up)
+/// Arrow pointing along a ship's course (or its direction through the river),
+/// turned by the phone's compass heading like a compass needle, so it points the
+/// way the ship is going as seen by whoever holds the phone (north up without one)
 struct DirectionArrow: View {
     var direction: Direction?
     var course: Double?
 
+    @Environment(Compass.self) private var compass: Compass?
+
     var body: some View {
-        if let course, direction != nil {
+        if let direction {
             Image(systemName: "arrow.up")
-                .rotationEffect(.degrees(course))
+                .rotationEffect(.degrees((course ?? direction.bearing) - (compass?.heading ?? 0)))
+                .animation(.easeOut(duration: 0.2), value: compass?.heading)
+                .onAppear { compass?.start() }
+                .onDisappear { compass?.stop() }
         } else {
-            Image(systemName: direction?.symbol ?? "ferry")
+            Image(systemName: "ferry")
+        }
+    }
+}
+
+private extension Direction {
+    /// Roughly which way the river runs at the bridge
+    var bearing: Double {
+        switch self {
+        case .upbound: 0
+        case .downbound: 180
         }
     }
 }

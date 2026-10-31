@@ -35,6 +35,7 @@
 		9B4A213005AE2962EA1467E0 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3BB4F4BB8D96E723198DB15 /* Appearance.swift */; };
 		A2F8D98A96DF21E08F95F38F /* DeadReckoning.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CFC8D007EBBB7D8A97D838 /* DeadReckoning.swift */; };
 		A4EDAB291529DB155B7B3CC6 /* ShipLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58249D7D6116316BEE01D28C /* ShipLinks.swift */; };
+		B24D7A6875F863E62FF82CA2 /* Compass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40010C103764ABAE3F0B89E4 /* Compass.swift */; };
 		B77B06C4E56D45ACA50BCA7B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD8396ACF185B879591B53E /* APIClient.swift */; };
 		B8B3E538A6ECBD9BCD21AD34 /* BridgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BA6836038BA3192E5BFC11 /* BridgeStore.swift */; };
 		BEF1DAFCDB0B08D08F07304F /* ShipApproachAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */; };
@@ -87,6 +88,7 @@
 		2AB1FC9FB6391BFE12994668 /* LiveMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMapView.swift; sourceTree = "<group>"; };
 		31E02C1136412D57948C12EE /* Styling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Styling.swift; sourceTree = "<group>"; };
 		38534D0D76DCC506DF9390E8 /* NearBridgeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearBridgeMonitor.swift; sourceTree = "<group>"; };
+		40010C103764ABAE3F0B89E4 /* Compass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compass.swift; sourceTree = "<group>"; };
 		4689E76E92B8436F3085D4AE /* BridgeViewTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = BridgeViewTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		503DCAD5B5AB5C38E0A4D226 /* Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.swift; sourceTree = "<group>"; };
 		5111A81BAD38EA80B9DEC594 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -214,6 +216,7 @@
 				6EB43B6FFC18F7C6898D237C /* AlertPreferences.swift */,
 				A3BB4F4BB8D96E723198DB15 /* Appearance.swift */,
 				503DCAD5B5AB5C38E0A4D226 /* Bridge.swift */,
+				40010C103764ABAE3F0B89E4 /* Compass.swift */,
 				E2CFC8D007EBBB7D8A97D838 /* DeadReckoning.swift */,
 				FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */,
 				58249D7D6116316BEE01D28C /* ShipLinks.swift */,
@@ -423,6 +426,7 @@
 				62D986B8D7B1AF91F6355251 /* Bridge.swift in Sources */,
 				B8B3E538A6ECBD9BCD21AD34 /* BridgeStore.swift in Sources */,
 				E6C9DDC2F748232DD0CD506E /* BridgeViewApp.swift in Sources */,
+				B24D7A6875F863E62FF82CA2 /* Compass.swift in Sources */,
 				470933C76D5CD09563E7FAA1 /* ContentView.swift in Sources */,
 				5FF62D0418FE53BB655F4414 /* DataCredits.swift in Sources */,
 				A2F8D98A96DF21E08F95F38F /* DeadReckoning.swift in Sources */,
