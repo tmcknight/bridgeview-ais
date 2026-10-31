@@ -27,6 +27,18 @@ export const INFO_FAILURE_RETRY_MS = 10 * 60_000;
 // Gap between lookups, to stay well within Wikidata's, PSIX's and Commons' limits
 export const INFO_LOOKUP_INTERVAL_MS = 1000;
 
+// The admin page's ship type filter: AIS ship type ranges, by name
+export const SHIP_TYPE_FILTERS = {
+  cargo: "ship_type BETWEEN 70 AND 79",
+  tanker: "ship_type BETWEEN 80 AND 89",
+  passenger: "ship_type BETWEEN 60 AND 69",
+  tug: "ship_type IN (31, 32, 52)",
+  pleasure: "ship_type IN (36, 37)",
+  fishing: "ship_type = 30",
+  other: "ship_type NOT BETWEEN 60 AND 89 AND ship_type NOT IN (0, 30, 31, 32, 36, 37, 52)",
+  unknown: "(ship_type IS NULL OR ship_type = 0)",
+};
+
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS vessels (
     mmsi INTEGER PRIMARY KEY,
@@ -282,12 +294,12 @@ export function createVesselDetails({
       return applyOverrides(withRegistry(mmsi, row.vessel_info ? JSON.parse(row.vessel_info) : null), overrides);
     },
 
-    // For the admin page: ships whose name, MMSI, IMO number or call sign
-    // matches, most recently heard first
-    search({ query = "", overriddenOnly = false, limit = 50 } = {}) {
+    // Ships matching the admin page's search, most recently updated first, a
+    // page at a time, with how many match in all and how many photos each shows
+    search({ query = "", overriddenOnly = false, type, limit = 50, offset = 0 } = {}) {
       const q = query.trim();
       const conditions = [];
-      const params = { limit: Math.min(Math.max(limit, 1), 200) };
+      const params = {};
       if (q) {
         conditions.push("(name LIKE :like ESCAPE '\\' OR call_sign LIKE :like ESCAPE '\\' OR CAST(mmsi AS TEXT) LIKE :prefix OR CAST(imo AS TEXT) LIKE :prefix)");
         const escaped = q.replace(/[\\%_]/g, (c) => `\\${c}`);
@@ -295,15 +307,18 @@ export function createVesselDetails({
         params.prefix = `${escaped}%`;
       }
       if (overriddenOnly) conditions.push("admin_overrides IS NOT NULL");
+      if (type && Object.hasOwn(SHIP_TYPE_FILTERS, type)) conditions.push(`(${SHIP_TYPE_FILTERS[type]})`);
+      const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+      const { total } = db.prepare(`SELECT COUNT(*) AS total FROM vessels ${where}`).get(params);
       const rows = db
         .prepare(`
           SELECT mmsi, name, imo, call_sign, ship_type, length, updated_at,
             vessel_info IS NOT NULL AS found, admin_overrides IS NOT NULL AS overridden
-          FROM vessels ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""}
-          ORDER BY updated_at DESC LIMIT :limit
+          FROM vessels ${where}
+          ORDER BY updated_at DESC LIMIT :limit OFFSET :offset
         `)
-        .all(params);
-      return rows.map((row) => ({
+        .all({ ...params, limit: Math.min(Math.max(limit, 1), 200), offset: Math.max(offset, 0) });
+      const ships = rows.map((row) => ({
         mmsi: row.mmsi,
         name: row.name ?? undefined,
         imo: row.imo ?? undefined,
@@ -313,7 +328,9 @@ export function createVesselDetails({
         updatedAt: row.updated_at,
         found: Boolean(row.found),
         overridden: Boolean(row.overridden),
+        photoCount: this.vesselInfo(row.mmsi)?.photos?.length ?? 0,
       }));
+      return { ships, total };
     },
 
     // For the admin page: what the lookups found (with the registers), the

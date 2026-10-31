@@ -181,11 +181,13 @@ export function createAdminApi({
       return sendJson(res, 204);
     }
     if (pathname === "/api/admin/ships" && req.method === "GET") {
-      const ships = vesselDetails.search({
+      const { ships, total } = vesselDetails.search({
         query: url.searchParams.get("q") ?? "",
         overriddenOnly: url.searchParams.get("overridden") === "1",
+        type: url.searchParams.get("type") ?? undefined,
+        offset: Number(url.searchParams.get("offset")) || 0,
       });
-      return sendJson(res, 200, { ships });
+      return sendJson(res, 200, { ships, total });
     }
 
     if (pathname === "/api/admin/photos/search" && req.method === "GET") {
