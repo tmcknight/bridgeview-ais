@@ -12,12 +12,13 @@ Media Manager); the large set is optional.
 | --- | --- |
 | Name | BridgeView |
 | Subtitle (30) | Ships at the Blue Water Bridge |
-| Primary category | Navigation |
-| Secondary category | Travel |
+| Primary category | Travel |
+| Secondary category | Reference |
 | Age rating | 4+ (no objectionable content) |
 | Price | Free |
 | Privacy policy URL | `https://<your site>/privacy.html` |
 | Support URL | `https://<your site>/support.html` |
+| License agreement | Apple's standard EULA (terms of use: `https://<your site>/terms.html`) |
 | Marketing URL (optional) | `https://<your site>/` |
 | Copyright | 2026 Tom McKnight |
 
@@ -59,7 +60,9 @@ modes.
 
 Ship positions come from AIS, the radio signals ships broadcast, received by a local
 antenna and public data feeds. Arrival times are estimates from each ship's speed
-and course.
+and course. BridgeView is for watching ships, not for navigation.
+
+Terms: https://<your site>/terms.html
 
 ## Keywords (100)
 
