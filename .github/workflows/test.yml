@@ -65,3 +65,33 @@ jobs:
           name: dist
           path: dist/
           retention-days: 7
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Build images
+        run: |
+          docker build -f infra/Dockerfile --target ws-server -t bridgeview-ws-server .
+          docker build -f infra/Dockerfile --target frontend -t bridgeview-frontend .
+          docker build -f infra/Dockerfile --target vessel-notifier -t bridgeview-vessel-notifier .
+
+      # Starts the server with no API keys and checks it answers, so a module
+      # missing from the image fails here instead of crash-looping on deploy
+      - name: Smoke test ws-server
+        run: |
+          docker run -d --name ws-server -p 3001:3001 \
+            -e AIS_SOURCES=local -e VESSEL_INFO_LOOKUP=false -e VESSEL_REGISTRY=false \
+            -e USCG_LOOKUP=false -e AIRCRAFT_TRACKING=false \
+            bridgeview-ws-server
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/api/bridge > /dev/null; then exit 0; fi
+            if [ "$(docker inspect -f '{{.State.Running}}' ws-server)" != "true" ]; then break; fi
+            sleep 1
+          done
+          docker logs ws-server
+          exit 1
