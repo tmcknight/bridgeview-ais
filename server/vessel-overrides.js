@@ -1,3 +1,5 @@
+import { photoKey } from "./commons.js";
+
 // Corrections made on the admin page (server/admin-api.js), kept apart from the
 // lookups so they survive each ship's next one. Applied to a ship's VesselInfo
 // when it's read:
@@ -131,13 +133,21 @@ export function applyOverrides(info, overrides) {
 
   const touchesPhotos = overrides.addedPhotos || overrides.hiddenPhotos || overrides.primaryPhoto;
   if (touchesPhotos) {
-    const hidden = new Set(overrides.hiddenPhotos ?? []);
     const looked = info?.photos ?? (info?.imageUrl ? [{ url: info.imageUrl, pageUrl: info.imagePageUrl }] : []);
+    const candidates = [...(overrides.addedPhotos ?? []), ...looked];
+    // Hidden and primary photos are saved by URL; any copy of one counts
+    const keyOf = (url) => photoKey(candidates.find((p) => p.url === url) ?? { url });
+    const hidden = new Set((overrides.hiddenPhotos ?? []).map(keyOf));
     const photos = [];
-    for (const photo of [...(overrides.addedPhotos ?? []), ...looked]) {
-      if (!hidden.has(photo.url) && !photos.some((p) => p.url === photo.url)) photos.push(photo);
+    const kept = new Set();
+    for (const photo of candidates) {
+      const key = photoKey(photo);
+      if (hidden.has(key) || kept.has(key)) continue;
+      kept.add(key);
+      photos.push(photo);
     }
-    const primary = photos.findIndex((p) => p.url === overrides.primaryPhoto);
+    const primaryKey = overrides.primaryPhoto && keyOf(overrides.primaryPhoto);
+    const primary = photos.findIndex((p) => photoKey(p) === primaryKey);
     if (primary > 0) photos.unshift(...photos.splice(primary, 1));
 
     if (photos.length > 0) result.photos = photos;

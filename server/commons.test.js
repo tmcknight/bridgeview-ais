@@ -1,13 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
-import { fetchCommonsPhotos, fileName, MAX_PHOTOS, parsePhoto, rankPhotos, searchCommonsPhotos } from "./commons.js";
+import { fetchCommonsPhotos, fileName, MAX_PHOTOS, parsePhoto, photoKey, rankPhotos, searchCommonsPhotos } from "./commons.js";
 
-function filePage(title, { mime = "image/jpeg", artist = "<a href='x'>Pete Markham</a>", date = "2012-09-01 13:19:40" } = {}) {
+function filePage(title, { mime = "image/jpeg", sha1, artist = "<a href='x'>Pete Markham</a>", date = "2012-09-01 13:19:40" } = {}) {
   const slug = title.replace(/ /g, "_");
   return {
     title: `File:${title}`,
     imageinfo: [
       {
         mime,
+        ...(sha1 && { sha1 }),
         thumburl: `https://upload.wikimedia.org/thumb/${slug}/500px-${slug}?utm_source=commons.wikimedia.org&utm_campaign=imageinfo`,
         descriptionurl: `https://commons.wikimedia.org/wiki/File:${slug}`,
         extmetadata: {
@@ -43,6 +44,16 @@ describe("parsePhoto", () => {
   it("skips files that aren't photos", () => {
     expect(parsePhoto(filePage("Plan.svg", { mime: "image/svg+xml" }))).toBeNull();
     expect(parsePhoto({ title: "File:x.jpg" })).toBeNull();
+  });
+});
+
+describe("photoKey", () => {
+  it("is the Commons file, however it's linked, else the URL", () => {
+    const thumbnail = { url: "https://upload.wikimedia.org/thumb/A_b.jpg/480px-A_b.jpg", pageUrl: "https://commons.wikimedia.org/wiki/File:A_b.jpg" };
+    const wikidata = { url: "https://commons.wikimedia.org/wiki/Special:FilePath/A%20b.jpg?width=480", pageUrl: "https://commons.wikimedia.org/wiki/File:A%20b.jpg" };
+    expect(photoKey(thumbnail)).toBe("commons:A b.jpg");
+    expect(photoKey(wikidata)).toBe(photoKey(thumbnail));
+    expect(photoKey({ url: "https://example.com/a.jpg", pageUrl: "https://example.com/a" })).toBe("https://example.com/a.jpg");
   });
 });
 
@@ -108,6 +119,15 @@ describe("fetchCommonsPhotos", () => {
     });
     const photos = await fetchCommonsPhotos({ imo: 7514701, category: "Lakers", name: "Indiana Harbor" }, fetchImpl);
     expect(photos.map((p) => p.title)).toEqual(["Indiana Harbor A", "Indiana Harbor B", "Lakers at Duluth"]);
+  });
+
+  it("drops a file uploaded again under another name", async () => {
+    const fetchImpl = fakeCommons({
+      "Category:IMO 7514701": [filePage("Indiana Harbor A.jpg", { sha1: "abc" }), filePage("Indiana Harbor copy.jpg", { sha1: "abc" })],
+      "Category:Indiana Harbor (ship, 1979)": [filePage("Indiana Harbor B.jpg", { sha1: "def" })],
+    });
+    const photos = await fetchCommonsPhotos({ imo: 7514701, name: "Indiana Harbor" }, fetchImpl);
+    expect(photos.map((p) => p.title)).toEqual(["Indiana Harbor A", "Indiana Harbor B"]);
   });
 
   it("keeps at most a dozen, and needs an IMO number or a category", async () => {

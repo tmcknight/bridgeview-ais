@@ -66,6 +66,17 @@ describe("applyOverrides", () => {
     expect(result.imagePageUrl).toBe(COMMONS(2).pageUrl);
   });
 
+  it("shows one copy of a Commons file linked from more than one URL", () => {
+    const wikidata = { url: "https://commons.wikimedia.org/wiki/Special:FilePath/1.jpg?width=480", pageUrl: COMMONS(1).pageUrl };
+    const added = { ...COMMONS(1), url: "https://upload.wikimedia.org/thumb/1.jpg/800px-1.jpg", artist: "Me" };
+    const result = applyOverrides({ photos: [wikidata, COMMONS(2)] }, { addedPhotos: [added] });
+    expect(result.photos.map((p) => p.url)).toEqual([added.url, COMMONS(2).url]);
+
+    // Hiding or picking either copy hides or picks the file
+    expect(applyOverrides({ photos: [wikidata, COMMONS(2)] }, { addedPhotos: [added], hiddenPhotos: [added.url] }).photos.map((p) => p.url)).toEqual([COMMONS(2).url]);
+    expect(applyOverrides({ photos: [COMMONS(2), wikidata] }, { primaryPhoto: wikidata.url, addedPhotos: [{ url: UPLOADED }, added] }).photos[0].url).toBe(added.url);
+  });
+
   it("drops the photo entirely when every one is hidden", () => {
     const result = applyOverrides(info, { hiddenPhotos: [COMMONS(1).url, COMMONS(2).url] });
     expect(result.photos).toBeUndefined();

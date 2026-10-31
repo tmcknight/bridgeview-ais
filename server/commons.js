@@ -47,6 +47,16 @@ export function fileName(titleOrUrl) {
   }
 }
 
+// What makes two photos the same: the Commons file they come from (Wikidata's
+// photo, a Commons thumbnail and a photo linked by hand can each have their own
+// URL for one file), else the URL
+export function photoKey(photo) {
+  if (photo?.pageUrl && /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/.test(photo.pageUrl)) {
+    return `commons:${fileName(photo.pageUrl)}`;
+  }
+  return photo?.url;
+}
+
 // A Commons file page from the API as a VesselPhoto (src/types/vessel.ts), or
 // null for files that aren't photos (drawings, maps, PDFs)
 export function parsePhoto(page) {
@@ -78,7 +88,7 @@ export function rankPhotos(photos, { name, preferredFile } = {}) {
 
 const IMAGE_INFO = {
   prop: "imageinfo",
-  iiprop: "url|mime|extmetadata",
+  iiprop: "url|mime|sha1|extmetadata",
   iiextmetadatafilter: "Artist|LicenseShortName|DateTimeOriginal",
   iiurlwidth: String(THUMBNAIL_WIDTH),
 };
@@ -120,6 +130,8 @@ export async function fetchCommonsPhotos({ imo, category, name, preferredFile } 
   }
   if (category) categories.push(category.startsWith("Category:") ? category : `Category:${category}`);
 
+  // Files seen, by title and by content: the same photo is sometimes uploaded
+  // again under another name
   const seen = new Set();
   for (const title of [...new Set(categories)].slice(0, MAX_CATEGORIES)) {
     const data = await query(
@@ -133,8 +145,10 @@ export async function fetchCommonsPhotos({ imo, category, name, preferredFile } 
       fetchImpl
     );
     for (const page of data.query?.pages ?? []) {
-      if (seen.has(page.title)) continue;
+      const sha1 = page.imageinfo?.[0]?.sha1;
+      if (seen.has(page.title) || (sha1 && seen.has(sha1))) continue;
       seen.add(page.title);
+      if (sha1) seen.add(sha1);
       pages.push(page);
     }
   }
