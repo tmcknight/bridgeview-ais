@@ -267,13 +267,34 @@ describe("admin corrections", () => {
     details.handleMessage(position(366000002, "FERRY"));
     details.setOverrides(366000002, { fields: { name: "Ferry" } });
 
-    expect(details.search({ query: "algoma" }).map((s) => s.mmsi)).toEqual([316000001]);
-    expect(details.search({ query: "3660" }).map((s) => s.mmsi)).toEqual([366000002]);
-    expect(details.search({ query: "96000" }).map((s) => s.mmsi)).toEqual([316000001]);
-    expect(details.search({ query: "vcxy" }).map((s) => s.mmsi)).toEqual([316000001]);
-    expect(details.search({ query: "100%" }).map((s) => s.mmsi)).toEqual([316000001]);
-    expect(details.search({ query: "_" })).toEqual([]);
-    expect(details.search({ overriddenOnly: true }).map((s) => s.mmsi)).toEqual([366000002]);
-    expect(details.search()).toHaveLength(2);
+    const found = (options) => details.search(options).ships.map((s) => s.mmsi);
+    expect(found({ query: "algoma" })).toEqual([316000001]);
+    expect(found({ query: "3660" })).toEqual([366000002]);
+    expect(found({ query: "96000" })).toEqual([316000001]);
+    expect(found({ query: "vcxy" })).toEqual([316000001]);
+    expect(found({ query: "100%" })).toEqual([316000001]);
+    expect(found({ query: "_" })).toEqual([]);
+    expect(found({ overriddenOnly: true })).toEqual([366000002]);
+    expect(details.search().ships).toHaveLength(2);
+  });
+
+  it("filters ships by type and pages through them with a total", () => {
+    details = createVesselDetails();
+    details.handleMessage(staticData(316000001, "LAKER"));
+    details.handleMessage(position(366000002, "FERRY"));
+
+    const search = (options) => details.search(options);
+    expect(search({ type: "cargo" }).ships.map((s) => s.mmsi)).toEqual([316000001]);
+    expect(search({ type: "unknown" }).ships.map((s) => s.mmsi)).toEqual([366000002]);
+    expect(search({ type: "tanker" })).toEqual({ ships: [], total: 0 });
+    expect(search({ type: "cargo" }).ships[0].photoCount).toBe(0);
+    details.setOverrides(316000001, { addedPhotos: [{ url: "https://example.com/laker.jpg" }] });
+    expect(search({ type: "cargo" }).ships[0].photoCount).toBe(1);
+    expect(search({ type: "made-up" }).total).toBe(2);
+    const first = search({ limit: 1 });
+    const second = search({ limit: 1, offset: 1 });
+    expect(first.total).toBe(2);
+    expect(second.total).toBe(2);
+    expect([...first.ships, ...second.ships].map((s) => s.mmsi).sort()).toEqual([316000001, 366000002]);
   });
 });

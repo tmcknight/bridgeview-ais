@@ -90,6 +90,7 @@ describe("createAdminApi", () => {
     const res = await call(api, "GET", "/api/admin/ships?q=lak", { token });
     expect(res.status).toBe(200);
     expect(res.body.ships.map((s) => s.mmsi)).toEqual([316000001]);
+    expect(res.body.total).toBe(1);
   });
 
   it("ends sessions after SESSION_MS and on logout", async () => {

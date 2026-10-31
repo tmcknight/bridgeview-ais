@@ -35,6 +35,8 @@ export interface AdminShipSummary {
   updatedAt: string;
   found: boolean;
   overridden: boolean;
+  /** Photos the ship's card shows, after corrections */
+  photoCount: number;
 }
 
 export interface AdminShipRecord {
@@ -121,11 +123,39 @@ export function checkSession(): Promise<{ expiresAt: string }> {
   return request("/api/admin/session");
 }
 
-export async function searchShips(query: string, overriddenOnly: boolean): Promise<AdminShipSummary[]> {
+/** The admin search's ship type filter (server/vessel-details.js, SHIP_TYPE_FILTERS) */
+export const SHIP_TYPE_FILTERS = [
+  { value: "cargo", label: "Cargo" },
+  { value: "tanker", label: "Tanker" },
+  { value: "passenger", label: "Passenger" },
+  { value: "tug", label: "Tug" },
+  { value: "pleasure", label: "Pleasure craft & sailing" },
+  { value: "fishing", label: "Fishing" },
+  { value: "other", label: "Other" },
+  { value: "unknown", label: "Type not known" },
+] as const;
+
+export type ShipTypeFilter = (typeof SHIP_TYPE_FILTERS)[number]["value"];
+
+export interface ShipSearchOptions {
+  query: string;
+  overriddenOnly: boolean;
+  type: ShipTypeFilter | "";
+  offset?: number;
+}
+
+export interface ShipSearchResult {
+  ships: AdminShipSummary[];
+  /** How many ships match in all; the server sends 50 at a time */
+  total: number;
+}
+
+export function searchShips({ query, overriddenOnly, type, offset = 0 }: ShipSearchOptions): Promise<ShipSearchResult> {
   const params = new URLSearchParams({ q: query });
   if (overriddenOnly) params.set("overridden", "1");
-  const { ships } = await request<{ ships: AdminShipSummary[] }>(`/api/admin/ships?${params}`);
-  return ships;
+  if (type) params.set("type", type);
+  if (offset) params.set("offset", String(offset));
+  return request<ShipSearchResult>(`/api/admin/ships?${params}`);
 }
 
 export function getShip(mmsi: number): Promise<AdminShipView> {
