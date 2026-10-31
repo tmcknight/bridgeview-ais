@@ -8,8 +8,9 @@
 //   node ios/scripts/testflight.js --version 1.1.0 --notes-file notes.md --dry-run   # build and sign only
 //   node ios/scripts/testflight.js --version 1.1.0 --notes-file notes.md --notes-only # re-set notes on 1.1.0's latest build
 //
-// --group "Public beta" also adds the build to that TestFlight group once it's processed,
-// and submits it for Beta App Review when the group is external.
+// --group "Friends,Public beta" also adds the build to those TestFlight groups once it's
+// processed (repeat --group or separate names with commas), and submits it for Beta App
+// Review when any of them is external.
 //
 // The marketing version comes from the tag; the build number is one more than the highest
 // App Store Connect already has, so two releases can never collide. The bundle ID and team
@@ -58,6 +59,12 @@ export function checkNotes(text) {
   const emoji = [...new Set(notes.match(/\p{Extended_Pictographic}/gu) ?? [])];
   if (emoji.length) throw new Error(`What to Test can't contain emoji (App Store Connect refuses them): ${emoji.join(" ")}.`);
   return notes;
+}
+
+// TestFlight group names from --group options, each one name or a comma-separated list
+// (the workflow passes IOS_BETA_GROUP as one)
+export function groupNames(options = []) {
+  return [...new Set(options.flatMap((o) => o.split(",")).map((n) => n.trim()).filter(Boolean))];
 }
 
 // Bundle ID and team from an xcconfig (Config/Local.xcconfig)
@@ -227,15 +234,28 @@ async function setNotes(api, buildId, notes) {
   }
 }
 
-// Adds the build to a TestFlight group; an external group's testers get it once Beta App
+// Adds the build to TestFlight groups; an external group's testers get it once Beta App
 // Review approves it (later builds of a version usually go through at once)
-async function shareWithGroup(api, appId, buildId, name) {
-  const q = new URLSearchParams({ "filter[app]": appId, "filter[name]": name, "fields[betaGroups]": "name,isInternalGroup" });
-  const group = (await api(`/betaGroups?${q}`)).data.find((g) => g.attributes.name === name);
-  if (!group) throw new Error(`No TestFlight group named "${name}".`);
-  await api(`/betaGroups/${group.id}/relationships/builds`, { method: "POST", body: { data: [{ type: "builds", id: buildId }] } });
-  console.log(`✓ Added to "${name}".`);
-  if (group.attributes.isInternalGroup) return;
+async function shareWithGroups(api, appId, buildId, names) {
+  const q = new URLSearchParams({ "filter[app]": appId, "fields[betaGroups]": "name,isInternalGroup,hasAccessToAllBuilds", limit: "200" });
+  const all = (await api(`/betaGroups?${q}`)).data;
+  // Check every name before adding to any, so a typo doesn't leave the build half shared
+  const groups = names.map((name) => {
+    const group = all.find((g) => g.attributes.name === name);
+    if (!group) throw new Error(`No TestFlight group named "${name}" (there's ${all.map((g) => `"${g.attributes.name}"`).join(", ") || "none"}).`);
+    return group;
+  });
+  for (const group of groups) {
+    // An internal group set to get every build has it already, and Apple refuses adding it
+    if (group.attributes.hasAccessToAllBuilds) {
+      console.log(`✓ "${group.attributes.name}" gets every build.`);
+      continue;
+    }
+    await api(`/betaGroups/${group.id}/relationships/builds`, { method: "POST", body: { data: [{ type: "builds", id: buildId }] } });
+    console.log(`✓ Added to "${group.attributes.name}".`);
+  }
+  // One review covers the build for every external group
+  if (groups.every((g) => g.attributes.isInternalGroup)) return;
   await api("/betaAppReviewSubmissions", {
     method: "POST",
     body: { data: { type: "betaAppReviewSubmissions", relationships: { build: { data: { type: "builds", id: buildId } } } } },
@@ -252,11 +272,12 @@ async function main() {
       "notes-only": { type: "boolean", default: false },
       "app-profile": { type: "string" },
       "widgets-profile": { type: "string" },
-      group: { type: "string" },
+      group: { type: "string", multiple: true },
     },
   });
+  const groups = groupNames(values.group);
   if (!values.version || !values["notes-file"]) {
-    throw new Error("Usage: --version 1.1.0 --notes-file notes.md [--app-profile NAME --widgets-profile NAME] [--group NAME] [--dry-run | --notes-only]");
+    throw new Error("Usage: --version 1.1.0 --notes-file notes.md [--app-profile NAME --widgets-profile NAME] [--group NAME[,NAME...]] [--dry-run | --notes-only]");
   }
   if (Boolean(values["app-profile"]) !== Boolean(values["widgets-profile"])) {
     throw new Error("Pass both --app-profile and --widgets-profile, or neither.");
@@ -299,7 +320,7 @@ async function main() {
   if (values["notes-only"]) return;
   await waitFor("Apple to finish processing", poll, (b) => b.attributes.processingState === "VALID");
   console.log(`✓ ${version} (${build}) is ready in TestFlight.`);
-  if (values.group) await shareWithGroup(api, appId, found.id, values.group);
+  if (groups.length) await shareWithGroups(api, appId, found.id, groups);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

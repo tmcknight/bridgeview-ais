@@ -99,9 +99,9 @@ xcodebuild -project BridgeView.xcodeproj -scheme BridgeView \
 Merging a PR ships nothing to the App Store. A release is a GitHub release tagged
 `ios-vX.Y.Z`; publishing it runs `.github/workflows/ios-release.yml`, which builds the app from
 that tag on a GitHub-hosted Mac, uploads it to TestFlight with the release notes as **What to
-Test**, and once Apple has processed it (5 to 15 minutes) adds it to the TestFlight group named
-in the `IOS_BETA_GROUP` variable. For an external group (a public beta) that also submits it for
-Beta App Review; later builds of the same version usually pass at once. Submitting a version to
+Test**, and once Apple has processed it (5 to 15 minutes) adds it to the TestFlight groups named
+in the `IOS_BETA_GROUP` variable (comma-separated). When any is external (a public beta) that also
+submits it for Beta App Review; later builds of the same version usually pass at once. Submitting a version to
 the App Store stays a step in App Store Connect.
 
 A TestFlight build is a beta, so its release is a **prerelease** (`--prerelease`).
@@ -133,7 +133,7 @@ Builds expire from TestFlight after 90 days.
 The repo doesn't name the app's bundle ID, team or server; the workflow writes its
 `Config/Local.xcconfig` from repository variables: `IOS_BUNDLE_ID`, `IOS_TEAM_ID` and
 `IOS_API_URL` (e.g. `https://bridgeview.yourdomain.com`), plus `IOS_BETA_GROUP`, the TestFlight
-group each build goes to (optional).
+groups each build goes to, separated by commas (optional; e.g. `Friends,Public beta`).
 
 ### The App Store Connect key
 

@@ -2,7 +2,7 @@ name: iOS release
 
 # iOS releases are GitHub releases tagged ios-vX.Y.Z (ios/README.md). Publishing one builds the
 # app from that tag and ships it to TestFlight with the release notes as "What to Test", then
-# adds it to the TestFlight group in the IOS_BETA_GROUP variable (if set). Merging PRs ships
+# adds it to the TestFlight groups in the IOS_BETA_GROUP variable (if set; comma-separated). Merging PRs ships
 # nothing to the App Store, so app changes build up until someone cuts a release.
 #
 # Run it by hand (Actions → iOS release → Run workflow) for a dry run: build and sign, no upload.
