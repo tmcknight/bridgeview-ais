@@ -85,4 +85,47 @@ describe('VesselInfoCard', () => {
     const { container } = renderWithProviders(<VesselInfoCard mmsi={366938730} storedInfo={null} />)
     expect(container).toBeEmptyDOMElement()
   })
+
+  it('shows register details for a ship Wikidata does not know', () => {
+    renderWithProviders(
+      <VesselInfoCard
+        mmsi={316001234}
+        storedInfo={{
+          yearBuilt: 2012,
+          grossTonnage: 24451,
+          registry: { source: 'transport-canada', officialNumber: '837491', portOfRegistry: 'ST. CATHARINES', enginePowerKw: 6929 },
+          uscg: { source: 'uscg', vesselId: 1225032, serviceType: 'Freight Ship', serviceSubType: 'General', deadweight: 36480 },
+        }}
+      />,
+    )
+    expect(
+      screen.getByText('Built 2012 · Freight Ship, General · 24,451 GT · 36,480 DWT · 6,929 kW · Registered in St. Catharines'),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Wikidata' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'USCG' })).toHaveAttribute('href', 'https://cgmix.uscg.mil/psix/')
+    expect(screen.getByRole('link', { name: 'Transport Canada' })).toBeInTheDocument()
+  })
+
+  it('sums up USCG inspections, flagging open deficiencies', () => {
+    renderWithProviders(
+      <VesselInfoCard
+        mmsi={366938730}
+        storedInfo={{
+          uscg: {
+            source: 'uscg',
+            vesselId: 50383,
+            inspections: {
+              count: 38,
+              sinceYear: 2023,
+              recent: [
+                { date: '2026-08-03T21:29:09.000Z', zone: 'Detroit, Michigan', portStateControl: false, deficiencies: 2, unresolved: 1, controls: 0, systems: [] },
+              ],
+            },
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText(/38 USCG inspections since 2023 · last Aug 3, 2026 \(Detroit, Michigan\): 2 deficiencies/)).toBeInTheDocument()
+    expect(screen.getByText('· 1 open deficiency')).toBeInTheDocument()
+  })
 })

@@ -12,7 +12,10 @@ import { createLatestPositions } from "./latest-positions.js";
 import { createShipLog, SHIP_LOG_BOUNDING_BOX } from "./ship-log.js";
 import { createUpstream, mergeSubscriptions } from "./upstream.js";
 import { createVesselDetails } from "./vessel-details.js";
-import { fetchVesselInfo } from "./wikidata.js";
+import { createVesselRegistry } from "./vessel-registry.js";
+import { createInfoFetcher } from "./vessel-info.js";
+import { fetchPsixRecord } from "./uscg-psix.js";
+import { fetchCommonsPhotos } from "./commons.js";
 import { withClassBTypes } from "./class-b.js";
 import { createAircraftFeed, DEFAULT_ADSB_URL, DEFAULT_ADSB_WEB_URL, isAdsbFi } from "./aircraft.js";
 import { createShipCamFinder, SHIP_CAMS } from "./ship-cams.js";
@@ -70,8 +73,12 @@ const USE_AISHUB = AIS_SOURCES.has("aishub");
 const MULTIPLE_SOURCES = AIS_SOURCES.size > 1;
 const SHIP_LOG_FILE = process.env.SHIP_LOG_FILE || "data/ship-log.json";
 const DB_FILE = process.env.DB_FILE || "data/bridgeview.db";
-// Look ships up on Wikidata (photo, build year, operator) and store the result
+// Look ships up on Wikidata (photo, build year, operator) and Commons (more photos), and store the result
 const VESSEL_INFO_LOOKUP = process.env.VESSEL_INFO_LOOKUP !== "false";
+// Import Transport Canada's vessel register weekly (build year, tonnage, port of registry for lakers)
+const VESSEL_REGISTRY = process.env.VESSEL_REGISTRY !== "false";
+// Look ships up in the USCG's PSIX records (service type, flag, tonnage, deadweight)
+const USCG_LOOKUP = process.env.USCG_LOOKUP !== "false";
 // Aircraft layer: poll an ADS-B feed (adsb.fi by default, or a local readsb's aircraft.json)
 const AIRCRAFT_TRACKING = process.env.AIRCRAFT_TRACKING !== "false";
 const ADSB_URL = process.env.ADSB_URL || DEFAULT_ADSB_URL;
@@ -134,11 +141,22 @@ if (USE_AISHUB && !AISHUB_API_KEY) {
   process.exit(1);
 }
 
-// Each ship's latest details from both feeds, and its Wikidata details, stored in SQLite at DB_FILE
+// Transport Canada's register of large vessels, stored in SQLite at DB_FILE
+const vesselRegistry = VESSEL_REGISTRY ? createVesselRegistry({ file: DB_FILE, logger }) : null;
+vesselRegistry?.start();
+// Each ship's latest details from both feeds, and its Wikidata and USCG details, stored in SQLite at DB_FILE
 const vesselDetails = createVesselDetails({
   file: DB_FILE,
   logger,
-  fetchInfo: VESSEL_INFO_LOOKUP ? fetchVesselInfo : null,
+  fetchInfo:
+    VESSEL_INFO_LOOKUP || USCG_LOOKUP
+      ? createInfoFetcher({
+          wikidata: VESSEL_INFO_LOOKUP,
+          fetchUscg: USCG_LOOKUP ? fetchPsixRecord : null,
+          fetchPhotos: VESSEL_INFO_LOOKUP ? fetchCommonsPhotos : null,
+        })
+      : null,
+  registry: vesselRegistry,
 });
 // Each ship's latest position, replayed to a client when it subscribes
 const latestPositions = createLatestPositions();
@@ -307,6 +325,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     shipLog.flush();
     vesselDetails.close();
+    vesselRegistry?.close();
     upstream?.stop();
     aishub?.stop();
     aircraftFeed?.stop();

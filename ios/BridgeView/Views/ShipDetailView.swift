@@ -51,6 +51,7 @@ struct ShipDetailView: View {
 private struct ShipDetailContent: View {
     var ship: Ship
     var attribution: [Attribution]
+    @State private var photoIndex = 0
 
     var body: some View {
         ScrollView {
@@ -141,21 +142,47 @@ private struct ShipDetailContent: View {
     }
 
     @ViewBuilder private var photo: some View {
-        if let imageURL = ship.info?.imageUrl {
-            AsyncImage(url: imageURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .failure:
-                    PhotoPlaceholder()
-                default:
-                    PhotoPlaceholder().overlay(ProgressView().tint(.white))
+        let photos = ship.info?.allPhotos ?? []
+        if photos.isEmpty {
+            PhotoPlaceholder()
+        } else {
+            // Swipe through the ship's photos; each shows its credit
+            TabView(selection: $photoIndex) {
+                ForEach(Array(photos.enumerated()), id: \.offset) { index, photo in
+                    AsyncImage(url: photo.url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        case .failure:
+                            PhotoPlaceholder()
+                        default:
+                            PhotoPlaceholder().overlay(ProgressView().tint(.white))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+                    .tag(index)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel("Photo of \(ship.name)")
-        } else {
-            PhotoPlaceholder()
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .overlay(alignment: .topTrailing) {
+                VStack(alignment: .trailing, spacing: 4) {
+                    if photos.count > 1 {
+                        Text("\(photoIndex + 1) / \(photos.count)")
+                            .monospacedDigit()
+                    }
+                    if let credit = photos[min(photoIndex, photos.count - 1)].credit {
+                        Text(credit).lineLimit(1)
+                    }
+                }
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.45), in: .rect(cornerRadius: 6))
+                .padding(10)
+            }
+            .accessibilityLabel("Photos of \(ship.name), \(photoIndex + 1) of \(photos.count)")
         }
     }
 
@@ -191,6 +218,12 @@ private struct ShipDetailContent: View {
         .card()
     }
 
+    /// USCG service type, e.g. "Freight Ship, Self-Discharging"
+    private var service: String? {
+        guard let uscg = ship.info?.uscg, let type = uscg.serviceType else { return nil }
+        return [type, uscg.serviceSubType].compactMap { $0 }.joined(separator: ", ")
+    }
+
     @ViewBuilder private var facts: some View {
         let rows: [(String, String?)] = [
             ("Type", ship.shipTypeName),
@@ -200,7 +233,13 @@ private struct ShipDetailContent: View {
             ("Built", ship.info?.yearBuilt.map(String.init)),
             ("Builder", ship.info?.builder),
             ("Operator", ship.info?.operator),
+            ("Service", service),
             ("Gross tonnage", ship.info?.grossTonnage.map { $0.formatted(.number.precision(.fractionLength(0))) }),
+            ("Deadweight", ship.info?.uscg?.deadweight.map { "\($0.formatted(.number.precision(.fractionLength(0)))) t" }),
+            ("Engine power", ship.info?.registry?.enginePowerKw.map { "\($0.formatted(.number.precision(.fractionLength(0)))) kW" }),
+            ("Port of registry", ship.info?.registry?.portOfRegistry?.capitalized),
+            ("Official number", ship.info?.registry?.officialNumber ?? ship.info?.uscg?.officialNumber),
+            ("Hull number", ship.info?.registry?.hullNumber),
             ("IMO", ship.imo.map(String.init)),
             ("MMSI", String(ship.mmsi)),
             ("Call sign", ship.callSign),

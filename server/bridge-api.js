@@ -172,9 +172,14 @@ export function createBridgeApi({
     };
   }
 
-  // A ship as the app sees it: no position when it came from AISHub
+  // A ship as the app sees it: no position when it came from AISHub, and no
+  // USCG inspection history (shown on the web map only, where it has context)
   function forClients(s) {
     const { positionSource, position, ...rest } = s;
+    if (rest.info?.uscg?.inspections) {
+      const { inspections: _inspections, ...uscg } = rest.info.uscg;
+      rest.info = { ...rest.info, uscg };
+    }
     return positionSource === "aishub" ? rest : { ...rest, position };
   }
 
@@ -209,6 +214,25 @@ export function createBridgeApi({
       cachedAt = now();
     }
     return cachedSnapshot;
+  }
+
+  // App builds before API v2 need `wikidataId` in `info` (they fail to decode
+  // the whole response without it), so they get only Wikidata-backed details;
+  // apps that ask for ?v=2 also get details from the registers alone
+  function forApiVersion(s, v2) {
+    if (v2 || !s.info || s.info.wikidataId) return s;
+    const { info: _info, ...rest } = s;
+    return rest;
+  }
+
+  function snapshotForApiVersion(v2) {
+    const s = snapshot();
+    if (v2) return s;
+    return {
+      ...s,
+      upcoming: s.upcoming.map((x) => forApiVersion(x, false)),
+      recent: s.recent.map((x) => forApiVersion(x, false)),
+    };
   }
 
   function shipWithPassages(mmsi) {
@@ -249,13 +273,14 @@ export function createBridgeApi({
 
     const shipMatch = url.pathname.match(/^\/api\/ships\/(\d{1,9})$/);
     const deviceMatch = url.pathname.match(/^\/api\/devices\/([^/]+)$/);
+    const v2 = url.searchParams.get("v") === "2";
 
     try {
       if (url.pathname === "/api/bridge" && req.method === "GET") {
-        sendJson(res, 200, snapshot(), { "cache-control": "public, max-age=5" });
+        sendJson(res, 200, snapshotForApiVersion(v2), { "cache-control": "public, max-age=5" });
       } else if (shipMatch && req.method === "GET") {
         const s = shipWithPassages(Number(shipMatch[1]));
-        if (s) sendJson(res, 200, s, { "cache-control": "public, max-age=5" });
+        if (s) sendJson(res, 200, forApiVersion(s, v2), { "cache-control": "public, max-age=5" });
         else sendJson(res, 404, { error: "Unknown ship" });
       } else if (deviceMatch && isWrite) {
         handleDevice(req, res, decodeURIComponent(deviceMatch[1])).catch((err) => {

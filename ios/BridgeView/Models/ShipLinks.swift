@@ -19,6 +19,12 @@ enum ShipLinks {
         add("Wikipedia", "book", ship.info?.wikipediaUrl)
         add("Wikidata", "list.bullet.rectangle", ship.info?.wikidataUrl)
         add("Photo on Wikimedia Commons", "photo", ship.info?.imagePageUrl)
+        if ship.info?.uscg != nil {
+            add("USCG vessel records", "building.columns", URL(string: "https://cgmix.uscg.mil/psix/"))
+        }
+        if ship.info?.registry != nil {
+            add("Transport Canada vessel register", "building.columns", URL(string: "https://open.canada.ca/data/en/dataset/bf00b7f4-e370-46b7-94e4-0bdedc98531b"))
+        }
         return links
     }
 

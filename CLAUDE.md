@@ -28,6 +28,7 @@ src/
 │   ├── UpcomingShips.tsx      # "Coming up" list of ships heading for the bridge
 │   ├── ShipLog.tsx    # Log of ships that have gone under the bridge
 │   ├── StatusBar.tsx  # One status for the connection and every feed, with a dropdown of each
+│   ├── PhotoCarousel.tsx # A ship's Commons photos, one at a time, with credits
 │   ├── SourceBadge.tsx # Where a ship's last position came from (antenna, AISStream, AISHub)
 │   ├── DataCredits.tsx # Data credits the feeds' terms require, always shown in the map's corner
 │   ├── ShipCam.tsx    # Port Huron YouTube ship cams, toggled from the header
@@ -80,6 +81,11 @@ src/
 - `server/vessel-details.js`: Each ship's latest details from either feed, stored in SQLite (`node:sqlite`) at `DB_FILE` (default `data/bridgeview.db`; Docker `ship-log` volume)
   - Also looks each ship up on Wikidata (`server/wikidata.js`; photo link, build year, operator) and stores the result; `VESSEL_INFO_LOOKUP=false` turns this off
   - Sends a ship's stored details and `{type: "vesselInfo", mmsi, info}` to a client just before its first position, and new lookups as they finish; fills in names on antenna reports
+- `server/vessel-registry.js`: Transport Canada's register of large vessels (open data XLSX, read with no dependencies), imported weekly into `DB_FILE` and keyed by IMO number; `VESSEL_REGISTRY=false` turns it off
+  - Attached to a ship's details as `info.registry` (port of registry, official number, size, engine power) when they're read; ships Wikidata doesn't know get details from the registers alone
+- `server/uscg-psix.js`: USCG PSIX lookup (SOAP; service type, flag, gross tonnage, deadweight, and inspections over 3 years with deficiencies and operational controls for the latest 5) for US ships (by call sign) and foreign ships that call at US ports (by IMO number); `USCG_LOOKUP=false` turns it off
+- `server/commons.js`: Up to 12 ship photos from Wikimedia Commons (the `IMO nnnnnnn` category, its ship subcategories and Wikidata's Commons category), Wikidata's photo first, each with artist and licence (`info.photos`); stepped through with arrows on the ship card, swiped on iOS, and rotated every 8s in TV mode (`PhotoCarousel.tsx`)
+- `server/vessel-info.js`: Combines the per-ship lookups (Wikidata, `info.uscg`, `info.photos`) into what's stored, and fills in build year and gross tonnage from the registers (Wikidata first, then Transport Canada, then the USCG)
 - `server/latest-positions.js`: Each ship's latest position report (in memory, dropped after 10 minutes unheard)
   - Replayed to a client on subscribe, so the map fills in at once instead of waiting for each ship's next report
 - `server/feed-status.js`: Health of each configured feed (AISStream, local antenna, AISHub)
@@ -103,6 +109,8 @@ src/
   - Shown on the map (hideable with the map's "B" button) and in the lists, but left out of the ship log and of bridge alerts (browser and vessel-notifier)
 - `server/bridge-api.js`: HTTP API for the iOS app on the same port as the WebSocket (nginx proxies `/api/`); contract in `ios/API.md`
   - `GET /api/bridge` (ships coming up within 3 h and passed in the last 24 h, plus `attribution`: credits for the AIS feeds in `AIS_SOURCES`), `GET /api/ships/:mmsi`, `PUT`/`DELETE /api/devices/:token`; open (the app can't keep a secret), rate-limited per IP
+  - `?v=2` sends `info` for ships only the registers know (no `wikidataId`); older app builds, which need it, get Wikidata-backed `info` only
+  - Leaves out USCG inspection history (`info.uscg.inspections`): shown on the web map only
   - Ships whose latest position came from AISHub are sent without `position` (its terms forbid passing on raw data); their `approach` (ETA, distance, direction) is still sent. Alerts use the full position internally
   - ETAs, ship categories, cargo guesses and flags in `server/bridge-eta.js` (mirrors `src/utils/upcoming.ts` and `src/utils/cargo.ts`)
 - `server/approach-alerts.js`: iOS bridge alerts when a ship's ETA falls to 10 min (not under 3, at 2 kn or more), once per ship per 45 min, to devices whose settings match (category, minimum length, direction)
@@ -198,7 +206,7 @@ This command:
 
 - Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` unless `AIS_SOURCES` leaves out `aisstream`; `AISHUB_API_KEY` when it includes `aishub`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCES` (default: `aisstream,local`), `AISHUB_API_KEY`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the status menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge), `YOUTUBE_API_KEY` (follow the ship cam's live video), `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY` or `APNS_KEY_FILE` (iOS bridge alerts)
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCES` (default: `aisstream,local`), `AISHUB_API_KEY`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the status menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `VESSEL_REGISTRY` (default: true), `USCG_LOOKUP` (default: true), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge), `YOUTUBE_API_KEY` (follow the ship cam's live video), `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY` or `APNS_KEY_FILE` (iOS bridge alerts)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production

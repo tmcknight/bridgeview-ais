@@ -74,7 +74,43 @@ every 30 s while open and on pull-to-refresh.
     "builder": "Nantong Mingde",
     "operator": "Algoma Central",
     "grossTonnage": 24300,
-    "wikipediaUrl": "https://en.wikipedia.org/wiki/..."
+    "wikipediaUrl": "https://en.wikipedia.org/wiki/...",
+    "photos": [
+      {
+        "url": "https://upload.wikimedia.org/.../500px-Algoma_Equinox.jpg",
+        "pageUrl": "https://commons.wikimedia.org/wiki/File:Algoma_Equinox.jpg",
+        "title": "Algoma Equinox",
+        "artist": "booledozer",
+        "license": "Public domain",
+        "year": 2014
+      }
+    ],
+    "registry": {
+      "source": "transport-canada",
+      "officialNumber": "837491",
+      "name": "ALGOMA EQUINOX",
+      "hullNumber": "MD-149-GB-01",
+      "vesselType": "CARGO",
+      "yearBuilt": 2012,
+      "portOfRegistry": "ST. CATHARINES",
+      "grossTonnage": 24451,
+      "netTonnage": 10382,
+      "length": 222.48,
+      "breadth": 23.77,
+      "depth": 14.69,
+      "speed": 14,
+      "enginePowerKw": 6929
+    },
+    "uscg": {
+      "source": "uscg",
+      "vesselId": 1225032,
+      "name": "ALGOMA EQUINOX",
+      "flag": "Canada",
+      "serviceType": "Freight Ship",
+      "serviceSubType": "General",
+      "status": "Active",
+      "grossTonnage": 23895
+    }
   }
 }
 ```
@@ -89,7 +125,20 @@ every 30 s while open and on pull-to-refresh.
   since it's worked out by the server; so a ship can have an `approach` and no
   `position`. Nothing else in the API carries positions or tracks: `passage` and
   `passages` are only times and directions.
-- `info` (Wikidata) is missing when the ship hasn't been looked up or has no match.
+- `info` is missing when the ship hasn't been looked up or no source has it. Its
+  Wikidata fields (`wikidataId`, photo, builder, operator, …) come from Wikidata;
+  `registry` is the ship's Transport Canada register record and `uscg` its USCG PSIX
+  record, each only when that register has the ship. `yearBuilt` and `grossTonnage`
+  are Wikidata's, else Transport Canada's, else the USCG's.
+- `info.photos`: up to 12 Wikimedia Commons photos, best first (Wikidata's own photo
+  leads). Show `artist` and `license` with each photo: most Commons licences require
+  credit. `imageUrl` is the first photo when Wikidata has none of its own.
+- `info.uscg` leaves out the ship's USCG inspection history, which the server keeps
+  for the web map only.
+- API versions: send `?v=2` (on `/api/bridge` and `/api/ships/:mmsi`) to get `info`
+  for ships only the registers know, without `wikidataId`. Without it, `info` is
+  sent only when it has `wikidataId`, since app builds before v2 can't decode it
+  otherwise.
 
 ## `GET /api/ships/:mmsi`
 

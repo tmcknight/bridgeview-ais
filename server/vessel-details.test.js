@@ -90,10 +90,10 @@ describe("createVesselDetails", () => {
     const now = () => new Date(clock);
     const flush = () => vi.advanceTimersByTimeAsync(10);
 
-    function create(fetchInfo, file) {
+    function create(fetchInfo, file, registry = null) {
       vi.useFakeTimers();
       clock = Date.UTC(2026, 9, 27);
-      details = createVesselDetails({ file, now, fetchInfo, lookupIntervalMs: 1 });
+      details = createVesselDetails({ file, now, fetchInfo, registry, lookupIntervalMs: 1 });
       return details;
     }
 
@@ -111,7 +111,7 @@ describe("createVesselDetails", () => {
       await flush();
 
       expect(fetchInfo).toHaveBeenCalledTimes(1);
-      expect(fetchInfo).toHaveBeenCalledWith(316000001, undefined);
+      expect(fetchInfo).toHaveBeenCalledWith(316000001, { imo: undefined, callSign: undefined, name: "LAKER" });
       expect(onInfo).toHaveBeenCalledWith(316000001, INFO);
       expect(details.vesselInfo(316000001)).toEqual(INFO);
 
@@ -129,8 +129,22 @@ describe("createVesselDetails", () => {
 
       details.handleMessage(staticData(316000001, "LAKER"));
       await flush();
-      expect(fetchInfo).toHaveBeenLastCalledWith(316000001, 9600000);
+      expect(fetchInfo).toHaveBeenLastCalledWith(316000001, { imo: 9600000, callSign: "VCXY", name: "LAKER" });
       expect(details.vesselInfo(316000001)).toEqual(INFO);
+    });
+
+    it("fills in Wikidata's gaps from the ship's register record", async () => {
+      const record = { source: "transport-canada", yearBuilt: 2012, grossTonnage: 24451 };
+      const registry = { lookup: (imo) => (imo === 9600000 ? record : undefined) };
+      create(vi.fn().mockResolvedValue(INFO), undefined, registry);
+      const onInfo = vi.fn();
+      details.on("info", onInfo);
+      details.handleMessage(staticData(316000001, "LAKER"));
+      await flush();
+
+      const merged = { ...INFO, yearBuilt: 2012, grossTonnage: 24451, registry: record };
+      expect(onInfo).toHaveBeenCalledWith(316000001, merged);
+      expect(details.vesselInfo(316000001)).toEqual(merged);
     });
 
     it("retries misses after a week and failures after a few minutes", async () => {

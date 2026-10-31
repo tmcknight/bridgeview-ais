@@ -13,6 +13,11 @@ import { describeCargo, guessCargo } from "../utils/cargo"
 import { passageDirection } from "../utils/tvMode"
 import type { TvShips } from "../hooks/useTvShips"
 import type { TrackedShip } from "../types/ais"
+import PhotoCarousel from "./PhotoCarousel"
+import { vesselPhotos } from "../utils/vesselInfo"
+
+// How long each of the ship's photos shows before the next
+const TV_PHOTO_INTERVAL_MS = 8000
 
 const M_TO_FT = 3.28084
 
@@ -168,12 +173,17 @@ function ShipCard({ ship, onCam = false, etaMinutes }: ShipCardProps) {
         )}
       </div>
       {/* The cam shows the real thing */}
-      {info?.imageUrl && !onCam && (
-        <img
-          src={info.imageUrl}
-          alt=""
-          className="w-full h-56 object-cover rounded-lg bg-slate-800 max-md:hidden"
-        />
+      {!onCam && (
+        <div className="max-md:hidden">
+          <PhotoCarousel
+            key={ship.mmsi}
+            photos={vesselPhotos(info)}
+            alt=""
+            imageClassName="w-full h-56 object-cover rounded-lg bg-slate-800"
+            autoAdvanceMs={TV_PHOTO_INTERVAL_MS}
+            hidden
+          />
+        </div>
       )}
     </section>
   )

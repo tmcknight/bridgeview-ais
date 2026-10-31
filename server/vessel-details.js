@@ -3,6 +3,7 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { DatabaseSync } from "node:sqlite";
 import { isValidImo, isValidMmsi } from "./wikidata.js";
+import { completeVesselInfo } from "./vessel-info.js";
 
 // Our own record of each ship's details (name, destination, size, type), from
 // either feed, kept in SQLite. Ships broadcast details only every 6 minutes, and
@@ -10,16 +11,18 @@ import { isValidImo, isValidMmsi } from "./wikidata.js";
 // client gets a ship's details with its first position, and the antenna's
 // position reports (which carry no name) get the name filled in.
 //
-// With a fetchInfo function, it also looks each ship up on Wikidata (photo,
-// build year, operator), stores the result, and emits "info" (mmsi, info).
+// With a fetchInfo function (server/vessel-info.js), it also looks each ship
+// up (Wikidata, USCG PSIX, Commons photos), stores the result, and emits "info" (mmsi, info).
+// With a registry (server/vessel-registry.js), a ship's register record is
+// added at read time, so register updates show up at once.
 
-// Look a ship up again after this long, or straight away once its IMO number is known
+// Look a ship up again after this long, or straight away once its IMO number or call sign is known
 export const INFO_REFRESH_MS = 30 * 24 * 60 * 60_000;
 // Wikidata often gains ships, so retry misses sooner
 export const INFO_MISS_RETRY_MS = 7 * 24 * 60 * 60_000;
 // After a failed lookup (e.g. Wikidata down), wait before trying that ship again
 export const INFO_FAILURE_RETRY_MS = 10 * 60_000;
-// Gap between Wikidata queries, to stay well within its limits
+// Gap between lookups, to stay well within Wikidata's, PSIX's and Commons' limits
 export const INFO_LOOKUP_INTERVAL_MS = 1000;
 
 const SCHEMA = `
@@ -44,9 +47,9 @@ const SCHEMA = `
 
 // Columns added after the table was first created, added to older databases on open
 const ADDED_COLUMNS = {
-  // Wikidata result as JSON; NULL with vessel_info_at set means no match
+  // Lookup result (Wikidata, USCG) as JSON; NULL with vessel_info_at set means no match
   vessel_info: "TEXT",
-  // "mmsi:imo" the lookup used, so learning an IMO number triggers a new one
+  // "mmsi:imo:callsign" the lookup used, so learning either triggers a new one
   vessel_info_key: "TEXT",
   vessel_info_at: "TEXT",
 };
@@ -68,6 +71,7 @@ export function createVesselDetails({
   logger,
   now = () => new Date(),
   fetchInfo = null,
+  registry = null,
   lookupIntervalMs = INFO_LOOKUP_INTERVAL_MS,
 } = {}) {
   const emitter = new EventEmitter();
@@ -114,23 +118,27 @@ export function createVesselDetails({
   // Checked on every message, so keep what's needed in memory too
   const names = new Map();
   const imos = new Map();
+  const callSigns = new Map();
   const lookups = new Map(); // mmsi -> { key, at (ms), found }
-  for (const row of db.prepare("SELECT mmsi, name, imo, vessel_info IS NOT NULL AS found, vessel_info_key, vessel_info_at FROM vessels").all()) {
+  for (const row of db.prepare("SELECT mmsi, name, imo, call_sign, vessel_info IS NOT NULL AS found, vessel_info_key, vessel_info_at FROM vessels").all()) {
     if (row.name) names.set(row.mmsi, row.name);
     if (row.imo) imos.set(row.mmsi, row.imo);
+    if (row.call_sign) callSigns.set(row.mmsi, row.call_sign);
     if (row.vessel_info_at) {
       lookups.set(row.mmsi, { key: row.vessel_info_key, at: Date.parse(row.vessel_info_at), found: Boolean(row.found) });
     }
   }
   logger?.info(`[vessels] ${names.size} ships known${file === ":memory:" ? "" : ` (${file})`}`);
 
-  const queue = new Set(); // mmsi waiting for a Wikidata lookup, in order
+  const queue = new Set(); // mmsi waiting for a details lookup, in order
   const failedAt = new Map(); // mmsi -> ms of last failed lookup
   let lookupTimer = null;
   let lookupRunning = false;
   let closed = false;
 
-  const lookupKey = (mmsi) => `${mmsi}:${imos.get(mmsi) ?? ""}`;
+  const withRegistry = (mmsi, info) => completeVesselInfo(info, registry?.lookup(imos.get(mmsi)));
+
+  const lookupKey = (mmsi) => `${mmsi}:${imos.get(mmsi) ?? ""}:${callSigns.get(mmsi) ?? ""}`;
 
   function needsLookup(mmsi) {
     if (!fetchInfo || queue.has(mmsi)) return false;
@@ -156,16 +164,16 @@ export function createVesselDetails({
     lookupRunning = true;
     const key = lookupKey(mmsi);
     try {
-      const info = await fetchInfo(mmsi, imos.get(mmsi));
+      const info = await fetchInfo(mmsi, { imo: imos.get(mmsi), callSign: callSigns.get(mmsi), name: names.get(mmsi) });
       if (closed) return;
       const at = now();
       updateInfo.run({ mmsi, info: info ? JSON.stringify(info) : null, key, now: at.toISOString() });
       lookups.set(mmsi, { key, at: at.getTime(), found: Boolean(info) });
       failedAt.delete(mmsi);
-      emitter.emit("info", mmsi, info);
+      emitter.emit("info", mmsi, withRegistry(mmsi, info));
     } catch (err) {
       failedAt.set(mmsi, now().getTime());
-      logger?.warn(`[vessels] Wikidata lookup for ${mmsi} failed: ${err.message}`);
+      logger?.warn(`[vessels] details lookup for ${mmsi} failed: ${err.message}`);
     } finally {
       lookupRunning = false;
       scheduleLookup();
@@ -181,11 +189,12 @@ export function createVesselDetails({
   function handleDetails(message, mmsi) {
     const data = message.Message.ShipStaticData;
     const name = (data.Name || "").trim() || null;
+    const callSign = (data.CallSign || "").trim() || null;
     const dim = data.Dimension ?? {};
     upsertDetails.run({
       mmsi,
       name,
-      call_sign: (data.CallSign || "").trim() || null,
+      call_sign: callSign,
       imo: data.ImoNumber > 0 ? data.ImoNumber : null,
       ship_type: data.Type ?? null,
       destination: (data.Destination || "").trim() || null,
@@ -198,6 +207,7 @@ export function createVesselDetails({
     });
     if (name) names.set(mmsi, name);
     if (data.ImoNumber > 0) imos.set(mmsi, data.ImoNumber);
+    if (callSign) callSigns.set(mmsi, callSign);
   }
 
   return Object.assign(emitter, {
@@ -249,12 +259,12 @@ export function createVesselDetails({
       return Object.fromEntries(Object.entries(record).filter(([, value]) => value != null));
     },
 
-    // The ship's stored Wikidata details: VesselInfo, null for no match, or
-    // undefined when it hasn't been looked up yet
+    // The ship's stored details (Wikidata, USCG, Transport Canada): VesselInfo,
+    // null for no match, or undefined when it hasn't been looked up yet
     vesselInfo(mmsi) {
       const row = selectInfo.get(mmsi);
       if (!row?.vessel_info_at) return undefined;
-      return row.vessel_info ? JSON.parse(row.vessel_info) : null;
+      return withRegistry(mmsi, row.vessel_info ? JSON.parse(row.vessel_info) : null);
     },
 
     close() {

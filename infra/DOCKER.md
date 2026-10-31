@@ -45,6 +45,8 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `WEBHOOK_SECRET`    | No       | —                 | HMAC secret for signing webhooks     |
 | `WATCH_POINTS`      | No       | Blue Water Bridge | JSON array of points to watch        |
 | `VESSEL_INFO_LOOKUP`| No       | `true`            | Look up Wikidata vessel details (photo, build year) for alerts and the app|
+| `VESSEL_REGISTRY`   | No       | `true`            | Import Transport Canada's vessel register weekly (build year, tonnage, port of registry) |
+| `USCG_LOOKUP`       | No       | `true`            | Look ships up in USCG PSIX records (service type, flag, tonnage, deadweight) |
 | `AIRCRAFT_TRACKING` | No       | `true`            | Show aircraft from an ADS-B feed on the map |
 | `ADSB_URL`          | No       | adsb.fi, 40 NM around the bridge | ADS-B feed to poll; a local readsb/tar1090 `aircraft.json` works too |
 | `YOUTUBE_API_KEY`   | No       | —                 | YouTube Data API key; finds the ship cam's live video when its stream restarts |
