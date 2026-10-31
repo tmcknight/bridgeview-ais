@@ -1099,6 +1099,8 @@ function AttributionToggle({ theme, showShipList, satellite }: { theme: Theme; s
           {satellite && " · Imagery © Esri, Maxar, Earthstar Geographics"}
           <div>
             Not for navigation ·{" "}
+            <a href="/about.html" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">About</a>
+            {" · "}
             <a href="/terms.html" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">Terms</a>
             {" · "}
             <a href="/privacy.html" target="_blank" rel="noopener noreferrer" className="text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 underline">Privacy</a>

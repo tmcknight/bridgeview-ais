@@ -1,4 +1,4 @@
-/* Plain pages outside the map app (privacy, support), in the iOS app's colours */
+/* Plain pages outside the map app (about, support, privacy, terms), in the iOS app's colours */
 :root {
   color-scheme: light dark;
   --bg: #edf2f5;
