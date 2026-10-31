@@ -4,6 +4,7 @@ import { EventEmitter } from "node:events";
 import { DatabaseSync } from "node:sqlite";
 import { isValidImo, isValidMmsi } from "./wikidata.js";
 import { completeVesselInfo } from "./vessel-info.js";
+import { applyOverrides, hasOverrides } from "./vessel-overrides.js";
 
 // Our own record of each ship's details (name, destination, size, type), from
 // either feed, kept in SQLite. Ships broadcast details only every 6 minutes, and
@@ -14,7 +15,8 @@ import { completeVesselInfo } from "./vessel-info.js";
 // With a fetchInfo function (server/vessel-info.js), it also looks each ship
 // up (Wikidata, USCG PSIX, Commons photos), stores the result, and emits "info" (mmsi, info).
 // With a registry (server/vessel-registry.js), a ship's register record is
-// added at read time, so register updates show up at once.
+// added at read time, so register updates show up at once. Corrections made on
+// the admin page (server/vessel-overrides.js) are stored apart and applied last.
 
 // Look a ship up again after this long, or straight away once its IMO number or call sign is known
 export const INFO_REFRESH_MS = 30 * 24 * 60 * 60_000;
@@ -52,6 +54,8 @@ const ADDED_COLUMNS = {
   // "mmsi:imo:callsign" the lookup used, so learning either triggers a new one
   vessel_info_key: "TEXT",
   vessel_info_at: "TEXT",
+  // Corrections from the admin page as JSON (server/vessel-overrides.js)
+  admin_overrides: "TEXT",
 };
 
 function openDatabase(file) {
@@ -110,7 +114,13 @@ export function createVesselDetails({
     ON CONFLICT (mmsi) DO UPDATE SET vessel_info = :info, vessel_info_key = :key, vessel_info_at = :now
   `);
   const selectDetails = db.prepare("SELECT details_message FROM vessels WHERE mmsi = ?");
-  const selectInfo = db.prepare("SELECT vessel_info, vessel_info_at FROM vessels WHERE mmsi = ?");
+  const updateOverrides = db.prepare(`
+    INSERT INTO vessels (mmsi, admin_overrides, first_seen_at, updated_at)
+    VALUES (:mmsi, :overrides, :now, :now)
+    ON CONFLICT (mmsi) DO UPDATE SET admin_overrides = :overrides
+  `);
+  const selectInfo = db.prepare("SELECT vessel_info, vessel_info_at, admin_overrides FROM vessels WHERE mmsi = ?");
+  const selectOverrides = db.prepare("SELECT admin_overrides FROM vessels WHERE mmsi = ?");
   const selectRecord = db.prepare(
     "SELECT name, call_sign, imo, ship_type, destination, length, width, draught FROM vessels WHERE mmsi = ?"
   );
@@ -137,6 +147,10 @@ export function createVesselDetails({
   let closed = false;
 
   const withRegistry = (mmsi, info) => completeVesselInfo(info, registry?.lookup(imos.get(mmsi)));
+  const overridesOf = (mmsi) => {
+    const row = selectOverrides.get(mmsi);
+    return row?.admin_overrides ? JSON.parse(row.admin_overrides) : undefined;
+  };
 
   const lookupKey = (mmsi) => `${mmsi}:${imos.get(mmsi) ?? ""}:${callSigns.get(mmsi) ?? ""}`;
 
@@ -170,7 +184,7 @@ export function createVesselDetails({
       updateInfo.run({ mmsi, info: info ? JSON.stringify(info) : null, key, now: at.toISOString() });
       lookups.set(mmsi, { key, at: at.getTime(), found: Boolean(info) });
       failedAt.delete(mmsi);
-      emitter.emit("info", mmsi, withRegistry(mmsi, info));
+      emitter.emit("info", mmsi, applyOverrides(withRegistry(mmsi, info), overridesOf(mmsi)));
     } catch (err) {
       failedAt.set(mmsi, now().getTime());
       logger?.warn(`[vessels] details lookup for ${mmsi} failed: ${err.message}`);
@@ -263,8 +277,86 @@ export function createVesselDetails({
     // null for no match, or undefined when it hasn't been looked up yet
     vesselInfo(mmsi) {
       const row = selectInfo.get(mmsi);
-      if (!row?.vessel_info_at) return undefined;
-      return withRegistry(mmsi, row.vessel_info ? JSON.parse(row.vessel_info) : null);
+      const overrides = row?.admin_overrides ? JSON.parse(row.admin_overrides) : undefined;
+      if (!row?.vessel_info_at) return hasOverrides(overrides) ? applyOverrides({}, overrides) : undefined;
+      return applyOverrides(withRegistry(mmsi, row.vessel_info ? JSON.parse(row.vessel_info) : null), overrides);
+    },
+
+    // For the admin page: ships whose name, MMSI, IMO number or call sign
+    // matches, most recently heard first
+    search({ query = "", overriddenOnly = false, limit = 50 } = {}) {
+      const q = query.trim();
+      const conditions = [];
+      const params = { limit: Math.min(Math.max(limit, 1), 200) };
+      if (q) {
+        conditions.push("(name LIKE :like ESCAPE '\\' OR call_sign LIKE :like ESCAPE '\\' OR CAST(mmsi AS TEXT) LIKE :prefix OR CAST(imo AS TEXT) LIKE :prefix)");
+        const escaped = q.replace(/[\\%_]/g, (c) => `\\${c}`);
+        params.like = `%${escaped}%`;
+        params.prefix = `${escaped}%`;
+      }
+      if (overriddenOnly) conditions.push("admin_overrides IS NOT NULL");
+      const rows = db
+        .prepare(`
+          SELECT mmsi, name, imo, call_sign, ship_type, length, updated_at,
+            vessel_info IS NOT NULL AS found, admin_overrides IS NOT NULL AS overridden
+          FROM vessels ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""}
+          ORDER BY updated_at DESC LIMIT :limit
+        `)
+        .all(params);
+      return rows.map((row) => ({
+        mmsi: row.mmsi,
+        name: row.name ?? undefined,
+        imo: row.imo ?? undefined,
+        callSign: row.call_sign ?? undefined,
+        shipType: row.ship_type ?? undefined,
+        length: row.length ?? undefined,
+        updatedAt: row.updated_at,
+        found: Boolean(row.found),
+        overridden: Boolean(row.overridden),
+      }));
+    },
+
+    // For the admin page: what the lookups found (with the registers), the
+    // corrections, and the result, or undefined for a ship never heard of
+    adminView(mmsi) {
+      const row = selectInfo.get(mmsi);
+      if (!row) return undefined;
+      const lookedUp = row.vessel_info_at ? withRegistry(mmsi, row.vessel_info ? JSON.parse(row.vessel_info) : null) : undefined;
+      const overrides = row.admin_overrides ? JSON.parse(row.admin_overrides) : {};
+      return {
+        mmsi,
+        record: this.record(mmsi),
+        lookedUp: lookedUp ?? null,
+        lookedUpAt: row.vessel_info_at ?? null,
+        overrides,
+        info: this.vesselInfo(mmsi) ?? null,
+      };
+    },
+
+    overrides(mmsi) {
+      return overridesOf(mmsi) ?? {};
+    },
+
+    // Stores a ship's corrections (from parseOverrides; {} clears them) and
+    // sends its details on to clients
+    setOverrides(mmsi, overrides) {
+      updateOverrides.run({
+        mmsi,
+        overrides: hasOverrides(overrides) ? JSON.stringify(overrides) : null,
+        now: now().toISOString(),
+      });
+      emitter.emit("info", mmsi, this.vesselInfo(mmsi) ?? null);
+    },
+
+    // Looks a ship up again now, whenever it was last looked up; false when
+    // lookups are off
+    refresh(mmsi) {
+      if (!fetchInfo) return false;
+      failedAt.delete(mmsi);
+      queue.delete(mmsi);
+      queue.add(mmsi);
+      scheduleLookup();
+      return true;
     },
 
     close() {

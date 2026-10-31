@@ -48,6 +48,34 @@ function round(value, places) {
   return Math.round(value * factor) / factor;
 }
 
+// Photos uploaded on the admin page have paths on this server; the app needs
+// whole URLs, so they're made absolute with the address it asked on
+function photoUrl(url, origin) {
+  return typeof url === "string" && url.startsWith("/api/photos/") ? `${origin}${url}` : url;
+}
+
+export function withAbsolutePhotoUrls(ship, origin) {
+  const info = ship?.info;
+  if (!info || !origin) return ship;
+  const uploaded = (url) => typeof url === "string" && url.startsWith("/api/photos/");
+  if (!uploaded(info.imageUrl) && !info.photos?.some((p) => uploaded(p.url))) return ship;
+  return {
+    ...ship,
+    info: {
+      ...info,
+      imageUrl: photoUrl(info.imageUrl, origin),
+      ...(info.photos && { photos: info.photos.map((p) => ({ ...p, url: photoUrl(p.url, origin) })) }),
+    },
+  };
+}
+
+function requestOrigin(req) {
+  const host = req.headers?.host;
+  if (!host || !/^[\w.:[\]-]+$/.test(host)) return undefined;
+  const proto = String(req.headers?.["x-forwarded-proto"] ?? "").split(",")[0].trim();
+  return `${proto === "https" ? "https" : "http"}://${host}`;
+}
+
 function sendJson(res, status, body, headers = {}) {
   const text = body === undefined ? "" : JSON.stringify(body);
   res.writeHead(status, {
@@ -274,13 +302,21 @@ export function createBridgeApi({
     const shipMatch = url.pathname.match(/^\/api\/ships\/(\d{1,9})$/);
     const deviceMatch = url.pathname.match(/^\/api\/devices\/([^/]+)$/);
     const v2 = url.searchParams.get("v") === "2";
+    const origin = requestOrigin(req);
 
     try {
       if (url.pathname === "/api/bridge" && req.method === "GET") {
-        sendJson(res, 200, snapshotForApiVersion(v2), { "cache-control": "public, max-age=5" });
+        const s = snapshotForApiVersion(v2);
+        const absolute = (x) => withAbsolutePhotoUrls(x, origin);
+        sendJson(
+          res,
+          200,
+          { ...s, upcoming: s.upcoming.map(absolute), recent: s.recent.map(absolute) },
+          { "cache-control": "public, max-age=5" }
+        );
       } else if (shipMatch && req.method === "GET") {
         const s = shipWithPassages(Number(shipMatch[1]));
-        if (s) sendJson(res, 200, forApiVersion(s, v2), { "cache-control": "public, max-age=5" });
+        if (s) sendJson(res, 200, withAbsolutePhotoUrls(forApiVersion(s, v2), origin), { "cache-control": "public, max-age=5" });
         else sendJson(res, 404, { error: "Unknown ship" });
       } else if (deviceMatch && isWrite) {
         handleDevice(req, res, decodeURIComponent(deviceMatch[1])).catch((err) => {

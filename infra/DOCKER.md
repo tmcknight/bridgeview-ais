@@ -54,6 +54,12 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `APNS_TEAM_ID`      | For iOS alerts | —           | Apple developer team ID |
 | `APNS_BUNDLE_ID`    | For iOS alerts | —           | The iOS app's bundle ID |
 | `APNS_KEY`          | For iOS alerts | —           | The APNs `.p8` key's contents (newlines may be written as `\n`) |
+| `ADMIN_PASSWORD`    | No       | —                 | Password for the ship data admin page; off when unset. Uploaded photos are kept on the `ship-log` volume unless R2 is set up |
+| `R2_ACCOUNT_ID`     | For R2 photos | —            | Cloudflare account ID; with the four below, admin uploads go to an R2 bucket |
+| `R2_ACCESS_KEY_ID`  | For R2 photos | —            | R2 API token's access key ID (Object Read & Write on the bucket) |
+| `R2_SECRET_ACCESS_KEY` | For R2 photos | —         | R2 API token's secret access key |
+| `R2_BUCKET`         | For R2 photos | —            | Bucket name |
+| `PHOTOS_PUBLIC_URL` | For R2 photos | —            | The bucket's public custom domain, e.g. `https://photos.example.com` |
 | `LOCAL_AIS_WEB_URL` | No       | —                 | AIS-catcher's web view, linked from the status menu |
 | `AIS_SOURCES`       | No       | `aisstream,local` | AIS feeds to use, comma-separated: `aisstream`, `local`, `aishub` |
 | `AISHUB_API_KEY`    | With `aishub` | —            | AISHub API key (AISHub calls it a username) |
