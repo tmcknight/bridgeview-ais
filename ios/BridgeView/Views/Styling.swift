@@ -1,8 +1,10 @@
 import SwiftUI
 
 /// The screen background: the river's blue at the top, fading into fog (or
-/// night water) with a few faint swells
+/// night water) with a few faint swells that drift slowly (still with Reduce Motion)
 struct RiverBackground: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         ZStack(alignment: .top) {
             Theme.background
@@ -12,24 +14,31 @@ struct RiverBackground: View {
                 endPoint: .bottom
             )
             .frame(height: 360)
-            Swells()
-                .stroke(Theme.shallows.opacity(0.12), lineWidth: 1.2)
-                .frame(height: 140)
-                .padding(.top, 70)
+            TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+                Swells(time: reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate)
+                    .stroke(Theme.shallows.opacity(0.12), lineWidth: 1.2)
+            }
+            .frame(height: 140)
+            .padding(.top, 70)
         }
         .ignoresSafeArea()
     }
 }
 
-/// Three gentle, offset waves across the width
+/// Three gentle, offset waves across the width, each drifting at its own pace
+/// and swelling a little as `time` (seconds) moves on
 private struct Swells: Shape {
+    var time: Double
+
     func path(in rect: CGRect) -> Path {
         var path = Path()
         for line in 0..<3 {
             let y = rect.minY + CGFloat(line) * rect.height / 3 + 12
-            let amplitude: CGFloat = 6 - CGFloat(line) * 1.5
+            let swell = 1 + 0.2 * sin(time * (0.4 + Double(line) * 0.13) + Double(line))
+            let amplitude = (6 - CGFloat(line) * 1.5) * swell
             let wavelength = rect.width / (1.6 + CGFloat(line) * 0.4)
-            let phase = CGFloat(line) * 0.9
+            let drift = [0.35, -0.25, 0.5][line]
+            let phase = CGFloat(line) * 0.9 + CGFloat((time * drift).truncatingRemainder(dividingBy: 2 * .pi))
             path.move(to: CGPoint(x: rect.minX, y: y + sin(phase) * amplitude))
             for x in stride(from: rect.minX, through: rect.maxX, by: 4) {
                 path.addLine(to: CGPoint(x: x, y: y + sin(x / wavelength * 2 * .pi + phase) * amplitude))
