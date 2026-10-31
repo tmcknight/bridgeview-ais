@@ -78,6 +78,7 @@ ios/
 ├── AppStore/              # Store listing text, privacy answers, review notes, screenshots
 ├── Brand/                 # Source artwork: icon (default, dark, tinted) and transparent logos
 ├── BridgeViewTests/       # Swift Testing unit tests
+├── scripts/               # testflight.js: build, sign and upload a release to TestFlight
 └── Samples/               # Sample push payloads for the simulator
 ```
 
@@ -92,6 +93,97 @@ xcodebuild -project BridgeView.xcodeproj -scheme BridgeView \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   CODE_SIGNING_ALLOWED=NO test
 ```
+
+## Releases
+
+Merging a PR ships nothing to the App Store. A release is a GitHub release tagged
+`ios-vX.Y.Z`; publishing it runs `.github/workflows/ios-release.yml`, which builds the app from
+that tag on a GitHub-hosted Mac, uploads it to TestFlight with the release notes as **What to
+Test**, and once Apple has processed it (5 to 15 minutes) adds it to the TestFlight group named
+in the `IOS_BETA_GROUP` variable. For an external group (a public beta) that also submits it for
+Beta App Review; later builds of the same version usually pass at once. Submitting a version to
+the App Store stays a step in App Store Connect.
+
+A TestFlight build is a beta, so its release is a **prerelease** (`--prerelease`).
+
+- **PRs never touch the version.** The marketing version comes from the tag (`ios-v1.1.0` builds
+  1.1.0) and the build number is one more than the highest App Store Connect has. The numbers in
+  `project.yml` are only what local builds show.
+- **Cutting a release:**
+
+  ```bash
+  git log --oneline "$(git describe --tags --match 'ios-v*' --abbrev=0)"..origin/main -- ios Shared
+  gh release create ios-v1.1.0 --prerelease --target main --title "iOS 1.1.0: <headline>" --notes-file notes.md
+  ```
+
+  The first command lists what changed in the app since the last release. Write the notes for
+  testers: what's new and what to try, plain words, at most 4000 characters, **no emoji** (App
+  Store Connect refuses them; the script stops before building if it finds any). Bump the minor
+  version for features, the patch for fixes. Then watch **Actions → iOS release**.
+- **Fixing the notes** on a build already up: edit the release, then run
+  `node ios/scripts/testflight.js --version 1.1.0 --notes-file notes.md --notes-only` locally.
+- **A dry run** (build and sign, no upload) is **Actions → iOS release → Run workflow**.
+- **Locally**, `node ios/scripts/testflight.js --version 1.1.0 --notes-file notes.md` does what
+  the workflow does, signed by Xcode's account and with your `Config/Local.xcconfig`.
+
+Builds expire from TestFlight after 90 days.
+
+### App settings for the workflow
+
+The repo doesn't name the app's bundle ID, team or server; the workflow writes its
+`Config/Local.xcconfig` from repository variables: `IOS_BUNDLE_ID`, `IOS_TEAM_ID` and
+`IOS_API_URL` (e.g. `https://bridgeview.yourdomain.com`), plus `IOS_BETA_GROUP`, the TestFlight
+group each build goes to (optional).
+
+### The App Store Connect key
+
+The workflow and the script use a team API key for build numbers, uploads, notes and groups.
+An Admin creates it in App Store Connect → **Users and Access → Integrations → App Store
+Connect API** (role App Manager).
+
+- **For the workflow:** repository variables `ASC_KEY_ID` and `ASC_ISSUER_ID`, and the `.p8`
+  contents as the secret `ASC_KEY_P8` of the app-release environment.
+- **On your Mac:** the `.p8` at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`, and
+  `ASC_KEY_ID` / `ASC_ISSUER_ID` in your shell profile. `ASC_KEY_PATH` points the script at a
+  key kept somewhere else. Never commit the key.
+
+The release secrets belong to the **app-release** environment, not the repository: repository
+secrets reach a workflow on any branch, so anyone who can push could sign a build. Set it up once
+in Settings → Environments → app-release: required reviewers, and deployment branches and tags
+limited to `main` and `ios-v*`. The workflow also refuses a commit that isn't on main.
+
+### The CI signing certificate
+
+The workflow signs with fixed files: an **Apple Distribution** certificate made for CI and two
+App Store provisioning profiles, **BridgeView CI App Store** for the app and **BridgeView CI
+Widgets** for `<bundle ID>.widgets`. They're secrets of the app-release environment:
+`IOS_DIST_P12` (certificate and private key, base64), `IOS_DIST_P12_PASSWORD`,
+`IOS_APPSTORE_PROFILE` and `IOS_WIDGETS_PROFILE` (each `.mobileprovision`, base64). Don't switch
+the workflow to automatic signing with the API key: `xcodebuild` then creates a new development
+certificate in the account on every run.
+
+Both expire after a year. To make them (or renew them, or after adding a capability, which needs
+new profiles):
+
+1. Make a key and request, upload the request to developer.apple.com → Certificates → **+** →
+   **Apple Distribution**, and download the `.cer` into the same folder as `distribution.cer`:
+
+   ```bash
+   mkdir -p ~/bridgeview-ci-signing && chmod 700 ~/bridgeview-ci-signing && cd ~/bridgeview-ci-signing && openssl req -new -newkey rsa:2048 -nodes -keyout ci.key -out ci.csr -subj "/CN=BridgeView CI" && chmod 600 ci.key
+   ```
+
+2. Profiles → **+** → **App Store Connect**, once for the app's ID (name it `BridgeView CI App
+   Store`) and once for `<bundle ID>.widgets` (`BridgeView CI Widgets`), each with the new
+   certificate. Download both into the same folder.
+3. Store them (macOS's own `/usr/bin/openssl` makes a bundle the build machine's keychain can
+   import):
+
+   ```bash
+   cd ~/bridgeview-ci-signing && export P12_PASS=$(openssl rand -hex 24) && openssl x509 -inform DER -in distribution.cer -out ci.pem && /usr/bin/openssl pkcs12 -export -inkey ci.key -in ci.pem -name "BridgeView CI" -out ci.p12 -passout env:P12_PASS && base64 -i ci.p12 | gh secret set IOS_DIST_P12 --env app-release && printf '%s' "$P12_PASS" | gh secret set IOS_DIST_P12_PASSWORD --env app-release && base64 -i BridgeView_CI_App_Store.mobileprovision | gh secret set IOS_APPSTORE_PROFILE --env app-release && base64 -i BridgeView_CI_Widgets.mobileprovision | gh secret set IOS_WIDGETS_PROFILE --env app-release; unset P12_PASS
+   ```
+
+4. Do a dry run (Actions → iOS release → Run workflow), revoke any old CI certificate, and
+   delete `~/bridgeview-ci-signing`.
 
 ## Trying a push in the simulator
 

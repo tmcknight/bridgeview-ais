@@ -28,7 +28,7 @@ export default defineConfig({
         statements: 70,
       }
     },
-    include: ['src/**/*.{test,spec}.{ts,tsx}', 'server/**/*.test.js'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'server/**/*.test.js', 'ios/scripts/**/*.test.js'],
     exclude: ['node_modules', 'dist', '.idea', '.git', '.cache'],
   },
 })

@@ -28,6 +28,8 @@ targets:
         # iPhone only (XcodeGen's target preset would add iPad)
         TARGETED_DEVICE_FAMILY: "1"
         PRODUCT_BUNDLE_IDENTIFIER: $(BRIDGEVIEW_BUNDLE_ID)
+        # Empty for automatic signing; the release workflow names its App Store profiles (scripts/testflight.js)
+        PROVISIONING_PROFILE_SPECIFIER: $(BRIDGEVIEW_APP_PROFILE)
         PRODUCT_NAME: BridgeView
         INFOPLIST_FILE: BridgeView/Info.plist
         CODE_SIGN_ENTITLEMENTS: BridgeView/BridgeView.entitlements
@@ -73,6 +75,7 @@ targets:
       base:
         TARGETED_DEVICE_FAMILY: "1"
         PRODUCT_BUNDLE_IDENTIFIER: $(BRIDGEVIEW_BUNDLE_ID).widgets
+        PROVISIONING_PROFILE_SPECIFIER: $(BRIDGEVIEW_WIDGETS_PROFILE)
         PRODUCT_NAME: BridgeViewWidgets
         INFOPLIST_FILE: BridgeViewWidgets/Info.plist
     info:
