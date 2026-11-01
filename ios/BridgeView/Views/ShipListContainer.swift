@@ -112,7 +112,7 @@ struct ShipListContainer<Empty: View>: View {
     }
 }
 
-/// The next ship to reach the bridge, big, with a countdown and how far it has to go
+/// The next ship to reach the bridge, big, with a countdown
 struct NextShipCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -166,7 +166,6 @@ struct NextShipCard: View {
                         .opacity(0.75)
                 }
             }
-            ApproachGauge(etaMinutes: approach.etaMinutes)
         }
         .padding(18)
         .foregroundStyle(.white)
@@ -229,41 +228,6 @@ private struct ShipCamCard: View {
         }
         .buttonStyle(.plain)
         .card(padding: 12)
-    }
-}
-
-/// The river from three hours out to the bridge, with the ship along it
-private struct ApproachGauge: View {
-    /// Ships are listed up to three hours out
-    static let span = 180.0
-
-    var etaMinutes: Double
-
-    var body: some View {
-        let progress = 1 - min(max(etaMinutes / Self.span, 0), 1)
-        HStack(spacing: 8) {
-            GeometryReader { geometry in
-                let width = geometry.size.width
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(.white.opacity(0.18))
-                        .frame(height: 4)
-                    Capsule()
-                        .fill(Theme.signalOnRiver)
-                        .frame(width: max(width * progress, 4), height: 4)
-                    Image(systemName: "ferry.fill")
-                        .font(.caption)
-                        .foregroundStyle(Theme.signalOnRiver)
-                        .offset(x: min(max(width * progress - 9, 0), width - 18), y: -11)
-                }
-                .frame(maxHeight: .infinity)
-            }
-            .frame(height: 24)
-            Image(systemName: "road.lanes")
-                .font(.caption.weight(.bold))
-                .opacity(0.85)
-        }
-        .accessibilityHidden(true)
     }
 }
 
