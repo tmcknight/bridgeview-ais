@@ -17,9 +17,15 @@ const MIN_HEADING_COMPONENT = 0.3;
 const SOUTH_ROUTE_FACTOR = 1.2;
 // Destinations that end south of the bridge for a northbound ship
 const STOPS_SOUTH_OF_BRIDGE = /SARNIA|PORT HURON|TUG.?ASSIST/;
+// How far past the bridge (NM) a ship stays coming up, as passing (ETA 0), so it
+// doesn't vanish the moment its countdown runs out; mirrors PASSING_GRACE_NM in
+// src/utils/upcoming.ts
+export const PASSING_GRACE_NM = 0.5;
 
 // Whether a ship is under way toward the bridge and, if so, roughly when it'll
-// get there: { etaMinutes, distanceNM, direction }, or null.
+// get there: { etaMinutes, distanceNM, direction }, or null. A ship just
+// through the bridge (within PASSING_GRACE_NM, carrying on the same way) gets
+// { etaMinutes: 0, distanceNM: 0, direction, passing: true }.
 // Takes { latitude, longitude, sog, cog, navStatus, destination }.
 export function bridgeApproach({ latitude, longitude, sog, cog, navStatus, destination }) {
   if (!(sog >= MIN_SPEED_KN && sog < SPEED_NOT_AVAILABLE_KN)) return null;
@@ -29,6 +35,17 @@ export function bridgeApproach({ latitude, longitude, sog, cog, navStatus, desti
 
   const northComponent = Math.cos(cog * DEG_TO_RAD);
   const isNorthOfBridge = latitude > BRIDGE_CENTER.lat;
+  const straightNM = distanceToBridgeNM(latitude, longitude);
+
+  if (straightNM <= PASSING_GRACE_NM) {
+    const passed =
+      !isNorthOfBridge && northComponent <= -MIN_HEADING_COMPONENT
+        ? "downbound"
+        : isNorthOfBridge && northComponent >= MIN_HEADING_COMPONENT
+          ? "upbound"
+          : null;
+    if (passed) return { etaMinutes: 0, distanceNM: 0, direction: passed, passing: true };
+  }
 
   let direction;
   if (isNorthOfBridge && northComponent <= -MIN_HEADING_COMPONENT) {
@@ -40,7 +57,6 @@ export function bridgeApproach({ latitude, longitude, sog, cog, navStatus, desti
     return null;
   }
 
-  const straightNM = distanceToBridgeNM(latitude, longitude);
   const distanceNM = direction === "upbound" ? straightNM * SOUTH_ROUTE_FACTOR : straightNM;
   return { etaMinutes: (distanceNM / sog) * 60, distanceNM, direction };
 }

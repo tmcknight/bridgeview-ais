@@ -43,7 +43,7 @@ export default function UpcomingShips({
             No ships are heading for the bridge right now.
           </p>
         ) : (
-          passages.map(({ ship, etaMinutes, distanceNM, direction, cargo }) => {
+          passages.map(({ ship, etaMinutes, distanceNM, direction, cargo, passing }) => {
             const isSelected = selectedShip?.mmsi === ship.mmsi
             const DirectionIcon = direction === "upbound" ? ArrowUpIcon : ArrowDownIcon
             return (
@@ -51,7 +51,11 @@ export default function UpcomingShips({
                 key={ship.mmsi}
                 role="button"
                 tabIndex={hidden ? -1 : 0}
-                aria-label={`Select ${ship.name}, at the bridge in ${formatETA(etaMinutes)}`}
+                aria-label={
+                  passing
+                    ? `Select ${ship.name}, passing under the bridge`
+                    : `Select ${ship.name}, at the bridge in ${formatETA(etaMinutes)}`
+                }
                 aria-pressed={isSelected}
                 className={`bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-2 rounded-lg px-3 py-2 cursor-pointer transition-colors focus:outline-none ${
                   isSelected
@@ -76,17 +80,24 @@ export default function UpcomingShips({
                       {ship.name}
                     </span>
                   </div>
-                  <span
-                    className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
-                    title={`Rough estimate, ${formatClockTime(etaMinutes)}`}
-                  >
-                    {formatETA(etaMinutes)}
-                  </span>
+                  {passing ? (
+                    <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      Passing now
+                    </span>
+                  ) : (
+                    <span
+                      className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300"
+                      title={`Rough estimate, ${formatClockTime(etaMinutes)}`}
+                    >
+                      {formatETA(etaMinutes)}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 text-[0.7rem] text-slate-600 dark:text-slate-400">
                   {direction === "upbound" ? "Upbound" : "Downbound"} ·{" "}
-                  {formatDistance(distanceNM)} · {formatSpeed(ship.sog)} · ~
-                  {formatClockTime(etaMinutes)}
+                  {passing
+                    ? `Under the bridge · ${formatSpeed(ship.sog)}`
+                    : `${formatDistance(distanceNM)} · ${formatSpeed(ship.sog)} · ~${formatClockTime(etaMinutes)}`}
                 </div>
                 {(ship.destination || cargo) && (
                   <div className="mt-0.5 text-[0.7rem] text-slate-500 dark:text-slate-500 truncate">
