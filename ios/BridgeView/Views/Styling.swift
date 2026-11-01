@@ -27,7 +27,7 @@ struct RiverBackground: View {
 
 /// Three gentle, offset waves across the width, each drifting at its own pace
 /// and swelling a little as `time` (seconds) moves on
-private struct Swells: Shape {
+struct Swells: Shape {
     var time: Double
 
     func path(in rect: CGRect) -> Path {
