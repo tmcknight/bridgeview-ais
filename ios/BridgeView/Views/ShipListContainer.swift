@@ -114,6 +114,8 @@ struct ShipListContainer<Empty: View>: View {
 
 /// The next ship to reach the bridge, big, with a countdown and how far it has to go
 struct NextShipCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var ship: Ship
     var approach: Approach
 
@@ -171,10 +173,14 @@ struct NextShipCard: View {
         .background {
             ZStack {
                 LinearGradient(colors: [Theme.shallows, Theme.river], startPoint: .topTrailing, endPoint: .bottomLeading)
-                Image(systemName: "water.waves")
-                    .font(.system(size: 160, weight: .ultraLight))
-                    .foregroundStyle(.white.opacity(0.06))
-                    .offset(x: 110, y: 30)
+                TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+                    Swells(time: reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate)
+                        .stroke(.white.opacity(0.1), lineWidth: 1)
+                }
+                .frame(height: 90)
+                .padding(.bottom, 8)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .accessibilityHidden(true)
             }
             .clipShape(.rect(cornerRadius: Theme.cornerRadius + 4))
         }
