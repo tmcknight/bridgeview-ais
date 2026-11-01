@@ -70,6 +70,7 @@ struct LiveMapView: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 4)
+                .readableWidth()
             }
             .navigationTitle("Map")
             .toolbarTitleDisplayMode(.inline)

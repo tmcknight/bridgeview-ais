@@ -52,7 +52,11 @@ targets:
           UIImageName: LaunchLogo
           UIImageRespectsSafeAreaInsets: true
         UIBackgroundModes: [remote-notification]
-        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        # Landscape too: iPhone Duo's inner display ignores this list anyway, and it can stand open like a tent
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
         CFBundleURLTypes:
           - CFBundleURLName: bridgeview
             CFBundleURLSchemes: [bridgeview]

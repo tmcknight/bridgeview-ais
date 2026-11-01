@@ -24,6 +24,8 @@ struct ContentView: View {
                 SettingsView()
             }
         }
+        // A tab bar on a phone; a sidebar it can turn into on iPhone Duo's inner display
+        .tabViewStyle(.sidebarAdaptable)
         // Poll only while the app is in front
         .task(id: scenePhase == .active) {
             guard scenePhase == .active else { return }
