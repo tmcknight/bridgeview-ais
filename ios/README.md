@@ -6,8 +6,9 @@ time to get to the river. With Live Activities on, the alert also puts a countdo
 on the Lock Screen and in the Dynamic Island until the ship has passed.
 
 It also lists the ships heading for the bridge ("Coming up") and those that went
-under it in the last day ("Recent"). Each ship has a page with its photo and details
-from Wikidata, a map, and links to VesselFinder, MarineTraffic and Wikipedia. "Add
+under it in the last day ("Recent"). Each ship has a page with its photos (swiped round from the
+last back to the first, and tapped to see them full screen with pinch to zoom;
+`Views/PhotoPager.swift`) and details from Wikidata, a map, and links to VesselFinder, MarineTraffic and Wikipedia. "Add
 photo" on a ship's page takes or picks a photo of it and sends it to the server
 (`Views/SharePhotoView.swift`), where it waits for approval on the admin page; the
 button shows only when the server takes them (`photoSharing` in `GET /api/bridge`). "Coming
