@@ -116,19 +116,22 @@ struct SettingsView: View {
                 Section {
                     Text("BridgeView is a gift to the Sarnia and Port Huron communities, for everyone who loves watching the ships go by.")
                         .font(.footnote)
-                    Text("Positions come from ships' AIS radio beacons, via a local antenna and the feeds below. Arrival times are estimates. Photos and details from Wikidata and Wikimedia Commons, under their contributors' licences.")
+                    Text("Photos and details come from Wikidata, Wikimedia Commons and public vessel registers, and from people who share their photos in the app.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text("Ship positions come from the AIS radio signals ships broadcast, picked up by a local antenna and the feeds below. Arrival times are estimates from each ship's speed and course.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if let attribution = store.snapshot?.attribution, !attribution.isEmpty {
                         DataCredits(attribution: attribution, alignment: .leading)
                     }
-                    Link("About BridgeView", destination: AppConfig.apiURL.appending(path: "about.html"))
+                    Link("More about BridgeView", destination: AppConfig.apiURL.appending(path: "about.html"))
                     Link("Terms", destination: AppConfig.apiURL.appending(path: "terms.html"))
                     Link("Privacy", destination: AppConfig.apiURL.appending(path: "privacy.html"))
                 } header: {
                     Text("About")
                 } footer: {
-                    Text("Not for navigation or safety.")
+                    Text("BridgeView is for watching ships, not for navigation or safety.")
                 }
                 .listRowBackground(Theme.surface)
             }
