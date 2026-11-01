@@ -222,10 +222,12 @@ address, 503 reporting off.
 ## `PUT /api/devices/:token`
 
 Register or update this device for bridge alerts. `:token` is the APNs device
-token (hex). Idempotent; call on every launch and whenever a setting changes.
+token (hex), or on Android the FCM registration token (see [Android](#android)).
+Idempotent; call on every launch and whenever a setting changes.
 
 ```json
 {
+  "platform": "ios",
   "environment": "production",
   "enabled": true,
   "pushToStartToken": "80f7…",
@@ -237,6 +239,8 @@ token (hex). Idempotent; call on every launch and whenever a setting changes.
 }
 ```
 
+- `platform`: `ios` or `android`. Optional, `ios` when left out (older iOS builds
+  don't send it).
 - `environment`: `sandbox` (Debug builds) or `production` (TestFlight/App Store).
 - `enabled`: false when alerts are off, and also while the phone is away from the
   bridge if the user chose "Only when I'm near the bridge". The app works that out
@@ -325,3 +329,75 @@ then updated and ended with broadcast pushes on that channel. iOS 18+.
 Updates go out at most once a minute, only when the ETA moves by a minute or more.
 The activity ends when the ship passes (dismissed 15 minutes later) or after
 30 minutes with no passage.
+
+## Android
+
+The Android app gets the same alerts through Firebase Cloud Messaging.
+
+### Registration
+
+`PUT`/`DELETE /api/devices/:token` as above, with these differences:
+
+- `:token` is the FCM registration token, URL-encoded. Case-sensitive and kept as
+  sent (`[A-Za-z0-9_:-]`, 20 to 4096 characters); iOS hex tokens are lowercased.
+- `"platform": "android"` is required.
+- `environment` is still required and checked; send `production`. FCM ignores it.
+- `pushToStartToken` is refused (400).
+- `liveActivities`: follow ships with a live countdown notification instead of a
+  plain alert. `liveActivityShips` overrides it per ship, as on iOS. No token
+  needed.
+
+### FCM messages
+
+Data-only (no `notification`; the app builds it), `android.priority` `HIGH`,
+`android.ttl` until the ETA (at least 5 s; a countdown update until its `staleAt`, an
+end until its `dismissAt`). Every `data` value is a string; optional ones are left out.
+A token FCM says is unregistered or invalid is dropped.
+
+#### Alert
+
+Sent when the device doesn't want a live countdown for the ship.
+`android.collapse_key` is `ship-<mmsi>`. Wording as the iOS alert.
+
+```json
+{
+  "type": "alert",
+  "mmsi": "316001234",
+  "title": "ALGOMA EQUINOX in ~8 min",
+  "subtitle": "Upbound · Cargo · 225 m",
+  "body": "Heading for Thunder Bay. Likely going to load grain."
+}
+```
+
+#### Live countdown
+
+`type: activity`, sent to each device following the ship: `start` with the alert,
+then `update` under the same rules as Live Activity updates, then `end`.
+
+```json
+{
+  "type": "activity",
+  "event": "start",
+  "mmsi": "316001234",
+  "name": "ALGOMA EQUINOX",
+  "direction": "upbound",
+  "shipTypeName": "Cargo",
+  "length": "225",
+  "destination": "THUNDER BAY",
+  "eta": "2026-10-30T14:08:00.000Z",
+  "distanceNM": "1.6",
+  "sog": "11.2",
+  "phase": "approaching",
+  "staleAt": "2026-10-30T14:13:00.000Z",
+  "title": "ALGOMA EQUINOX in ~8 min",
+  "body": "Upbound · Cargo · 225 m. Heading for Thunder Bay. Likely going to load grain."
+}
+```
+
+- `shipTypeName`, `length`, `destination`: optional. `title`/`body` on `start` only.
+- `update`: the same fields without `title`/`body`, with the new `eta`, `distanceNM`,
+  `sog` and `staleAt` (5 minutes past the ETA).
+- `end`: `mmsi`, `name`, `direction` (and the optional details) as at the start,
+  `eta`, `distanceNM`, `sog`, `phase` `passed` or `lost`, and `dismissAt` (15
+  minutes on), with no `staleAt`. Render it even if the start never arrived.
+- After a server restart no `end` is sent; the app expires the countdown itself.

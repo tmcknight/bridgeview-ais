@@ -124,6 +124,7 @@ src/
   - Live Activity or plain notification per the device's default, overridden per ship by `liveActivityShips` (a ship turned on is alerted even if its settings wouldn't match)
   - Devices with Live Activities get one started by push-to-start on a broadcast channel opened for that ship, updated as the ETA moves and ended when the ship log records the passage (or after 30 min); others get a time-sensitive notification
   - APNs client in `server/apns.js` (token auth, HTTP/2, no dependencies); devices and open channels in SQLite (`server/push-devices.js`, `DB_FILE`). Off unless `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID` and `APNS_KEY` (or `APNS_KEY_FILE`) are set
+  - Android devices (`platform: "android"` in the registration, FCM token in the path, case kept) get the same alerts through Firebase Cloud Messaging HTTP v1 (`server/fcm.js`; service account JWT, no dependencies): data-only messages, a plain `alert` or a live countdown (`activity` start/update/end, sent to each following device under the same update rules as Live Activities). Off unless `FCM_SERVICE_ACCOUNT` (or `FCM_SERVICE_ACCOUNT_FILE`) is set; alerts run when either APNs or FCM is set up. Payloads in `ios/API.md`, Android
 
 ### iOS App
 
@@ -131,6 +132,15 @@ src/
 - The app's maps move ships like the web map: dead-reckoned between polls, redrawn at 30 fps while any ship moves, and eased onto each new report over 2s, heading included (`ios/BridgeView/Models/ShipMotion.swift`)
 - iPhone Duo: runs on both displays, portrait and landscape; layout goes by size class (tabs can become a sidebar on the inner display, content kept to `readableWidth()`); full screen needs the iOS 27.1 SDK (Xcode 27.1), which the release workflow picks when the runner has it. See ios/README.md, iPhone Duo
 - Releases: a GitHub release tagged `ios-vX.Y.Z` runs `.github/workflows/ios-release.yml`, which builds, signs and uploads to TestFlight (`ios/scripts/testflight.js`) and adds the build to the `IOS_BETA_GROUP` groups (comma-separated); see ios/README.md, Releases
+
+### Android App
+
+- `android/`: Kotlin + Jetpack Compose app (Android 10+, compileSdk 37) with the iOS app's screens and features: Coming up, Map, Recent, Settings, ship pages with photos, photo sharing and reporting, near-the-bridge geofence, compass arrows, Light/Dark/System. See [android/README.md](android/README.md)
+- Same server API as iOS (`?v=2`); alerts come by FCM (`push/MessagingService.kt`), and the Live Activity's counterpart is an ongoing countdown notification, a Live Update on Android 16 (`push/ShipNotifications.kt`). Firebase is set up in code from build settings (no `google-services.json`)
+- Build settings (`bridgeview.applicationId`, `bridgeview.apiUrl`, `bridgeview.firebase.*`) come from `android/local.properties`, `-P` properties or `BRIDGEVIEW_*` environment variables
+- Map: MapLibre with OpenFreeMap tiles (as on the web), ships drawn over it in Compose and moved like iOS (`model/ShipMotion.kt` mirrors `ShipMotion.swift`)
+- Releases: a GitHub release tagged `android-vX.Y.Z` runs `.github/workflows/android-release.yml`, which builds a signed bundle and uploads it to Google Play's internal track (Gradle Play Publisher); see android/README.md, Releases
+- Tests: `cd android && ./gradlew :app:lintDebug :app:testDebugUnitTest` (CI: `.github/workflows/android.yml`)
 
 ### Vessel Notification Service
 
@@ -216,7 +226,7 @@ This command:
 
 - Copy `.example.env` to `.env` for local development
 - Required: `AISSTREAM_API_KEY` unless `AIS_SOURCES` leaves out `aisstream`; `AISHUB_API_KEY` when it includes `aishub`
-- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCES` (default: `aisstream,local`), `AISHUB_API_KEY`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the status menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `VESSEL_REGISTRY` (default: true), `USCG_LOOKUP` (default: true), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge), `YOUTUBE_API_KEY` (follow the ship cam's live video), `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY` or `APNS_KEY_FILE` (iOS bridge alerts)
+- Optional: `PORT` (default: 3001), `WS_AUTH_TOKEN` (production auth), `VITE_WS_PROXY_URL`, `VITE_WS_AUTH_TOKEN`, `AIS_SOURCES` (default: `aisstream,local`), `AISHUB_API_KEY`, `LOCAL_AIS_HOST`, `LOCAL_AIS_PORT` (default: 5012), `LOCAL_AIS_WEB_URL` (AIS-catcher's web view, linked from the status menu), `SHIP_LOG_FILE` (default: `data/ship-log.json`), `DB_FILE` (default: `data/bridgeview.db`), `VESSEL_REGISTRY` (default: true), `USCG_LOOKUP` (default: true), `TRUST_PROXY` (take client IP from the proxy's `X-Real-IP`), `MAX_CONNECTIONS_PER_IP` (default: 20), `AIRCRAFT_TRACKING` (default: true), `ADSB_URL` (default: adsb.fi around the bridge), `YOUTUBE_API_KEY` (follow the ship cam's live video), `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_KEY` or `APNS_KEY_FILE` (iOS bridge alerts), `FCM_SERVICE_ACCOUNT` or `FCM_SERVICE_ACCOUNT_FILE` (Android bridge alerts)
 - Never commit `.env` file (it's gitignored)
 
 ### Building for Production
@@ -346,6 +356,7 @@ npm install -D <package>   # Dev dependency
 - GitHub Actions workflow in `.github/workflows/test.yml`
 - Runs on push to `main` and PRs targeting `main`
 - Tests on Node.js 26.x
+- The Android app has its own workflow (`.github/workflows/android.yml`: lint, unit tests, debug build) on changes under `android/`
 - Pipeline: lint → type check → tests with coverage → build
 - Coverage uploaded to Codecov
 

@@ -1,0 +1,14 @@
+# Copy to local.properties (untracked) and fill in; see README.md, Setup.
+sdk.dir=/path/to/Android/sdk
+bridgeview.applicationId=com.yourname.bridgeview
+bridgeview.apiUrl=https://bridgeview.yourdomain.com
+# Firebase (for bridge alerts); leave out to build without alerts
+bridgeview.firebase.appId=
+bridgeview.firebase.apiKey=
+bridgeview.firebase.projectId=
+bridgeview.firebase.senderId=
+# Release signing (optional locally)
+#bridgeview.signing.storeFile=/path/to/upload.jks
+#bridgeview.signing.storePassword=
+#bridgeview.signing.keyAlias=upload
+#bridgeview.signing.keyPassword=
