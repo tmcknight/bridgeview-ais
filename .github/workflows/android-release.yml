@@ -101,7 +101,7 @@ jobs:
           BRIDGEVIEW_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           BRIDGEVIEW_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           BRIDGEVIEW_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: ./gradlew :app:testReleaseUnitTest :app:bundleRelease
+        run: ./gradlew :app:testDebugUnitTest :app:bundleRelease
       - name: Upload to Google Play
         if: github.event_name == 'release' || !inputs.dry_run
         env:
