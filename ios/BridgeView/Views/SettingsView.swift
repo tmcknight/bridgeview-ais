@@ -120,7 +120,7 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if let attribution = store.snapshot?.attribution, !attribution.isEmpty {
-                        DataCredits(attribution: attribution)
+                        DataCredits(attribution: attribution, alignment: .leading)
                     }
                     Link("About BridgeView", destination: AppConfig.apiURL.appending(path: "about.html"))
                     Link("Terms", destination: AppConfig.apiURL.appending(path: "terms.html"))
