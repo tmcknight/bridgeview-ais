@@ -3,13 +3,13 @@ import SwiftUI
 /// Live Activity on or off for one ship coming up; starts out as the user's
 /// default from Settings. Hidden while alerts or Live Activities are off.
 ///
-/// Like the Apple Sports app: a button right on the ship, filled in while it's
-/// on, rather than a switch. `.menu` is a plain toggle for context menus.
+/// Like the Apple Sports app: a glass capsule with a hairline edge right on the
+/// ship, reading "Follow" or "Following", rather than a switch. `.menu` is a plain toggle for context menus.
 struct LiveActivityToggle: View {
     typealias Key = AlertPreferences.Key
 
     enum Style {
-        /// "Live Activity" in a capsule, for the ship's page
+        /// "Follow" / "Following" in a capsule, centred, for the ship's page
         case pill
         /// Just the symbol in a circle, for list rows and cards
         case icon
@@ -45,28 +45,40 @@ struct LiveActivityToggle: View {
         } label: {
             Group {
                 if style == .pill {
-                    Label("Live Activity", systemImage: on ? "checkmark" : Self.symbol)
-                        .font(.subheadline.weight(.semibold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
+                    HStack(spacing: 8) {
+                        symbol(on: on)
+                        Text(on ? "Following" : "Follow")
+                            .contentTransition(.interpolate)
+                    }
+                    .font(.headline)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 12)
                 } else {
-                    Image(systemName: Self.symbol)
+                    symbol(on: on)
                         .font(.subheadline.weight(.semibold))
                         .frame(width: 34, height: 34)
                 }
             }
-            .foregroundStyle(on ? Color.white : Color.primary)
-            .background {
-                Capsule().fill(on ? AnyShapeStyle(Theme.signal.gradient) : AnyShapeStyle(.thinMaterial))
-            }
-            .contentTransition(.symbolEffect(.replace))
+            .foregroundStyle(.primary)
+            .glassPill()
+            .overlay { Capsule().strokeBorder(Theme.hairline) }
+            .contentShape(.capsule)
             .animation(.snappy, value: on)
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: style == .pill ? .infinity : nil)
         .sensoryFeedback(.selection, trigger: on)
         .accessibilityLabel("Live Activity")
         .accessibilityValue(on ? "On" : "Off")
+        .accessibilityInputLabels(["Live Activity", "Follow", "Following"])
         .accessibilityHint(on ? "Stops following this ship on the Lock Screen" : "Follows this ship on the Lock Screen")
+    }
+
+    /// The Live Activity symbol, in the signal colour while it's on
+    private func symbol(on: Bool) -> some View {
+        Image(systemName: Self.symbol)
+            .foregroundStyle(on ? AnyShapeStyle(Theme.signal) : AnyShapeStyle(.primary))
+            .symbolEffect(.bounce, value: on)
     }
 
     private var isOn: Binding<Bool> {
