@@ -28,14 +28,15 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file=.env server/server.js & vite --config config/vite.config.ts",
-    "build": "tsc -b && vite build --config config/vite.config.ts",
+    "build": "npm run tsc -- -b && vite build --config config/vite.config.ts",
     "lint": "eslint --config config/eslint.config.js .",
     "preview": "vite preview --config config/vite.config.ts",
     "server": "node --env-file=.env server/server.js",
     "test": "vitest --config config/vitest.config.ts",
     "test:ui": "vitest --ui --config config/vitest.config.ts",
     "test:run": "vitest run --config config/vitest.config.ts",
-    "test:coverage": "vitest run --coverage --config config/vitest.config.ts"
+    "test:coverage": "vitest run --coverage --config config/vitest.config.ts",
+    "tsc": "node node_modules/typescript7/bin/tsc"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",
@@ -67,8 +68,9 @@
     "globals": "^17.3.0",
     "jsdom": "^30.1.3",
     "mock-socket": "^9.3.1",
-    "typescript": "~5.9.3",
+    "typescript": "npm:@typescript/typescript6@~6.0.2",
     "typescript-eslint": "^8.72.0",
+    "typescript7": "npm:typescript@~7.0.2",
     "vite": "^7.2.4",
     "vitest": "^5.0.5"
   }
