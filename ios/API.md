@@ -21,7 +21,8 @@ every 30 s while open and on pull-to-refresh.
     { "text": "AISStream.io", "url": "https://aisstream.io" }
   ],
   "photoSharing": true,
-  "upcoming": [ /* Ship with "approach", soonest first, ETA within 3 h */ ],
+  "upcoming": [ /* Ship with "approach", soonest first, ETA within 3 h; ships just
+                   through the bridge stay first, passing, for about 0.5 NM */ ],
   "recent":   [ /* Ship with "passage", newest first, within the last 24 h */ ]
 }
 ```
@@ -65,6 +66,8 @@ every 30 s while open and on pull-to-refresh.
     "eta": "2026-10-30T14:10:35.000Z",
     "distanceNM": 1.6,
     "direction": "upbound"
+    /* "passing": true, with etaMinutes and distanceNM 0 and eta the report's time,
+       while it's just through the bridge (within 0.5 NM, carrying on) */
   },
   "passage": {
     "time": "2026-10-30T12:44:00.000Z",

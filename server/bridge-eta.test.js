@@ -31,6 +31,15 @@ describe("bridgeApproach", () => {
     expect(bridgeApproach(at(2, { cog: 360 }))).toBeNull();
   });
 
+  it("keeps a ship just through the bridge as passing", () => {
+    expect(bridgeApproach(at(-0.3, { cog: 180 }))).toEqual({ etaMinutes: 0, distanceNM: 0, direction: "downbound", passing: true });
+    expect(bridgeApproach(at(0.3, { cog: 0, destination: "Sarnia" }))).toMatchObject({ direction: "upbound", passing: true });
+    // Further on, turning, or stopped
+    expect(bridgeApproach(at(-0.6, { cog: 180 }))).toBeNull();
+    expect(bridgeApproach(at(-0.3, { cog: 90 }))).toBeNull();
+    expect(bridgeApproach(at(-0.3, { cog: 180, sog: 0.2 }))).toBeNull();
+  });
+
   it("ignores northbound ships stopping south of the bridge", () => {
     expect(bridgeApproach(at(-2, { destination: "Sarnia" }))).toBeNull();
   });

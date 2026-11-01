@@ -24,6 +24,14 @@ const SOUTH_ROUTE_FACTOR = 1.2;
 /** Destinations that end south of the bridge for a northbound ship */
 const STOPS_SOUTH_OF_BRIDGE = /SARNIA|PORT HURON|TUG.?ASSIST/;
 
+/**
+ * How far past the bridge (NM) a ship stays in "Coming up", shown as passing,
+ * so it doesn't vanish the moment its countdown runs out: the ETA is rough,
+ * and a long laker's GPS antenna is near the stern, well behind its bow.
+ * About 3 min at 10 kn.
+ */
+export const PASSING_GRACE_NM = 0.5;
+
 export interface UpcomingPassage {
   ship: TrackedShip;
   /** Rough minutes until the ship reaches the bridge */
@@ -33,6 +41,13 @@ export interface UpcomingPassage {
   /** Upbound = northbound into Lake Huron; downbound = southbound */
   direction: "upbound" | "downbound";
   cargo: CargoGuess | null;
+  /** Just gone under the bridge (within PASSING_GRACE_NM); ETA and distance are 0 */
+  passing?: boolean;
+}
+
+export interface UpcomingPassageOptions {
+  /** Also count ships just past the bridge (see PASSING_GRACE_NM) */
+  includePassing?: boolean;
 }
 
 /**
@@ -40,7 +55,10 @@ export interface UpcomingPassage {
  * when it will get there. Straight-line distance (with an allowance for the
  * river route from the south) divided by current speed.
  */
-export function getUpcomingPassage(ship: TrackedShip): UpcomingPassage | null {
+export function getUpcomingPassage(
+  ship: TrackedShip,
+  { includePassing = false }: UpcomingPassageOptions = {}
+): UpcomingPassage | null {
   if (ship.sog < MIN_SPEED_KN || !isSpeedAvailable(ship.sog)) return null;
   // At anchor or moored
   if (ship.navStatus === 1 || ship.navStatus === 5) return null;
@@ -49,6 +67,32 @@ export function getUpcomingPassage(ship: TrackedShip): UpcomingPassage | null {
   const northComponent = Math.cos(ship.cog * DEG_TO_RAD);
   const isNorthOfBridge = ship.latitude > BRIDGE_CENTER.lat;
   const destination = ship.destination?.toUpperCase() ?? "";
+  const straightNM = haversineDistanceNM(
+    ship.latitude,
+    ship.longitude,
+    BRIDGE_CENTER.lat,
+    BRIDGE_CENTER.lng
+  );
+
+  // Just through the bridge and carrying on the same way
+  if (includePassing && straightNM <= PASSING_GRACE_NM) {
+    const passedDirection =
+      !isNorthOfBridge && northComponent <= -MIN_HEADING_COMPONENT
+        ? "downbound"
+        : isNorthOfBridge && northComponent >= MIN_HEADING_COMPONENT
+          ? "upbound"
+          : null;
+    if (passedDirection) {
+      return {
+        ship,
+        etaMinutes: 0,
+        distanceNM: 0,
+        direction: passedDirection,
+        cargo: guessCargo(ship),
+        passing: true,
+      };
+    }
+  }
 
   let direction: UpcomingPassage["direction"];
   if (isNorthOfBridge && northComponent <= -MIN_HEADING_COMPONENT) {
@@ -60,12 +104,6 @@ export function getUpcomingPassage(ship: TrackedShip): UpcomingPassage | null {
     return null;
   }
 
-  const straightNM = haversineDistanceNM(
-    ship.latitude,
-    ship.longitude,
-    BRIDGE_CENTER.lat,
-    BRIDGE_CENTER.lng
-  );
   const distanceNM = direction === "upbound" ? straightNM * SOUTH_ROUTE_FACTOR : straightNM;
 
   return {
@@ -78,7 +116,8 @@ export function getUpcomingPassage(ship: TrackedShip): UpcomingPassage | null {
 }
 
 /**
- * Ships heading toward the bridge within `maxEtaMinutes`, soonest first.
+ * Ships heading toward the bridge within `maxEtaMinutes`, soonest first, with
+ * ships just through it (passing) at the top.
  */
 export function getUpcomingPassages(
   ships: Iterable<TrackedShip>,
@@ -86,7 +125,7 @@ export function getUpcomingPassages(
 ): UpcomingPassage[] {
   const passages: UpcomingPassage[] = [];
   for (const ship of ships) {
-    const passage = getUpcomingPassage(ship);
+    const passage = getUpcomingPassage(ship, { includePassing: true });
     if (passage && passage.etaMinutes <= maxEtaMinutes) passages.push(passage);
   }
   return passages.sort((a, b) => a.etaMinutes - b.etaMinutes);

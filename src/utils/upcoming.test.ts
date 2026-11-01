@@ -55,7 +55,36 @@ describe('getUpcomingPassage', () => {
   })
 })
 
+describe('getUpcomingPassage just past the bridge', () => {
+  it('counts a ship just through the bridge as passing only when asked', () => {
+    const ship = mockShip({ latitude: south(0.3), longitude: BRIDGE_CENTER.lng, cog: 180, sog: 10 })
+    expect(getUpcomingPassage(ship)).toBeNull()
+    expect(getUpcomingPassage(ship, { includePassing: true })).toMatchObject({
+      direction: 'downbound',
+      etaMinutes: 0,
+      distanceNM: 0,
+      passing: true,
+    })
+  })
+
+  it('drops it once it is well past, turning or stopped', () => {
+    const opts = { includePassing: true }
+    expect(getUpcomingPassage(mockShip({ latitude: north(0.6), longitude: BRIDGE_CENTER.lng, cog: 0 }), opts)).toBeNull()
+    expect(getUpcomingPassage(mockShip({ latitude: north(0.3), longitude: BRIDGE_CENTER.lng, cog: 90 }), opts)).toBeNull()
+    expect(getUpcomingPassage(mockShip({ latitude: north(0.3), longitude: BRIDGE_CENTER.lng, cog: 0, sog: 0.2 }), opts)).toBeNull()
+  })
+})
+
 describe('getUpcomingPassages', () => {
+  it('keeps a ship that has just gone under the bridge at the top', () => {
+    const near = mockShip({ mmsi: 1, name: 'NEAR', latitude: north(5), longitude: BRIDGE_CENTER.lng, cog: 180, sog: 10 })
+    const passing = mockShip({ mmsi: 2, name: 'PASSING', latitude: south(0.2), longitude: BRIDGE_CENTER.lng, cog: 180, sog: 10 })
+
+    const passages = getUpcomingPassages([near, passing])
+    expect(passages.map((p) => p.ship.name)).toEqual(['PASSING', 'NEAR'])
+    expect(passages[0].passing).toBe(true)
+  })
+
   it('sorts by ETA and drops ships beyond the window', () => {
     const far = mockShip({ mmsi: 1, name: 'FAR', latitude: north(30), cog: 180, sog: 10 })
     const near = mockShip({ mmsi: 2, name: 'NEAR', latitude: north(5), cog: 180, sog: 10 })
