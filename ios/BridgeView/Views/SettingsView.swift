@@ -114,7 +114,7 @@ struct SettingsView: View {
                     .listRowBackground(Theme.surface)
                 }
                 Section {
-                    Text("BridgeView is a gift to the Sarnia, Point Edward and Port Huron communities, for everyone who loves watching the ships go by.")
+                    Text("BridgeView is a gift to the Sarnia, Point Edward, and Port Huron communities, for everyone who loves watching the ships go by.")
                         .font(.footnote)
                     Text("Photos and details come from Wikidata, Wikimedia Commons and public vessel registers, and from people who share their photos in the app.")
                         .font(.footnote)
