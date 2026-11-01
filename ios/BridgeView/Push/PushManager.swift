@@ -93,19 +93,39 @@ final class PushManager {
         }
     }
 
+    /// The app came to the front: send anything that didn't get through (a
+    /// crossing reported while suspended, a change made while offline)
+    func appBecameActive() {
+        scheduleRegistration(immediately: true)
+    }
+
+    /// Waits before each try; failures (offline, the server restarting) are tried
+    /// again, so the server isn't left on old settings, such as alerts paused
+    private static let attemptDelays: [Duration] = [.zero, .seconds(5), .seconds(30), .seconds(120), .seconds(600)]
+
     private func scheduleRegistration(immediately: Bool) {
         registrationTask?.cancel()
         registrationTask = Task { [weak self] in
             if !immediately {
                 try? await Task.sleep(for: .seconds(1))
             }
-            guard !Task.isCancelled else { return }
-            await self?.register()
+            for delay in Self.attemptDelays {
+                if delay > .zero { try? await Task.sleep(for: delay) }
+                guard !Task.isCancelled, let self else { return }
+                // Finish sending even if iOS suspends the app (a background launch
+                // for a crossing gets only a few seconds). Only around the request:
+                // holding it through the waits would get the app killed
+                let background = UIApplication.shared.beginBackgroundTask(withName: "Register for alerts")
+                let done = await register()
+                if background != .invalid { UIApplication.shared.endBackgroundTask(background) }
+                if done { return }
+            }
         }
     }
 
-    private func register() async {
-        guard let deviceToken else { return }
+    /// Sends the registration if it changed. False when it should be tried again.
+    private func register() async -> Bool {
+        guard let deviceToken else { return true }
         let body = DeviceRegistration(
             environment: AppConfig.pushEnvironment,
             preferences: .load(),
@@ -113,14 +133,23 @@ final class PushManager {
             pushToStartToken: pushToStartToken,
             liveActivities: liveActivitiesEnabled
         )
-        if let last = lastRegistration, last.token == deviceToken, last.body == body { return }
+        if let last = lastRegistration, last.token == deviceToken, last.body == body { return true }
         do {
             try await api.register(deviceToken: deviceToken, body)
             lastRegistration = (deviceToken, body)
             lastRegistrationError = nil
+            return true
         } catch {
+            // A newer change took over; it sends the latest settings itself
+            if Task.isCancelled || (error as? URLError)?.code == .cancelled { return true }
             logger.error("Device registration failed: \(error.localizedDescription)")
             lastRegistrationError = APIError.message(for: error)
+            // The server refused this body: sending it again won't help
+            switch error as? APIError {
+            case .notFound: return true
+            case .status(let code) where (400..<500).contains(code) && code != 429: return true
+            default: return false
+            }
         }
     }
 }

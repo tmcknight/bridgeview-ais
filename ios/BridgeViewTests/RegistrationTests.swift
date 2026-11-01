@@ -77,6 +77,11 @@ struct RegistrationTests {
         preferences.liveActivityShips = [316001234: true, 366999000: false]
         #expect(ships(allowed: true) == ["316001234": true, "366999000": false])
         #expect(ships(allowed: false) == nil)
+        // The server refuses the whole registration for an MMSI that isn't 9 digits
+        preferences.liveActivityShips = [3160012: true, 316001234: true]
+        #expect(ships(allowed: true) == ["316001234": true])
+        preferences.liveActivityShips = [3160012: true]
+        #expect(ships(allowed: true) == nil)
     }
 
     @Test func storesPerShipChoicesAsText() {

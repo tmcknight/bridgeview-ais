@@ -51,10 +51,13 @@ struct DeviceRegistration: Codable, Equatable, Sendable {
         categories = ShipCategory.allCases.filter(preferences.categories.contains)
         minLength = preferences.minLength
         directions = Direction.allCases.filter(preferences.directions.contains)
-        if liveActivities, !preferences.liveActivityShips.isEmpty {
+        // The server takes only 9-digit MMSIs, refusing the whole registration
+        // otherwise, and some transponders send malformed ones
+        let ships = preferences.liveActivityShips.filter { (100_000_000...999_999_999).contains($0.key) }
+        if liveActivities, !ships.isEmpty {
             // The server takes up to 50; only ships coming up are kept, so this is plenty
             liveActivityShips = Dictionary(
-                uniqueKeysWithValues: preferences.liveActivityShips.sorted { $0.key < $1.key }
+                uniqueKeysWithValues: ships.sorted { $0.key < $1.key }
                     .prefix(50)
                     .map { (String($0.key), $0.value) }
             )

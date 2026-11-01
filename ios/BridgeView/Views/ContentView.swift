@@ -28,6 +28,7 @@ struct ContentView: View {
         .task(id: scenePhase == .active) {
             guard scenePhase == .active else { return }
             await push.refreshAuthorization()
+            push.appBecameActive()
             await store.poll()
         }
         // Forget per-ship Live Activity choices once the ship isn't coming up any more

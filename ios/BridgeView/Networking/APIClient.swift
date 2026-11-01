@@ -61,6 +61,8 @@ struct APIClient: Sendable {
         var request = URLRequest(url: baseURL.appending(path: "api/devices/\(deviceToken)"))
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Inside the time iOS gives a background launch; a failure is tried again
+        request.timeoutInterval = 20
         request.httpBody = try JSONEncoder.api.encode(registration)
         let (_, response) = try await session.data(for: request)
         try check(response)
