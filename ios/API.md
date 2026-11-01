@@ -240,7 +240,9 @@ token (hex). Idempotent; call on every launch and whenever a setting changes.
   itself with a geofence and sends `enabled` again on each crossing; its location
   is never sent.
 - `pushToStartToken`: ActivityKit push-to-start token for `ShipApproachAttributes`
-  (hex), when the app has one.
+  (hex), when the app has one. Left out, the token already stored is kept (a
+  token APNs rejects is dropped), so a registration sent before iOS hands the
+  token over again doesn't stop Live Activities.
 - `liveActivities`: `ActivityAuthorizationInfo().areActivitiesEnabled`. With it and a
   push-to-start token, the alert starts a Live Activity (which shows its own alert);
   otherwise the device gets a normal notification. The user's default when iOS allows
