@@ -195,7 +195,7 @@ struct NextShipCard: View {
 }
 
 /// Link to the Port Huron ship cam, to watch the next ship go under the bridge
-private struct ShipCamCard: View {
+struct ShipCamCard: View {
     var url: URL
 
     var body: some View {

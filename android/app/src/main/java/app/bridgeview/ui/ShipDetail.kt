@@ -147,6 +147,7 @@ fun ShipDetailScreen(mmsi: Int, onBack: () -> Unit, closeIcon: Boolean = false) 
                         attribution = snapshot?.attribution.orEmpty(),
                         photoSharing = snapshot?.photoSharing ?: false,
                         photoReporting = snapshot?.photoReporting ?: false,
+                        shipCam = ShipLinks.shipCam(snapshot?.shipCamVideoId),
                     )
                     error != null -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 72.dp)) {
                         EmptyState(Icons.Filled.DirectionsBoat, "Ship unavailable", error ?: "")
@@ -159,7 +160,14 @@ fun ShipDetailScreen(mmsi: Int, onBack: () -> Unit, closeIcon: Boolean = false) 
 }
 
 @Composable
-private fun ShipDetailContent(ship: Ship, attribution: List<app.bridgeview.model.Attribution>, photoSharing: Boolean, photoReporting: Boolean) {
+private fun ShipDetailContent(
+    ship: Ship,
+    attribution: List<app.bridgeview.model.Attribution>,
+    photoSharing: Boolean,
+    photoReporting: Boolean,
+    // Shown under the countdown while the ship is heading for the bridge
+    shipCam: String?,
+) {
     val context = LocalContext.current
     val graph = context.graph
     val scope = rememberCoroutineScope()
@@ -194,7 +202,10 @@ private fun ShipDetailContent(ship: Ship, attribution: List<app.bridgeview.model
                 onReport = ::startReport,
                 onExpand = { photosExpanded = true },
             )
-            ship.approach?.let { ApproachCard(ship, it) }
+            ship.approach?.let {
+                ApproachCard(ship, it)
+                if (shipCam != null) ShipCamCard(shipCam)
+            }
             ship.position?.let { position ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     // A still preview; tapping opens it full screen to pan and zoom

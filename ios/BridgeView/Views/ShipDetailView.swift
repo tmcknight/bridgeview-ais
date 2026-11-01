@@ -18,7 +18,8 @@ struct ShipDetailView: View {
                     ship: ship,
                     attribution: store.snapshot?.attribution ?? [],
                     photoSharing: store.snapshot?.photoSharing ?? false,
-                    photoReporting: store.snapshot?.photoReporting ?? false
+                    photoReporting: store.snapshot?.photoReporting ?? false,
+                    shipCam: ShipLinks.shipCam(videoId: store.snapshot?.shipCamVideoId)
                 )
             } else if let error {
                 ContentUnavailableView("Ship unavailable", systemImage: "ferry", description: Text(error))
@@ -55,6 +56,8 @@ private struct ShipDetailContent: View {
     var attribution: [Attribution]
     var photoSharing: Bool
     var photoReporting: Bool
+    /// Shown under the countdown while the ship is heading for the bridge
+    var shipCam: URL?
     @State private var photoIndex = 0
     @State private var sharingPhoto = false
     @State private var reportingPhoto: VesselPhoto?
@@ -71,6 +74,9 @@ private struct ShipDetailContent: View {
                 header
                 if let approach = ship.approach {
                     approachCard(approach)
+                    if let shipCam {
+                        ShipCamCard(url: shipCam)
+                    }
                 }
                 if let position = ship.position {
                     VStack(alignment: .leading, spacing: 6) {
