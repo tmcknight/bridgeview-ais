@@ -1,11 +1,13 @@
 import { EventEmitter } from "node:events";
 import { wantsLiveActivity } from "./push-devices.js";
 
-// Bridge alerts for the iOS app: when a ship's ETA at the bridge falls to 10
-// minutes, every registered iPhone whose settings match gets told, either with a
-// Live Activity counting down to the passage (started by push-to-start on a
+// Bridge alerts for the iOS and Android apps: when a ship's ETA at the bridge falls
+// to 10 minutes, every registered phone whose settings match gets told, either with
+// a Live Activity counting down to the passage (started by push-to-start on a
 // broadcast channel opened for that ship) or a normal notification. The Live
 // Activity is updated as the ETA moves and ended when the ship goes under.
+// Android phones get the same through FCM data messages: a plain alert, or a live
+// countdown (start, update, end) sent to each phone that wants one.
 
 // Alert when the ETA first falls to this or less (minutes)...
 export const ALERT_MAX_ETA_MINUTES = 10;
@@ -28,6 +30,8 @@ const CHANNEL_DELETE_DELAY_MS = 20 * 60_000;
 const STALE_AFTER_ETA_MS = 5 * 60_000;
 // Pushes sent at once
 const SEND_CONCURRENCY = 20;
+// FCM messages live at least this long, even when the ETA is already here
+const FCM_MIN_TTL_S = 5;
 
 // Swift's Date encodes as seconds since 2001-01-01, and the system decodes Live
 // Activity content with the default strategy
@@ -112,6 +116,85 @@ export function pushToStartPayload(ship, channelId, t) {
   };
 }
 
+// FCM data values must all be strings; absent ones are left out
+function stringValues(data) {
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => [key, String(value)])
+  );
+}
+
+function iso(ms) {
+  return new Date(ms).toISOString();
+}
+
+// An FCM message for one Android device, kept until `expiresAt`
+function fcmMessage(token, data, expiresAt, t, extra = {}) {
+  const ttl = Math.max(FCM_MIN_TTL_S, Math.ceil((expiresAt - t) / 1000));
+  return { token, data: stringValues(data), android: { priority: "HIGH", ttl: `${ttl}s`, ...extra } };
+}
+
+// Android: the alert's notification, built by the app
+export function fcmAlertMessage(token, ship, t) {
+  return fcmMessage(
+    token,
+    { type: "alert", mmsi: ship.mmsi, ...alertContent(ship) },
+    Date.parse(ship.approach.eta),
+    t,
+    { collapse_key: `ship-${ship.mmsi}` }
+  );
+}
+
+// Android live countdown data: the activity's fixed details and where the ship is
+function activityData(event, attributes, current, phase, t) {
+  const etaMs = current?.approach ? Date.parse(current.approach.eta) : t;
+  return {
+    type: "activity",
+    event,
+    ...attributes,
+    eta: iso(etaMs),
+    distanceNM: current?.approach?.distanceNM ?? 0,
+    sog: current?.position?.sog ?? 0,
+    phase,
+  };
+}
+
+export function fcmActivityStartMessage(token, ship, t) {
+  const { title, subtitle, body } = alertContent(ship);
+  const etaMs = Date.parse(ship.approach.eta);
+  return fcmMessage(
+    token,
+    {
+      ...activityData("start", activityAttributes(ship), ship, "approaching", t),
+      title,
+      body: `${subtitle}. ${body}`,
+      staleAt: iso(etaMs + STALE_AFTER_ETA_MS),
+    },
+    etaMs,
+    t
+  );
+}
+
+export function fcmActivityUpdateMessage(token, attributes, current, t) {
+  const etaMs = Date.parse(current.approach.eta);
+  return fcmMessage(
+    token,
+    { ...activityData("update", attributes, current, "approaching", t), staleAt: iso(etaMs + STALE_AFTER_ETA_MS) },
+    etaMs + STALE_AFTER_ETA_MS,
+    t
+  );
+}
+
+export function fcmActivityEndMessage(token, attributes, current, phase, t) {
+  return fcmMessage(
+    token,
+    { ...activityData("end", attributes, current, phase, t), dismissAt: iso(t + DISMISS_AFTER_MS) },
+    t + DISMISS_AFTER_MS,
+    t
+  );
+}
+
 async function inBatches(items, fn) {
   for (let i = 0; i < items.length; i += SEND_CONCURRENCY) {
     await Promise.allSettled(items.slice(i, i + SEND_CONCURRENCY).map(fn));
@@ -120,11 +203,15 @@ async function inBatches(items, fn) {
 
 // `ship(mmsi)` gives the app's view of a ship (bridge-api.js); feed it position
 // reports with handleMessage and ship log entries with handleShipLogEntry.
-// Emits "alert" (ship, { notified, liveActivities }) for each alert sent.
-export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Date.now }) {
+// `apns` and `fcm` may each be null; devices on a platform with no client are skipped.
+// Emits "alert" (ship, { notified, liveActivities }) for each alert sent (both
+// platforms counted).
+export function createApproachAlerts({ apns = null, fcm = null, pushDevices, ship, logger, now = Date.now }) {
   const emitter = new EventEmitter();
   const alertedAt = new Map(); // mmsi -> ms
-  const active = new Map(); // mmsi -> { channels: [{ channelId, environment }], startedAt, lastUpdateAt, lastEtaMs, timeout }
+  // mmsi -> { channels: [{ channelId, environment }], fcmTokens: Set, attributes,
+  //           startedAt, lastUpdateAt, lastEtaMs, timeout }
+  const active = new Map();
   const pendingDeletes = new Set();
 
   function deleteChannelLater(channel) {
@@ -149,12 +236,34 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
     );
   }
 
+  // Android live countdown messages to every phone following this activity; a
+  // phone FCM says is gone is removed
+  async function sendFcmAll(activity, messageFor) {
+    await inBatches([...activity.fcmTokens], async (token) => {
+      try {
+        await fcm.send(messageFor(token));
+      } catch (err) {
+        if (err.isBadToken) {
+          activity.fcmTokens.delete(token);
+          pushDevices.remove(token);
+        } else {
+          logger?.warn(`[alerts] FCM message failed: ${err.message}`);
+        }
+      }
+    });
+  }
+
   function endActivity(mmsi, phase, current) {
     const activity = active.get(mmsi);
     if (!activity) return;
     active.delete(mmsi);
     clearTimeout(activity.timeout);
     const t = now();
+    logger?.log(`[alerts] ending Live Activity for ${mmsi} (${phase})`);
+    if (activity.fcmTokens.size > 0) {
+      void sendFcmAll(activity, (token) => fcmActivityEndMessage(token, activity.attributes, current, phase, t));
+    }
+    if (activity.channels.length === 0) return;
     const state = current ? contentState(current, phase, t) : { eta: swiftDate(t), distanceNM: 0, sog: 0, phase };
     const payload = {
       aps: {
@@ -164,7 +273,6 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
         "dismissal-date": Math.floor((t + DISMISS_AFTER_MS) / 1000),
       },
     };
-    logger?.log(`[alerts] ending Live Activity for ${mmsi} (${phase})`);
     void broadcastAll(activity.channels, payload, 10, t + DISMISS_AFTER_MS).finally(() => {
       for (const channel of activity.channels) deleteChannelLater(channel);
     });
@@ -188,7 +296,10 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
       },
     };
     // Low priority: doesn't count against the device's budget
-    void broadcastAll(activity.channels, payload, 5, etaMs + STALE_AFTER_ETA_MS);
+    if (activity.channels.length > 0) void broadcastAll(activity.channels, payload, 5, etaMs + STALE_AFTER_ETA_MS);
+    if (activity.fcmTokens.size > 0) {
+      void sendFcmAll(activity, (token) => fcmActivityUpdateMessage(token, activity.attributes, current, t));
+    }
   }
 
   async function openChannel(environment, mmsi) {
@@ -205,12 +316,16 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
 
   async function sendAlert(current) {
     const t = now();
-    const devices = pushDevices.matching({
+    const matching = pushDevices.matching({
       mmsi: current.mmsi,
       category: current.category,
       length: current.length,
       direction: current.approach.direction,
     });
+    // Only devices whose platform has a client: never APNs an FCM token or vice versa
+    const devices = apns ? matching.filter((d) => d.platform !== "android") : [];
+    const androidDevices = fcm ? matching.filter((d) => d.platform === "android") : [];
+    const androidActivities = androidDevices.filter((d) => wantsLiveActivity(d, current.mmsi));
     const wantsActivity = devices.filter((d) => wantsLiveActivity(d, current.mmsi));
     const environments = [...new Set(wantsActivity.map((d) => d.environment))];
     const channels = new Map();
@@ -218,11 +333,13 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
       const channel = await openChannel(environment, current.mmsi);
       if (channel) channels.set(environment, channel);
     }
-    if (channels.size > 0) {
+    if (channels.size > 0 || androidActivities.length > 0) {
       const timeout = setTimeout(() => endActivity(current.mmsi, "lost"), ACTIVITY_TIMEOUT_MS);
       timeout.unref?.();
       active.set(current.mmsi, {
         channels: [...channels.values()],
+        fcmTokens: new Set(androidActivities.map((d) => d.token)),
+        attributes: activityAttributes(current),
         startedAt: t,
         lastUpdateAt: t,
         lastEtaMs: Date.parse(current.approach.eta),
@@ -263,6 +380,28 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
         }
       }
     });
+    await inBatches(androidDevices, async (device) => {
+      const follow = wantsLiveActivity(device, current.mmsi);
+      try {
+        if (follow) {
+          await fcm.send(fcmActivityStartMessage(device.token, current, t));
+          liveActivities++;
+        } else {
+          await fcm.send(fcmAlertMessage(device.token, current, t));
+          notified++;
+        }
+      } catch (err) {
+        if (follow) active.get(current.mmsi)?.fcmTokens.delete(device.token);
+        if (err.isBadToken) pushDevices.remove(device.token);
+        else logger?.warn(`[alerts] FCM message to a device failed: ${err.message}`);
+      }
+    });
+    // Nobody is following it after all (every start failed): nothing to update or end
+    const activity = active.get(current.mmsi);
+    if (activity && activity.channels.length === 0 && activity.fcmTokens.size === 0) {
+      clearTimeout(activity.timeout);
+      active.delete(current.mmsi);
+    }
     logger?.log(
       `[alerts] ${current.name} ~${Math.round(current.approach.etaMinutes)} min out: ${notified} notified, ${liveActivities} Live Activities`
     );
@@ -297,6 +436,8 @@ export function createApproachAlerts({ apns, pushDevices, ship, logger, now = Da
 
   // End and delete channels left open by a previous run
   async function cleanUp() {
+    // Only APNs keeps channels; Android phones expire their countdowns themselves
+    if (!apns) return;
     const t = now();
     for (const { channelId, environment } of pushDevices.channels()) {
       const channel = { channelId, environment };

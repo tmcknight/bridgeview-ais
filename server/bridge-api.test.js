@@ -263,6 +263,29 @@ describe("createBridgeApi", () => {
     expect(pushDevices.matching(ship)).toEqual([]);
   });
 
+  it("registers Android devices by their FCM token, case kept", async () => {
+    const { api } = setup({ devices: true });
+    const ship = { category: "cargo", length: 225, direction: "upbound" };
+    const fcmToken = "dQw4w9WgXcQ:APA91bHun4MxP5egoKMwt2KZFBaFUH-1RYqx_Ab3Cd9EfGhIjKlMnOpQrStUvWxYz";
+    const path = `/api/devices/${encodeURIComponent(fcmToken)}`;
+
+    const ok = await call(api, "PUT", path, { platform: "android", environment: "production", liveActivities: true });
+    expect(ok.status).toBe(204);
+    expect(pushDevices.matching(ship)).toMatchObject([{ token: fcmToken, platform: "android", liveActivities: true }]);
+
+    const refused = await call(api, "PUT", path, { platform: "android", environment: "production", pushToStartToken: "ab".repeat(40) });
+    expect(refused.status).toBe(400);
+    expect(refused.body.error).toMatch(/pushToStartToken/);
+
+    // Without a platform, it's an iOS registration, and this isn't an APNs token
+    expect((await call(api, "PUT", path, { environment: "production" })).status).toBe(400);
+    expect((await call(api, "PUT", `/api/devices/${TOKEN}`, { environment: "production" })).status).toBe(204);
+    expect(pushDevices.matching(ship).map((d) => d.platform)).toEqual(["android", "ios"]);
+
+    expect((await call(api, "DELETE", path)).status).toBe(204);
+    expect(pushDevices.matching(ship).map((d) => d.token)).toEqual([TOKEN]);
+  });
+
   it("says when alerts aren't set up", async () => {
     const { api } = setup();
     expect((await call(api, "PUT", `/api/devices/${TOKEN}`, { environment: "sandbox" })).status).toBe(503);

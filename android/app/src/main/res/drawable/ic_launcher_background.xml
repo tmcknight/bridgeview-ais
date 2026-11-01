@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- River blue, lighter at the top, like the iOS icon -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient android:angle="270" android:startColor="#0B6BA8" android:endColor="#0A3C61" />
+</shape>

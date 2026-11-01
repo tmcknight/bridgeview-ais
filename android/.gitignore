@@ -1,0 +1,12 @@
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+.kotlin/
+captures/
+*.jks
+*.keystore
+play-service-account.json
+# The root .gitignore's data/ (the server's data) would hide this Kotlin package
+!app/src/main/java/app/bridgeview/data/

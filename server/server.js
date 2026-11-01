@@ -25,6 +25,7 @@ import { createPushDevices } from "./push-devices.js";
 import { createPhotoSubmissions } from "./photo-submissions.js";
 import { createPhotoReports } from "./photo-reports.js";
 import { createApnsClient } from "./apns.js";
+import { createFcmClient } from "./fcm.js";
 import { createApproachAlerts } from "./approach-alerts.js";
 import { createAdminApi } from "./admin-api.js";
 import { createR2PhotoStore, r2ConfigFromEnv } from "./photo-store.js";
@@ -103,7 +104,14 @@ const APNS_BUNDLE_ID = process.env.APNS_BUNDLE_ID;
 const APNS_KEY =
   process.env.APNS_KEY?.replace(/\\n/g, "\n") ||
   (process.env.APNS_KEY_FILE ? fs.readFileSync(process.env.APNS_KEY_FILE, "utf8") : undefined);
-const PUSH_ALERTS = Boolean(APNS_KEY_ID && APNS_TEAM_ID && APNS_BUNDLE_ID && APNS_KEY);
+const IOS_ALERTS = Boolean(APNS_KEY_ID && APNS_TEAM_ID && APNS_BUNDLE_ID && APNS_KEY);
+// Android bridge alerts through Firebase Cloud Messaging: a Firebase service account's
+// JSON key (FCM_SERVICE_ACCOUNT, the JSON text; or FCM_SERVICE_ACCOUNT_FILE, its path)
+const FCM_SERVICE_ACCOUNT =
+  process.env.FCM_SERVICE_ACCOUNT ||
+  (process.env.FCM_SERVICE_ACCOUNT_FILE ? fs.readFileSync(process.env.FCM_SERVICE_ACCOUNT_FILE, "utf8") : undefined);
+const ANDROID_ALERTS = Boolean(FCM_SERVICE_ACCOUNT);
+const PUSH_ALERTS = IOS_ALERTS || ANDROID_ALERTS;
 
 // Logger utility - keep errors in production, suppress debug logs
 const isDev = process.env.NODE_ENV !== "production";
@@ -253,7 +261,7 @@ shipLog.on("entry", (entry) => {
   broadcast(JSON.stringify({ type: "shipLogEntry", entry }));
 });
 
-// HTTP API for the iOS app, and its bridge alerts when APNs is configured
+// HTTP API for the iOS and Android apps, and their bridge alerts when APNs or FCM is configured
 const pushDevices = PUSH_ALERTS ? createPushDevices({ file: DB_FILE, logger }) : null;
 const bridgeApi = createBridgeApi({
   vesselDetails,
@@ -290,10 +298,21 @@ if (ADMIN_PASSWORD) logger.log(`[admin] photos stored in ${R2_PHOTOS ? `R2 (${R2
 if (ADMIN_PASSWORD && ADMIN_PASSWORD.length < 12) {
   logger.warn("[admin] ADMIN_PASSWORD is short; use at least 12 characters");
 }
-const apns = PUSH_ALERTS
+const apns = IOS_ALERTS
   ? createApnsClient({ keyId: APNS_KEY_ID, teamId: APNS_TEAM_ID, key: APNS_KEY, bundleId: APNS_BUNDLE_ID })
   : null;
-const approachAlerts = apns ? createApproachAlerts({ apns, pushDevices, ship: bridgeApi.ship, logger }) : null;
+let fcm = null;
+if (ANDROID_ALERTS) {
+  try {
+    fcm = createFcmClient({ serviceAccount: JSON.parse(FCM_SERVICE_ACCOUNT) });
+  } catch (err) {
+    logger.error(`[alerts] FCM_SERVICE_ACCOUNT isn't a usable service account key: ${err.message}`);
+    process.exit(1);
+  }
+}
+const approachAlerts = PUSH_ALERTS
+  ? createApproachAlerts({ apns, fcm, pushDevices, ship: bridgeApi.ship, logger })
+  : null;
 if (approachAlerts) {
   shipLog.on("entry", (entry) => approachAlerts.handleShipLogEntry(entry));
   approachAlerts.cleanUp().catch((err) => logger.warn(`[alerts] clean-up failed: ${err.message}`));
@@ -751,7 +770,8 @@ wss.on("connection", (client, req) => {
 logger.info(`[proxy] WebSocket proxy listening on ws://localhost:${PORT}`);
 logger.info(`[proxy] AIS sources: ${[...AIS_SOURCES].join(", ")}${USE_LOCAL ? ` (AIS-catcher at ${LOCAL_AIS_HOST}:${LOCAL_AIS_PORT})` : ""}`);
 logger.info(`[proxy] Aircraft: ${AIRCRAFT_TRACKING ? ADSB_URL : "off"}`);
-logger.info(`[proxy] iOS bridge alerts: ${PUSH_ALERTS ? `on (${APNS_BUNDLE_ID})` : "off (set APNS_KEY_ID, APNS_TEAM_ID, APNS_KEY, APNS_BUNDLE_ID)"}`);
+logger.info(`[proxy] iOS bridge alerts: ${IOS_ALERTS ? `on (${APNS_BUNDLE_ID})` : "off (set APNS_KEY_ID, APNS_TEAM_ID, APNS_KEY, APNS_BUNDLE_ID)"}`);
+logger.info(`[proxy] Android bridge alerts: ${fcm ? "on" : "off (set FCM_SERVICE_ACCOUNT or FCM_SERVICE_ACCOUNT_FILE)"}`);
 logger.info(`[proxy] Ship cam lookup: ${YOUTUBE_API_KEY ? "on" : "off (set YOUTUBE_API_KEY)"}`);
 if (AUTH_TOKEN) {
   logger.info(`[proxy] Authentication enabled`);

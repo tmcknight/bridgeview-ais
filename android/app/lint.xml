@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!-- Plain android.util.Log is enough here -->
+    <issue id="LogNotTimber" severity="ignore" />
+    <!-- Firebase Messaging 26 delivers tokens to onRegistered; onNewToken is kept as well -->
+    <issue id="MissingFirebaseInstanceTokenRefresh" severity="ignore" />
+</lint>

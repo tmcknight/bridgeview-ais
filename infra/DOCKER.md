@@ -54,6 +54,7 @@ Environment variables are configured in `.env` and passed to the containers via 
 | `APNS_TEAM_ID`      | For iOS alerts | —           | Apple developer team ID |
 | `APNS_BUNDLE_ID`    | For iOS alerts | —           | The iOS app's bundle ID |
 | `APNS_KEY`          | For iOS alerts | —           | The APNs `.p8` key's contents (newlines may be written as `\n`) |
+| `FCM_SERVICE_ACCOUNT` | For Android alerts | —     | A Firebase service account's JSON key, on one line; turns on the Android app's bridge alerts |
 | `ADMIN_PASSWORD`    | No       | —                 | Password for the ship data admin page; off when unset. Uploaded photos are kept on the `ship-log` volume unless R2 is set up; photo sharing from the iOS app needs both this and R2 |
 | `R2_ACCOUNT_ID`     | For R2 photos | —            | Cloudflare account ID; with the four below, admin uploads go to an R2 bucket |
 | `R2_ACCESS_KEY_ID`  | For R2 photos | —            | R2 API token's access key ID (Object Read & Write on the bucket) |

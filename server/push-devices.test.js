@@ -1,8 +1,18 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { describe, it, expect, afterEach } from "vitest";
 import { createPushDevices, parseDeviceRegistration, wantsAlert, wantsLiveActivity } from "./push-devices.js";
 
 const TOKEN = "ab".repeat(32);
 const START_TOKEN = "cd".repeat(40);
+// FCM registration tokens are mixed case, with ':' '-' and '_'
+const FCM_TOKEN = "dQw4w9WgXcQ:APA91bHun4MxP5egoKMwt2KZFBaFUH-1RYqx_Ab3Cd9EfGhIjKlMnOpQrStUvWxYz";
+
+function registerAndroid(body = {}, token = FCM_TOKEN) {
+  return parseDeviceRegistration(token, { platform: "android", environment: "production", ...body });
+}
 
 function register(body = {}, token = TOKEN) {
   return parseDeviceRegistration(token, { environment: "production", ...body });
@@ -12,6 +22,7 @@ describe("parseDeviceRegistration", () => {
   it("fills in defaults", () => {
     expect(register().device).toEqual({
       token: TOKEN,
+      platform: "ios",
       environment: "production",
       enabled: true,
       pushToStartToken: undefined,
@@ -45,6 +56,20 @@ describe("parseDeviceRegistration", () => {
     [{ directions: ["sideways"] }, TOKEN],
   ])("rejects %j", (body, token) => {
     expect(register(body, token).error).toBeTruthy();
+  });
+
+  it("keeps Android tokens as sent and refuses push-to-start tokens", () => {
+    const { device } = registerAndroid({ liveActivities: true });
+    expect(device).toMatchObject({ token: FCM_TOKEN, platform: "android", liveActivities: true });
+    expect(device.pushToStartToken).toBeUndefined();
+    expect(registerAndroid({ pushToStartToken: START_TOKEN }).error).toMatch(/pushToStartToken/);
+    expect(registerAndroid({ environment: "moon" }).error).toMatch(/environment/);
+    expect(registerAndroid({}, "short:token").error).toMatch(/token/);
+    expect(registerAndroid({}, `${FCM_TOKEN}/x`).error).toMatch(/token/);
+    expect(registerAndroid({}, "a".repeat(4097)).error).toMatch(/token/);
+    // An FCM token isn't an APNs one
+    expect(register({}, FCM_TOKEN).error).toMatch(/token/);
+    expect(register({ platform: "windows" }).error).toMatch(/platform/);
   });
 
   it("rejects a body that isn't an object", () => {
@@ -86,6 +111,15 @@ describe("wantsLiveActivity", () => {
     expect(wantsLiveActivity({ ...device, pushToStartToken: undefined }, 316001234)).toBe(false);
   });
 
+  it("needs no push-to-start token on Android", () => {
+    const android = registerAndroid({ liveActivities: true, liveActivityShips: { 366999000: false } }).device;
+    expect(wantsLiveActivity(android, 316001234)).toBe(true);
+    expect(wantsLiveActivity(android, 366999000)).toBe(false);
+    const offByDefault = { ...android, liveActivities: false, liveActivityShips: { 316001234: true } };
+    expect(wantsLiveActivity(offByDefault, 316001234)).toBe(true);
+    expect(wantsLiveActivity(offByDefault, 366999000)).toBe(false);
+  });
+
   it("rejects bad per-ship choices", () => {
     expect(register({ liveActivityShips: { 123: true } }).error).toMatch(/liveActivityShips/);
     expect(register({ liveActivityShips: { 316001234: "yes" } }).error).toMatch(/liveActivityShips/);
@@ -120,6 +154,38 @@ describe("createPushDevices", () => {
 
     devices.remove(TOKEN);
     expect(devices.matching(ship)).toEqual([]);
+  });
+
+  it("stores Android devices with their platform and exact token", () => {
+    devices = createPushDevices();
+    const ship = { category: "cargo", length: 200, direction: "upbound" };
+    devices.register(register().device);
+    devices.register(registerAndroid({ liveActivities: true }).device);
+    expect(devices.matching(ship).map((d) => [d.token, d.platform])).toEqual([
+      [TOKEN, "ios"],
+      [FCM_TOKEN, "android"],
+    ]);
+    // Case matters for FCM tokens
+    devices.remove(FCM_TOKEN.toLowerCase());
+    expect(devices.matching(ship)).toHaveLength(2);
+    devices.remove(FCM_TOKEN);
+    devices.remove(TOKEN.toUpperCase());
+    expect(devices.matching(ship)).toEqual([]);
+  });
+
+  it("adds the platform column to an older database", () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "push-devices-")), "old.db");
+    const old = new DatabaseSync(file);
+    old.exec(`CREATE TABLE push_devices (
+      token TEXT PRIMARY KEY, environment TEXT NOT NULL, enabled INTEGER NOT NULL, push_to_start_token TEXT,
+      live_activities INTEGER NOT NULL, categories TEXT NOT NULL, min_length INTEGER NOT NULL,
+      directions TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`);
+    old.prepare("INSERT INTO push_devices VALUES (?, 'production', 1, NULL, 0, '[\"cargo\"]', 0, '[\"upbound\"]', 'x', 'x')").run(TOKEN);
+    old.close();
+    devices = createPushDevices({ file });
+    expect(devices.matching({ category: "cargo", length: 0, direction: "upbound" })).toMatchObject([
+      { token: TOKEN, platform: "ios", liveActivityShips: {} },
+    ]);
   });
 
   it("keeps track of open channels", () => {

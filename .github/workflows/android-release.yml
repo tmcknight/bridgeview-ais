@@ -1,0 +1,118 @@
+name: Android release
+
+# Android releases are GitHub releases tagged android-vX.Y.Z (android/README.md). Publishing one
+# builds a signed app bundle from that tag and uploads it to Google Play's internal testing track
+# (or the track in the ANDROID_PLAY_TRACK variable), with the start of the release notes as its
+# "What's new". The version code is one more than the highest Play has.
+#
+# Run it by hand (Actions → Android release → Run workflow) for a dry run: build and sign, no upload.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build, like 1.1.0
+        required: true
+      dry_run:
+        description: Build and sign only, don't upload
+        type: boolean
+        default: true
+      notes:
+        description: What's new (only used when uploading)
+        default: Dry run.
+
+# One release at a time, so two can never take the same version code
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  play:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'android-v')
+    runs-on: ubuntu-latest
+    # Signing and Play secrets live in the same protected environment as the iOS ones
+    environment: app-release
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: android
+    env:
+      BRIDGEVIEW_APPLICATION_ID: ${{ vars.ANDROID_APPLICATION_ID }}
+      BRIDGEVIEW_API_URL: ${{ vars.BRIDGEVIEW_API_URL }}
+      BRIDGEVIEW_FIREBASE_APP_ID: ${{ vars.ANDROID_FIREBASE_APP_ID }}
+      BRIDGEVIEW_FIREBASE_API_KEY: ${{ vars.ANDROID_FIREBASE_API_KEY }}
+      BRIDGEVIEW_FIREBASE_PROJECT_ID: ${{ vars.ANDROID_FIREBASE_PROJECT_ID }}
+      BRIDGEVIEW_FIREBASE_SENDER_ID: ${{ vars.ANDROID_FIREBASE_SENDER_ID }}
+      BRIDGEVIEW_PLAY_TRACK: ${{ vars.ANDROID_PLAY_TRACK || 'internal' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Release from main only
+        # A signed build comes only from reviewed code
+        working-directory: .
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor HEAD origin/main \
+            || { echo "::error::$(git rev-parse --short HEAD) is not on main: release (or dry run) from main only"; exit 1; }
+      - name: Version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="${INPUT_VERSION:-${TAG#android-v}}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Not a version: $version"; exit 1; }
+          echo "BRIDGEVIEW_VERSION_NAME=$version" >> "$GITHUB_ENV"
+          for name in BRIDGEVIEW_APPLICATION_ID BRIDGEVIEW_API_URL BRIDGEVIEW_FIREBASE_APP_ID BRIDGEVIEW_FIREBASE_PROJECT_ID; do
+            [ -n "${!name}" ] || { echo "::error::Set the repository variable for $name (android/README.md, Releases)"; exit 1; }
+          done
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Android SDK platform
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" "build-tools;36.1.0" > /dev/null
+      - name: Signing key and Play credentials
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PLAY_SERVICE_ACCOUNT: ${{ secrets.ANDROID_PLAY_SERVICE_ACCOUNT }}
+        run: |
+          [ -n "$KEYSTORE" ] || { echo "::error::Add the ANDROID_KEYSTORE_BASE64 secret"; exit 1; }
+          echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          echo "BRIDGEVIEW_SIGNING_STORE_FILE=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+          if [ -n "$PLAY_SERVICE_ACCOUNT" ]; then
+            printf '%s' "$PLAY_SERVICE_ACCOUNT" > "$RUNNER_TEMP/play.json"
+            echo "BRIDGEVIEW_PLAY_SERVICE_ACCOUNT_FILE=$RUNNER_TEMP/play.json" >> "$GITHUB_ENV"
+          fi
+      - name: Release notes
+        env:
+          NOTES: ${{ github.event.release.body || inputs.notes }}
+        run: |
+          # Play takes at most 500 characters of "What's new"
+          mkdir -p app/src/main/play/release-notes/en-US
+          printf '%s' "$NOTES" | head -c 500 > app/src/main/play/release-notes/en-US/default.txt
+      - name: Build and sign
+        env:
+          BRIDGEVIEW_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BRIDGEVIEW_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          BRIDGEVIEW_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :app:testReleaseUnitTest :app:bundleRelease
+      - name: Upload to Google Play
+        if: github.event_name == 'release' || !inputs.dry_run
+        env:
+          BRIDGEVIEW_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BRIDGEVIEW_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          BRIDGEVIEW_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          [ -n "${BRIDGEVIEW_PLAY_SERVICE_ACCOUNT_FILE:-}" ] || { echo "::error::Add the ANDROID_PLAY_SERVICE_ACCOUNT secret"; exit 1; }
+          ./gradlew :app:publishReleaseBundle
+      - uses: actions/upload-artifact@v6
+        with:
+          name: bridgeview-${{ env.BRIDGEVIEW_VERSION_NAME }}.aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          retention-days: 30

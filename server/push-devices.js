@@ -3,16 +3,21 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { SHIP_CATEGORIES } from "./bridge-eta.js";
 
-// iPhones registered for bridge alerts, and the Live Activity broadcast channels
-// open for ships on their way, kept in SQLite (the same DB_FILE as vessel details).
+// Phones registered for bridge alerts (iPhones through APNs, Android phones through
+// FCM), and the Live Activity broadcast channels open for ships on their way, kept
+// in SQLite (the same DB_FILE as vessel details).
 
 export const DIRECTIONS = ["upbound", "downbound"];
 export const ENVIRONMENTS = ["sandbox", "production"];
+export const PLATFORMS = ["ios", "android"];
 // Most devices there could ever be; registration is open, so cap it
 export const MAX_DEVICES = 100_000;
 
 const DEFAULT_CATEGORIES = ["cargo", "tanker", "passenger"];
+// APNs tokens are hex (any case, stored lowercase); FCM registration tokens are
+// case-sensitive and kept as sent
 const TOKEN_PATTERN = /^[0-9a-f]{32,400}$/i;
+const FCM_TOKEN_PATTERN = /^[A-Za-z0-9_:-]{20,4096}$/;
 const MMSI_PATTERN = /^\d{9}$/;
 // Ships a device can choose Live Activities for, one by one; only those coming up matter
 const MAX_LIVE_ACTIVITY_SHIPS = 50;
@@ -28,6 +33,7 @@ const SCHEMA = `
     min_length INTEGER NOT NULL,
     directions TEXT NOT NULL,
     live_activity_ships TEXT NOT NULL DEFAULT '{}',
+    platform TEXT NOT NULL DEFAULT 'ios',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -46,6 +52,9 @@ function migrate(db) {
   if (!columns.includes("live_activity_ships")) {
     db.exec("ALTER TABLE push_devices ADD COLUMN live_activity_ships TEXT NOT NULL DEFAULT '{}'");
   }
+  if (!columns.includes("platform")) {
+    db.exec("ALTER TABLE push_devices ADD COLUMN platform TEXT NOT NULL DEFAULT 'ios'");
+  }
 }
 
 function isLiveActivityShips(value) {
@@ -63,8 +72,18 @@ function isSubsetOf(value, allowed) {
 
 // Check a PUT /api/devices/:token body. Returns { device } or { error }.
 export function parseDeviceRegistration(token, body) {
-  if (typeof token !== "string" || !TOKEN_PATTERN.test(token)) return { error: "Invalid device token" };
-  if (!body || typeof body !== "object" || Array.isArray(body)) return { error: "Body must be an object" };
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return typeof token !== "string" || !TOKEN_PATTERN.test(token)
+      ? { error: "Invalid device token" }
+      : { error: "Body must be an object" };
+  }
+  // Older iOS builds don't send a platform
+  const { platform = "ios" } = body;
+  if (!PLATFORMS.includes(platform)) return { error: `platform must be one of ${PLATFORMS.join(", ")}` };
+  const android = platform === "android";
+  if (typeof token !== "string" || !(android ? FCM_TOKEN_PATTERN : TOKEN_PATTERN).test(token)) {
+    return { error: "Invalid device token" };
+  }
   const {
     environment,
     enabled = true,
@@ -77,6 +96,7 @@ export function parseDeviceRegistration(token, body) {
   } = body;
   if (!ENVIRONMENTS.includes(environment)) return { error: `environment must be one of ${ENVIRONMENTS.join(", ")}` };
   if (typeof enabled !== "boolean") return { error: "enabled must be a boolean" };
+  if (android && pushToStartToken !== undefined) return { error: "pushToStartToken is for iOS only" };
   if (pushToStartToken !== undefined && (typeof pushToStartToken !== "string" || !TOKEN_PATTERN.test(pushToStartToken))) {
     return { error: "Invalid pushToStartToken" };
   }
@@ -89,7 +109,8 @@ export function parseDeviceRegistration(token, body) {
   }
   return {
     device: {
-      token: token.toLowerCase(),
+      token: android ? token : token.toLowerCase(),
+      platform,
       environment,
       enabled,
       pushToStartToken: pushToStartToken?.toLowerCase(),
@@ -114,15 +135,19 @@ export function wantsAlert(device, { mmsi, category, length, direction }) {
   );
 }
 
-// Whether this ship's alert should start a Live Activity on the device: the user's
-// choice for that ship, or else their default
+// Whether this ship's alert should start a Live Activity on the device (on Android,
+// a live countdown notification): the user's choice for that ship, or else their
+// default. iPhones need a push-to-start token for it.
 export function wantsLiveActivity(device, mmsi) {
-  return Boolean(device.pushToStartToken) && (device.liveActivityShips?.[mmsi] ?? device.liveActivities);
+  const wanted = device.liveActivityShips?.[mmsi] ?? device.liveActivities;
+  if (device.platform === "android") return Boolean(wanted);
+  return Boolean(device.pushToStartToken) && wanted;
 }
 
 function rowToDevice(row) {
   return {
     token: row.token,
+    platform: row.platform,
     environment: row.environment,
     enabled: Boolean(row.enabled),
     pushToStartToken: row.push_to_start_token ?? undefined,
@@ -144,13 +169,14 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
   const upsert = db.prepare(`
     INSERT INTO push_devices (
       token, environment, enabled, push_to_start_token, live_activities,
-      categories, min_length, directions, live_activity_ships, created_at, updated_at
+      categories, min_length, directions, live_activity_ships, platform, created_at, updated_at
     ) VALUES (
       :token, :environment, :enabled, :push_to_start_token, :live_activities,
-      :categories, :min_length, :directions, :live_activity_ships, :now, :now
+      :categories, :min_length, :directions, :live_activity_ships, :platform, :now, :now
     )
     ON CONFLICT (token) DO UPDATE SET
       environment = :environment,
+      platform = :platform,
       enabled = :enabled,
       -- A registration without one keeps the token already stored: the app sends
       -- some (a background launch for a geofence crossing) before iOS has given it
@@ -166,7 +192,10 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
   `);
   const exists = db.prepare("SELECT 1 FROM push_devices WHERE token = ?");
   const count = db.prepare("SELECT COUNT(*) AS n FROM push_devices");
-  const remove = db.prepare("DELETE FROM push_devices WHERE token = ?");
+  // iOS tokens are stored lowercase; FCM tokens exactly as sent
+  const remove = db.prepare(
+    "DELETE FROM push_devices WHERE token = :token OR (platform = 'ios' AND token = :lower)"
+  );
   const clearPushToStart = db.prepare("UPDATE push_devices SET push_to_start_token = NULL WHERE push_to_start_token = ?");
   const selectEnabled = db.prepare("SELECT * FROM push_devices WHERE enabled = 1");
   const insertChannel = db.prepare(
@@ -191,13 +220,14 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
         min_length: device.minLength,
         directions: JSON.stringify(device.directions),
         live_activity_ships: JSON.stringify(device.liveActivityShips ?? {}),
+        platform: device.platform ?? "ios",
         now: now().toISOString(),
       });
       return true;
     },
 
     remove(token) {
-      remove.run(token.toLowerCase());
+      remove.run({ token, lower: token.toLowerCase() });
     },
 
     // APNs said this push-to-start token is no longer valid
