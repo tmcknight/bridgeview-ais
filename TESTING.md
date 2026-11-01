@@ -169,7 +169,7 @@ GitHub Actions workflow runs on:
    - npm cache enabled
 3. **Install dependencies** (`npm ci`)
 4. **Lint** (`npm run lint`)
-5. **Type check** (`npx tsc --noEmit`)
+5. **Type check** (`npm run tsc -- --noEmit`)
 6. **Run tests with coverage** (`npm run test:coverage`)
 7. **Upload coverage to Codecov** (optional)
 8. **Build** (`npm run build`)

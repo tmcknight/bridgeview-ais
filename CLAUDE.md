@@ -332,6 +332,7 @@ npm install -D <package>   # Dev dependency
 - Check for updates regularly but test thoroughly
 - React 19 may have breaking changes from older versions
 - MapLibre GL updates may affect map rendering
+- TypeScript 7 has no JS API yet, which typescript-eslint needs, so `typescript` is an alias for `@typescript/typescript6` (the TS 6 API, for ESLint) and TS 7 is installed as `typescript7`. Compile and type-check with `npm run tsc` (TS 7's `tsc`), not `npx tsc`: both packages ship a `tsc` bin, so `node_modules/.bin/tsc` may be TS 6
 
 ## Git Workflow
 
