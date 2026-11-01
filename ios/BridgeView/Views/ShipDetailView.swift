@@ -375,7 +375,7 @@ private struct ShipDetailContent: View {
                     }
                 }
             }
-            LiveActivityToggle(mmsi: ship.mmsi, style: .pill)
+            LiveActivityToggle(mmsi: ship.mmsi)
         }
         .card()
     }

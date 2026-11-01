@@ -86,7 +86,6 @@ struct ShipListContainer<Empty: View>: View {
                 NextShipCard(ship: next, approach: approach)
             }
             .buttonStyle(.plain)
-            .contextMenu { LiveActivityToggle(mmsi: next.mmsi) }
             if let shipCam {
                 ShipCamCard(url: shipCam)
             }
@@ -107,9 +106,6 @@ struct ShipListContainer<Empty: View>: View {
                     .card(padding: 12)
             }
             .buttonStyle(.plain)
-            .contextMenu {
-                if mode == .upcoming { LiveActivityToggle(mmsi: ship.mmsi) }
-            }
         }
     }
 }
@@ -129,8 +125,6 @@ struct NextShipCard: View {
                     .tracking(1.4)
                     .foregroundStyle(Theme.signalOnRiver)
                 Spacer()
-                LiveActivityToggle(mmsi: ship.mmsi, style: .icon)
-                    .environment(\.colorScheme, .dark)
                 Label {
                     Text(approach.direction.label)
                 } icon: {

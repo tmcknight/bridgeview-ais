@@ -30,9 +30,6 @@ struct ShipRow: View {
             }
             Spacer(minLength: 8)
             trailing
-            if mode == .upcoming {
-                LiveActivityToggle(mmsi: ship.mmsi, style: .icon)
-            }
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
                 .foregroundStyle(.tertiary)
