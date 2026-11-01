@@ -60,6 +60,7 @@ private struct ShipDetailContent: View {
     @State private var reportingPhoto: VesselPhoto?
     @State private var reportResult: String?
     @State private var mapExpanded = false
+    @State private var photosExpanded = false
     @Environment(\.openURL) private var openURL
 
     private let api = APIClient()
@@ -296,25 +297,27 @@ private struct ShipDetailContent: View {
         if photos.isEmpty {
             PhotoPlaceholder()
         } else {
-            // Swipe through the ship's photos; each shows its credit
-            TabView(selection: $photoIndex) {
-                ForEach(Array(photos.enumerated()), id: \.offset) { index, photo in
-                    AsyncImage(url: photo.url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        case .failure:
-                            PhotoPlaceholder()
-                        default:
-                            PhotoPlaceholder().overlay(ProgressView().tint(.white))
-                        }
+            // Swipe through the ship's photos (round from the last to the first);
+            // tap to see them full screen
+            PhotoPager(photos: photos, index: $photoIndex) { photo in
+                AsyncImage(url: photo.url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .failure:
+                        PhotoPlaceholder()
+                    default:
+                        PhotoPlaceholder().overlay(ProgressView().tint(.white))
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-                    .tag(index)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
+                .contentShape(.rect)
+                .onTapGesture { photosExpanded = true }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+            .fullScreenCover(isPresented: $photosExpanded) {
+                PhotoViewer(photos: photos, title: ship.name, index: $photoIndex)
+            }
             .overlay(alignment: .topTrailing) {
                 if photos.count > 1 {
                     Text("\(photoIndex + 1) / \(photos.count)")
@@ -328,7 +331,19 @@ private struct ShipDetailContent: View {
                         .allowsHitTesting(false)
                 }
             }
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("Photos of \(ship.name), \(photoIndex + 1) of \(photos.count)")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityHint("Opens the photos full screen")
+            .accessibilityAction { photosExpanded = true }
+            .accessibilityAdjustableAction { direction in
+                guard photos.count > 1 else { return }
+                switch direction {
+                case .increment: photoIndex = (photoIndex + 1) % photos.count
+                case .decrement: photoIndex = (photoIndex - 1 + photos.count) % photos.count
+                @unknown default: break
+                }
+            }
         }
     }
 
