@@ -131,3 +131,4 @@ For secure WebSocket connections (wss://), configure TLS termination in your rev
 - Use a reverse proxy with TLS termination for HTTPS/WSS
 - The nginx container caches static assets with long-lived headers
 - Both containers are configured with `restart: unless-stopped`
+- Behind Cloudflare Access, these must be public (a Bypass policy) along with `/api/`: the plain pages the iOS app and App Store listing link to, `/about.html`, `/support.html`, `/privacy.html` and `/terms.html`, and what they load, `/pages.css`, `/favicon.png` and `/icon-192.png`. A new page in `public/` needs adding there too

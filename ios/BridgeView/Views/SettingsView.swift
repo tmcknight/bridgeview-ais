@@ -122,9 +122,9 @@ struct SettingsView: View {
                     if let attribution = store.snapshot?.attribution, !attribution.isEmpty {
                         DataCredits(attribution: attribution)
                     }
-                    Link("About BridgeView", destination: AppConfig.apiURL.appending(path: "api/pages/about.html"))
-                    Link("Terms", destination: AppConfig.apiURL.appending(path: "api/pages/terms.html"))
-                    Link("Privacy", destination: AppConfig.apiURL.appending(path: "api/pages/privacy.html"))
+                    Link("About BridgeView", destination: AppConfig.apiURL.appending(path: "about.html"))
+                    Link("Terms", destination: AppConfig.apiURL.appending(path: "terms.html"))
+                    Link("Privacy", destination: AppConfig.apiURL.appending(path: "privacy.html"))
                 } header: {
                     Text("About")
                 } footer: {

@@ -164,7 +164,7 @@ private struct ShipDetailContent: View {
         if photoReporting {
             reportingPhoto = photo
         } else {
-            openURL(AppConfig.apiURL.appending(path: "api/pages/support.html"))
+            openURL(AppConfig.apiURL.appending(path: "support.html"))
         }
     }
 

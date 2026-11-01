@@ -116,7 +116,7 @@ struct SharePhotoView: View {
                     Text("I took this photo. I keep the copyright, and let BridgeView use it in the app, on its website and anywhere else BridgeView appears, for free and for good.")
                         .font(.subheadline)
                 }
-                Link("Read the terms", destination: AppConfig.apiURL.appending(path: "api/pages/terms.html"))
+                Link("Read the terms", destination: AppConfig.apiURL.appending(path: "terms.html"))
             } footer: {
                 Text("Photos are checked before they appear, and may not be used. Sending photos that aren't yours, or that aren't of ships, can get you blocked from sharing.")
             }
