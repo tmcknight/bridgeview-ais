@@ -490,13 +490,17 @@ private struct ShipMap: View {
     @State private var mapHeight: CGFloat = 0
     /// Every ship from GET /api/map, while full screen
     @State private var snapshot: MapSnapshot?
+    @State private var motion = ShipMotion()
 
     private let api = APIClient()
 
     var body: some View {
         let coordinate = CLLocationCoordinate2D(latitude: position.latitude, longitude: position.longitude)
-        // Redrawn a couple of times a second so moving ships glide between reports
-        TimelineView(.animation(minimumInterval: 0.5, paused: !interactive)) { context in
+        // Redrawn every frame while ships move (full screen), so they glide between reports
+        TimelineView(.animation(
+            minimumInterval: ShipMotion.frameInterval,
+            paused: !interactive || !motion.isMoving(at: .now)
+        )) { context in
             Map(
                 initialPosition: .rect(Self.rect(coordinate, Bridge.center)),
                 interactionModes: interactive ? [.pan, .zoom] : []
@@ -504,17 +508,18 @@ private struct ShipMap: View {
                 Marker(Bridge.name, systemImage: "road.lanes", coordinate: Bridge.center)
                     .tint(.gray)
                 ForEach(others) { other in
-                    if let position = other.position {
-                        Annotation(other.name, coordinate: position.coordinate(at: context.date), anchor: .center) {
-                            MapShipMarker(ship: other, isSelected: false, metresPerPoint: metresPerPoint)
+                    if let drawn = motion.drawn(other, at: context.date) {
+                        Annotation(other.name, coordinate: drawn.coordinate, anchor: .center) {
+                            MapShipMarker(ship: other, course: drawn.course, isSelected: false, metresPerPoint: metresPerPoint)
                         }
                         .annotationTitles(.hidden)
                     }
                 }
                 // This ship last, so it's drawn over the others; picked out when they're shown
-                let current = latestPosition
-                Annotation(ship.name, coordinate: current.coordinate(at: context.date), anchor: .center) {
-                    MapShipMarker(ship: ship, isSelected: interactive, metresPerPoint: metresPerPoint)
+                let current = motion.drawn(followed, at: context.date)
+                    ?? .init(coordinate: latestPosition.coordinate(at: context.date), course: latestPosition.course)
+                Annotation(ship.name, coordinate: current.coordinate, anchor: .center) {
+                    MapShipMarker(ship: ship, course: current.course, isSelected: interactive, metresPerPoint: metresPerPoint)
                 }
             }
             .mapStyle(.standard(elevation: .flat, pointsOfInterest: .excludingAll))
@@ -534,7 +539,10 @@ private struct ShipMap: View {
             guard interactive else { return }
             // Polls only while full screen; a failed poll just keeps the last ships
             while !Task.isCancelled {
-                if let latest = try? await api.map() { snapshot = latest }
+                if let latest = try? await api.map() {
+                    snapshot = latest
+                    motion.update(latest.ships.filter { $0.mmsi != ship.mmsi } + [followed])
+                }
                 try? await Task.sleep(for: LiveMapView.pollInterval)
             }
         }
@@ -542,6 +550,13 @@ private struct ShipMap: View {
 
     private var others: [Ship] {
         snapshot?.ships.filter { $0.mmsi != ship.mmsi && $0.position != nil } ?? []
+    }
+
+    /// This ship with its latest position
+    private var followed: Ship {
+        var followed = ship
+        followed.position = latestPosition
+        return followed
     }
 
     /// This ship's position from the map's latest poll when newer than the page's

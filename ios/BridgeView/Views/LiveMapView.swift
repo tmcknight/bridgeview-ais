@@ -7,6 +7,7 @@ struct LiveMapView: View {
     static let metresPerDegreeLatitude = 111_320.0
 
     @State private var snapshot: MapSnapshot?
+    @State private var motion = ShipMotion()
     @State private var error: String?
     @State private var selected: Int?
     @State private var camera: MapCameraPosition = .region(MKCoordinateRegion(
@@ -20,16 +21,16 @@ struct LiveMapView: View {
 
     var body: some View {
         NavigationStack {
-            // Redrawn a couple of times a second so moving ships glide between reports
-            TimelineView(.animation(minimumInterval: 0.5)) { context in
+            // Redrawn every frame while ships move, so they glide between reports
+            TimelineView(.animation(minimumInterval: ShipMotion.frameInterval, paused: !motion.isMoving(at: .now))) { context in
                 // No rotating: the ship markers point north-up
                 Map(position: $camera, interactionModes: [.pan, .zoom]) {
                     Marker(Bridge.name, systemImage: "road.lanes", coordinate: Bridge.center)
                         .tint(.gray)
                     ForEach(ships) { ship in
-                        if let position = ship.position {
-                            Annotation(ship.name, coordinate: position.coordinate(at: context.date), anchor: .center) {
-                                MapShipMarker(ship: ship, isSelected: ship.mmsi == selected, metresPerPoint: metresPerPoint)
+                        if let drawn = motion.drawn(ship, at: context.date) {
+                            Annotation(ship.name, coordinate: drawn.coordinate, anchor: .center) {
+                                MapShipMarker(ship: ship, course: drawn.course, isSelected: ship.mmsi == selected, metresPerPoint: metresPerPoint)
                                     .onTapGesture { selected = ship.mmsi }
                             }
                             .annotationTitles(ship.mmsi == selected ? .visible : .hidden)
@@ -91,7 +92,9 @@ struct LiveMapView: View {
     private func poll() async {
         while !Task.isCancelled {
             do {
-                snapshot = try await api.map()
+                let latest = try await api.map()
+                motion.update(latest.ships)
+                snapshot = latest
                 error = nil
             } catch is CancellationError {
                 return
@@ -111,6 +114,8 @@ struct LiveMapView: View {
 /// a dot when not. Ships heading for the bridge take their direction's colour.
 struct MapShipMarker: View {
     var ship: Ship
+    /// Which way it's drawn pointing (eased between reports); its reported course when nil
+    var course: Double?
     var isSelected: Bool
     var metresPerPoint: Double
 
@@ -147,7 +152,7 @@ struct MapShipMarker: View {
     @ViewBuilder private var arrow: some View {
         let small = ship.classB == true
         Group {
-            if let position = ship.position, position.isUnderWay, let course = position.course {
+            if let position = ship.position, position.isUnderWay, let course = course ?? position.course {
                 Image(systemName: "location.north.fill")
                     .rotationEffect(.degrees(course))
             } else {
@@ -168,7 +173,7 @@ struct MapShipMarker: View {
     /// ship's length or heading isn't known
     private var hull: (length: Double, beam: Double, heading: Double)? {
         guard let length = ship.length, length > 0,
-              let heading = ship.position?.course,
+              let heading = course ?? ship.position?.course,
               metresPerPoint > 0 else { return nil }
         // Servers before the map sent widths: a typical laker's proportions
         let beam = ship.width.flatMap { $0 > 0 ? Double($0) : nil } ?? Double(length) * 0.14
