@@ -268,7 +268,7 @@ fun NextShipCard(ship: Ship, approach: Approach) {
 
 /** Link to the Port Huron ship cam, to watch the next ship go under the bridge */
 @Composable
-private fun ShipCamCard(url: String) {
+fun ShipCamCard(url: String) {
     val context = LocalContext.current
     val colors = Theme.colors
     Card(Modifier.readableWidth(), padding = 12.dp, onClick = { openUrl(context, url) }) {
