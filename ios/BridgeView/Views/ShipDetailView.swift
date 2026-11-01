@@ -164,7 +164,7 @@ private struct ShipDetailContent: View {
         if photoReporting {
             reportingPhoto = photo
         } else {
-            openURL(AppConfig.apiURL.appending(path: "support.html"))
+            openURL(AppConfig.apiURL.appending(path: "api/pages/support.html"))
         }
     }
 
@@ -213,6 +213,22 @@ private struct ShipDetailContent: View {
                     .shadow(radius: 4)
                     .padding(16)
                     .allowsHitTesting(false)
+                }
+                // The photo's credit, small along the bottom edge below the name, so it
+                // doesn't cover the photo or crowd the buttons at the top
+                .overlay(alignment: .bottomTrailing) {
+                    if let credit = currentPhoto?.credit {
+                        Text(credit)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: 240, alignment: .trailing)
+                            .padding(.horizontal, 8)
+                            .padding(.bottom, 3)
+                            .allowsHitTesting(false)
+                            .accessibilityLabel("Photo: \(credit)")
+                    }
                 }
                 .overlay(alignment: .topLeading) {
                     HStack(spacing: 6) {
@@ -299,22 +315,17 @@ private struct ShipDetailContent: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .overlay(alignment: .topTrailing) {
-                VStack(alignment: .trailing, spacing: 4) {
-                    if photos.count > 1 {
-                        Text("\(photoIndex + 1) / \(photos.count)")
-                            .monospacedDigit()
-                    }
-                    if let credit = photos[min(photoIndex, photos.count - 1)].credit {
-                        Text(credit).lineLimit(1)
-                    }
+                if photos.count > 1 {
+                    Text("\(photoIndex + 1) / \(photos.count)")
+                        .monospacedDigit()
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(.black.opacity(0.6), in: .rect(cornerRadius: 6))
+                        .padding(10)
+                        .allowsHitTesting(false)
                 }
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(.black.opacity(0.6), in: .rect(cornerRadius: 6))
-                .padding(10)
-                .allowsHitTesting(false)
             }
             .accessibilityLabel("Photos of \(ship.name), \(photoIndex + 1) of \(photos.count)")
         }

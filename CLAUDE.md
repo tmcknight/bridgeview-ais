@@ -360,7 +360,7 @@ Key files:
 
 - `infra/Dockerfile`: Multi-stage build (build → ws-server, frontend targets)
 - `docker-compose.yml`: Orchestrates ws-server and nginx frontend services
-- `infra/nginx.conf`: Nginx config for static files and WebSocket proxying
+- `infra/nginx.conf`: Nginx config for static files and WebSocket proxying; also serves the plain pages (about, support, privacy, terms) under `/api/pages/`, which Cloudflare Access leaves open, and the iOS app links there
 - `.dockerignore`: Excludes unnecessary files from Docker builds
 
 ## Deployment Considerations
