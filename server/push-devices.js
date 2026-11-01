@@ -152,7 +152,11 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
     ON CONFLICT (token) DO UPDATE SET
       environment = :environment,
       enabled = :enabled,
-      push_to_start_token = :push_to_start_token,
+      -- A registration without one keeps the token already stored: the app sends
+      -- some (a background launch for a geofence crossing) before iOS has given it
+      -- the token again, and dropping it would turn Live Activities into plain
+      -- notifications. APNs rejecting a token clears it (clearPushToStartToken).
+      push_to_start_token = COALESCE(:push_to_start_token, push_to_start_token),
       live_activities = :live_activities,
       categories = :categories,
       min_length = :min_length,

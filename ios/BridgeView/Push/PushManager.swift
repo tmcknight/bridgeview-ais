@@ -14,6 +14,9 @@ final class PushManager {
     private(set) var authorization: UNAuthorizationStatus = .notDetermined
     private(set) var liveActivitiesEnabled = ActivityAuthorizationInfo().areActivitiesEnabled
     private(set) var deviceToken: String?
+    /// Kept between launches: iOS doesn't always hand it over again straight away
+    /// (or at all, until it changes), and a registration sent without it would
+    /// leave the server unable to start Live Activities
     private(set) var pushToStartToken: String?
     private(set) var lastRegistrationError: String?
 
@@ -23,13 +26,18 @@ final class PushManager {
     private var registrationTask: Task<Void, Never>?
     private var lastRegistration: (token: String, body: DeviceRegistration)?
 
+    private static let pushToStartTokenKey = "push.pushToStartToken"
+
+    /// Follows the Live Activity tokens from launch, background launches too (a
+    /// geofence crossing), which never show the window that calls `start()`
     init(api: APIClient = APIClient(), nearBridge: NearBridgeMonitor) {
         self.api = api
         self.nearBridge = nearBridge
+        pushToStartToken = UserDefaults.standard.string(forKey: Self.pushToStartTokenKey)
+        observeLiveActivityTokens()
     }
 
-    /// Ask for permission (first launch only shows the prompt), register with
-    /// APNs, and start following the Live Activity tokens
+    /// Ask for permission (first launch only shows the prompt) and register with APNs
     func start() async {
         let center = UNUserNotificationCenter.current()
         do {
@@ -39,7 +47,6 @@ final class PushManager {
         }
         await refreshAuthorization()
         UIApplication.shared.registerForRemoteNotifications()
-        observeLiveActivityTokens()
     }
 
     func refreshAuthorization() async {
@@ -72,6 +79,7 @@ final class PushManager {
             for await data in Activity<ShipApproachAttributes>.pushToStartTokenUpdates {
                 guard let self else { return }
                 pushToStartToken = data.hexString
+                UserDefaults.standard.set(data.hexString, forKey: Self.pushToStartTokenKey)
                 logger.debug("Push-to-start token: \(data.hexString, privacy: .public)")
                 scheduleRegistration(immediately: true)
             }

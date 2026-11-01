@@ -111,6 +111,8 @@ describe("createPushDevices", () => {
 
     devices.register(register({ liveActivityShips: { 316001234: true } }).device);
     expect(devices.matching(ship)[0].liveActivityShips).toEqual({ 316001234: true });
+    // Sent without the push-to-start token (the app hasn't been given it again yet): keep it
+    expect(devices.matching(ship)[0].pushToStartToken).toBe(START_TOKEN);
 
     devices.register(register({ pushToStartToken: START_TOKEN, liveActivities: true }).device);
     devices.clearPushToStartToken(START_TOKEN);
