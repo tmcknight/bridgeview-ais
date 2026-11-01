@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		052F679801C49D202877CA96 /* ShipRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F5E147BDB8F9F2087E07C7 /* ShipRow.swift */; };
+		08402141FD858E64A814981B /* ShipMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E37FDE0A5F969141B691A4A /* ShipMotion.swift */; };
 		13F46E249030CC75A40F3D99 /* ShipApproachAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */; };
 		1DD5F1A38770A83201CC5A75 /* PhotoReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CAF57BCEEE451F02C0DFEEB /* PhotoReport.swift */; };
 		1F6F0FF9B5FF8AEC3457F54C /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B53116F5EFC8F811D2E5DD28 /* DecodingTests.swift */; };
@@ -17,9 +18,9 @@
 		32AF51BA6D65A28F0AB5A065 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6563CDA9382F3FACCECC11D5 /* AppConfig.swift */; };
 		3C31749ADF04072FC75D3618 /* LiveActivityToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E25B1C6E0986F638CC62B92 /* LiveActivityToggle.swift */; };
 		3D0D1F5AE7BDB35A64AE13F4 /* ShipApproachLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADB196A6C9A56B92D2E4085 /* ShipApproachLiveActivity.swift */; };
+		4244503079BCDD4B98C4D57A /* PhotoPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E821FF87C6BBE60A88309D18 /* PhotoPager.swift */; };
 		470933C76D5CD09563E7FAA1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60E5519C186118EB3A8F4D5 /* ContentView.swift */; };
 		50C3045A39683ED4E8557B20 /* DeadReckoningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D815DE39403395711BEB2A1F /* DeadReckoningTests.swift */; };
-		8D4F3B0E6A5C7D9E1F2A3B4C /* ShipMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3E2A9D5F4B6C8D0E1F2A3B /* ShipMotionTests.swift */; };
 		5AD93B85EC737D40955D91A7 /* SharePhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED822C0C4EC72AEF9FF8F959 /* SharePhotoView.swift */; };
 		5E1316ACDAD8F2D65E194EBA /* Ship.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */; };
 		5FF62D0418FE53BB655F4414 /* DataCredits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24430F125C406E2C675F0B2E /* DataCredits.swift */; };
@@ -38,7 +39,6 @@
 		9A95F303D34A90963F980A4F /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = C821C394745D90E7253117E9 /* Formatting.swift */; };
 		9B4A213005AE2962EA1467E0 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3BB4F4BB8D96E723198DB15 /* Appearance.swift */; };
 		A2F8D98A96DF21E08F95F38F /* DeadReckoning.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CFC8D007EBBB7D8A97D838 /* DeadReckoning.swift */; };
-		6B2D1F8C4E3A5B7C9D0E1F2A /* ShipMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1C0E7B3D2F4A6B8C9D0E1F /* ShipMotion.swift */; };
 		A4EDAB291529DB155B7B3CC6 /* ShipLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58249D7D6116316BEE01D28C /* ShipLinks.swift */; };
 		B24D7A6875F863E62FF82CA2 /* Compass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40010C103764ABAE3F0B89E4 /* Compass.swift */; };
 		B77B06C4E56D45ACA50BCA7B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD8396ACF185B879591B53E /* APIClient.swift */; };
@@ -49,6 +49,7 @@
 		CC59EA6B6605875C121FF8B7 /* APIErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0158ED2F6564EF26A2D0294 /* APIErrorTests.swift */; };
 		CE03B618CB58228E63D67311 /* SharedPhoto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */; };
 		D682A2DB996586269E00400B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1803C12C123A310A829E6F4 /* SettingsView.swift */; };
+		DCA9CF7E5C17F8EE5EA6469F /* ShipMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316DDD42EC695E3459F90B80 /* ShipMotionTests.swift */; };
 		E0DCE9B44D842C48099F7830 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC39982F5302200CF991BF1 /* Router.swift */; };
 		E6C9DDC2F748232DD0CD506E /* BridgeViewApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B717E8DB26102D4BB6B8A5B /* BridgeViewApp.swift */; };
 		EC31C1C497CFECD2E87C537B /* DeviceID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEA7D10F7A8330E76BD6CD0 /* DeviceID.swift */; };
@@ -95,6 +96,7 @@
 		24430F125C406E2C675F0B2E /* DataCredits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCredits.swift; sourceTree = "<group>"; };
 		2AB1FC9FB6391BFE12994668 /* LiveMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMapView.swift; sourceTree = "<group>"; };
 		2DEA7D10F7A8330E76BD6CD0 /* DeviceID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceID.swift; sourceTree = "<group>"; };
+		316DDD42EC695E3459F90B80 /* ShipMotionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipMotionTests.swift; sourceTree = "<group>"; };
 		31E02C1136412D57948C12EE /* Styling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Styling.swift; sourceTree = "<group>"; };
 		38534D0D76DCC506DF9390E8 /* NearBridgeMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NearBridgeMonitor.swift; sourceTree = "<group>"; };
 		40010C103764ABAE3F0B89E4 /* Compass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compass.swift; sourceTree = "<group>"; };
@@ -115,6 +117,7 @@
 		7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPhoto.swift; sourceTree = "<group>"; };
 		80C70708A663AF386FF9BE04 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		8B67AA18BDBF6895758D5247 /* BridgeView.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BridgeView.entitlements; sourceTree = "<group>"; };
+		8E37FDE0A5F969141B691A4A /* ShipMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipMotion.swift; sourceTree = "<group>"; };
 		9340F6CAE409E5F921DBC5E1 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		9377380908DBA6722E691DB0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		94F5E147BDB8F9F2087E07C7 /* ShipRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipRow.swift; sourceTree = "<group>"; };
@@ -132,10 +135,9 @@
 		CA0D81E969AF93E5B15C8860 /* BridgeViewWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeViewWidgets.swift; sourceTree = "<group>"; };
 		D60E5519C186118EB3A8F4D5 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		D815DE39403395711BEB2A1F /* DeadReckoningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeadReckoningTests.swift; sourceTree = "<group>"; };
-		7C3E2A9D5F4B6C8D0E1F2A3B /* ShipMotionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipMotionTests.swift; sourceTree = "<group>"; };
 		E2CFC8D007EBBB7D8A97D838 /* DeadReckoning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeadReckoning.swift; sourceTree = "<group>"; };
-		5A1C0E7B3D2F4A6B8C9D0E1F /* ShipMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipMotion.swift; sourceTree = "<group>"; };
 		E44BBC8CC9F474C64A9C5467 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		E821FF87C6BBE60A88309D18 /* PhotoPager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoPager.swift; sourceTree = "<group>"; };
 		ED3934528FE4A2ABEAFAC063 /* BridgeViewWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = BridgeViewWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED822C0C4EC72AEF9FF8F959 /* SharePhotoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharePhotoView.swift; sourceTree = "<group>"; };
 		F14CB327A8C0E5B83CF84743 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -201,7 +203,7 @@
 				6CB8A002850BB6795D236889 /* LiveActivityTests.swift */,
 				74B633CB45C2138852905A82 /* RegistrationTests.swift */,
 				C81ACA3C9B0F8B2762D236D6 /* SharedPhotoTests.swift */,
-				7C3E2A9D5F4B6C8D0E1F2A3B /* ShipMotionTests.swift */,
+				316DDD42EC695E3459F90B80 /* ShipMotionTests.swift */,
 			);
 			path = BridgeViewTests;
 			sourceTree = "<group>";
@@ -239,7 +241,7 @@
 				7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */,
 				FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */,
 				58249D7D6116316BEE01D28C /* ShipLinks.swift */,
-				5A1C0E7B3D2F4A6B8C9D0E1F /* ShipMotion.swift */,
+				8E37FDE0A5F969141B691A4A /* ShipMotion.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -264,6 +266,7 @@
 				C821C394745D90E7253117E9 /* Formatting.swift */,
 				6E25B1C6E0986F638CC62B92 /* LiveActivityToggle.swift */,
 				2AB1FC9FB6391BFE12994668 /* LiveMapView.swift */,
+				E821FF87C6BBE60A88309D18 /* PhotoPager.swift */,
 				A1803C12C123A310A829E6F4 /* SettingsView.swift */,
 				ED822C0C4EC72AEF9FF8F959 /* SharePhotoView.swift */,
 				68A22234AA77247990094DBD /* ShipDetailView.swift */,
@@ -433,7 +436,7 @@
 				71F05A35E71239CC40ED97E0 /* LiveActivityTests.swift in Sources */,
 				C9BED5BAC70378773863558B /* RegistrationTests.swift in Sources */,
 				7DA225D72F44D67AA70A3F92 /* SharedPhotoTests.swift in Sources */,
-				8D4F3B0E6A5C7D9E1F2A3B4C /* ShipMotionTests.swift in Sources */,
+				DCA9CF7E5C17F8EE5EA6469F /* ShipMotionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -459,6 +462,7 @@
 				3C31749ADF04072FC75D3618 /* LiveActivityToggle.swift in Sources */,
 				748FBA9875CA1BD0A286F29D /* LiveMapView.swift in Sources */,
 				C405753687C588EADE470F58 /* NearBridgeMonitor.swift in Sources */,
+				4244503079BCDD4B98C4D57A /* PhotoPager.swift in Sources */,
 				1DD5F1A38770A83201CC5A75 /* PhotoReport.swift in Sources */,
 				608B08BC6D5829E6F4654BED /* PushManager.swift in Sources */,
 				E0DCE9B44D842C48099F7830 /* Router.swift in Sources */,
@@ -469,8 +473,8 @@
 				BEF1DAFCDB0B08D08F07304F /* ShipApproachAttributes.swift in Sources */,
 				6C24063CB47D10037230D84E /* ShipDetailView.swift in Sources */,
 				A4EDAB291529DB155B7B3CC6 /* ShipLinks.swift in Sources */,
-				6B2D1F8C4E3A5B7C9D0E1F2A /* ShipMotion.swift in Sources */,
 				256A93ABF3E3E59DBB476B71 /* ShipListContainer.swift in Sources */,
+				08402141FD858E64A814981B /* ShipMotion.swift in Sources */,
 				052F679801C49D202877CA96 /* ShipRow.swift in Sources */,
 				7D9997CFC0EDB375ED03CCA4 /* Styling.swift in Sources */,
 				78607F02DD78AD8E66B21F7B /* Theme.swift in Sources */,

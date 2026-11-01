@@ -373,6 +373,11 @@ export function createApproachAlerts({ apns = null, fcm = null, pushDevices, shi
         }
       } catch (err) {
         if (err.isBadToken) {
+          // Warned: a dropped push-to-start token silently turns that phone's Live
+          // Activities into plain notifications until the app sends a new one
+          logger?.warn(
+            `[alerts] dropping ${channel ? "push-to-start" : "device"} token ${(channel ? device.pushToStartToken : device.token).slice(0, 8)}… (${err.message})`
+          );
           if (channel) pushDevices.clearPushToStartToken(device.pushToStartToken);
           else pushDevices.remove(device.token);
         } else {

@@ -26,13 +26,22 @@ final class PushManager {
     private var registrationTask: Task<Void, Never>?
     private var lastRegistration: (token: String, body: DeviceRegistration)?
 
-    private static let pushToStartTokenKey = "push.pushToStartToken"
+    /// Per push environment: an Xcode build's (sandbox) token is refused by
+    /// production APNs, and a TestFlight build installed over it keeps its
+    /// UserDefaults, so it would send that token, the server would drop it as bad,
+    /// and the phone's Live Activities would quietly become plain notifications
+    private static let pushToStartTokenKey = "push.pushToStartToken.\(AppConfig.pushEnvironment)"
+    /// Before tokens were kept per environment; which build saved it isn't known
+    private static let legacyPushToStartTokenKey = "push.pushToStartToken"
 
     /// Follows the Live Activity tokens from launch, background launches too (a
     /// geofence crossing), which never show the window that calls `start()`
     init(api: APIClient = APIClient(), nearBridge: NearBridgeMonitor) {
         self.api = api
         self.nearBridge = nearBridge
+        // The server keeps the token it already has when a registration has none,
+        // so forgetting an unknown one costs nothing
+        UserDefaults.standard.removeObject(forKey: Self.legacyPushToStartTokenKey)
         pushToStartToken = UserDefaults.standard.string(forKey: Self.pushToStartTokenKey)
         observeLiveActivityTokens()
     }
@@ -96,6 +105,14 @@ final class PushManager {
     /// The app came to the front: send anything that didn't get through (a
     /// crossing reported while suspended, a change made while offline)
     func appBecameActive() {
+        scheduleRegistration(immediately: true)
+    }
+
+    /// The app is leaving the screen: send a change still waiting out its delay
+    /// (a ship followed just before closing the app) now, while iOS still lets the
+    /// app run, or the server won't know until the app is next opened
+    /// (nothing is sent when the server already has these settings)
+    func appLeftForeground() {
         scheduleRegistration(immediately: true)
     }
 

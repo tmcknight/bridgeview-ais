@@ -33,6 +33,10 @@ struct ContentView: View {
             push.appBecameActive()
             await store.poll()
         }
+        // Send settings changed just before leaving, before iOS suspends the app
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { push.appLeftForeground() }
+        }
         // Forget per-ship Live Activity choices once the ship isn't coming up any more
         .onChange(of: store.snapshot?.upcoming.map(\.mmsi)) { _, upcoming in
             guard let upcoming else { return }
