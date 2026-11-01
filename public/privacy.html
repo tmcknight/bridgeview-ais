@@ -12,7 +12,7 @@
     <main>
       <a class="home" href="/"><img src="/icon-192.png" alt="" width="40" height="40" /> BridgeView</a>
       <h1>Privacy</h1>
-      <p class="updated">Last updated 31 October 2026</p>
+      <p class="updated">Last updated 1 November 2026</p>
 
       <p>
         BridgeView shows ships heading for the Blue Water Bridge and can alert you before one goes
@@ -21,33 +21,40 @@
 
       <h2>Your location</h2>
       <p>
-        If you turn on <strong>Only when I'm near the bridge</strong>, the iPhone app uses iOS's
-        location services to notice when you arrive within the distance you chose of the bridge, and
-        when you leave. That happens on your phone. Your location is never sent to BridgeView or
+        If you turn on <strong>Only when I'm near the bridge</strong>, the app uses your phone's
+        location services (iOS's on iPhone, Google Play services' geofencing on Android) to notice
+        when you arrive within the distance you chose of the bridge, and when you leave, even when
+        the app is closed. That happens on your phone. Your location is never sent to BridgeView or
         anyone else; the app only tells our server whether to send you alerts right now.
       </p>
       <p>If you leave the setting off, the app doesn't use your location at all.</p>
 
       <h2>What the server keeps for alerts</h2>
-      <p>To send bridge alerts to your iPhone, our server stores:</p>
+      <p>To send bridge alerts to your phone, our server stores:</p>
       <ul>
-        <li>The push notification token Apple gives the app, and the Live Activity token</li>
+        <li>
+          The push notification token the app gets from Apple (iPhone) or Google's Firebase Cloud
+          Messaging (Android), and on iPhone the Live Activity token
+        </li>
         <li>
           Your alert settings: whether alerts are on, which kinds of ships, minimum length, which
-          directions, and whether Live Activities are on
+          directions, and whether Live Activities (on Android, live countdown notifications) are on
         </li>
         <li>When the device registered and when its settings last changed</li>
       </ul>
       <p>
-        These tokens identify the app on your phone to Apple's push service; they don't tell us who
-        you are. Nothing here is linked to your name, Apple ID, email or phone number. If you turn
-        notifications off or delete the app, Apple stops accepting the token and the server deletes
-        the record the next time it tries to alert you.
+        These tokens identify the app on your phone to Apple's or Google's push service; they don't
+        tell us who you are. Nothing here is linked to your name, Apple ID, Google account, email or
+        phone number. If you turn notifications off or delete the app, the push service stops
+        accepting the token and the server deletes the record the next time it tries to alert you.
+        On Android, Firebase Cloud Messaging also keeps an installation ID for the app so it can
+        deliver messages; see <a href="https://firebase.google.com/support/privacy">Firebase's
+        privacy information</a>.
       </p>
 
       <h2>Photos you share</h2>
       <p>
-        If you share a photo of a ship from the iPhone app, our server stores:
+        If you share a photo of a ship from the app, our server stores:
       </p>
       <ul>
         <li>
@@ -74,8 +81,8 @@
         email us.
       </p>
       <p>
-        The app uses the camera only when you tap <strong>Take a photo</strong>, and sees only the
-        photos you pick from your library.
+        The app uses the camera only when you tap <strong>Take a photo</strong> (on Android, through
+        your phone's camera app), and sees only the photos you pick from your library.
       </p>
 
       <h2>Server logs</h2>
@@ -96,8 +103,9 @@
 
       <h2>Sharing</h2>
       <p>
-        We don't sell or share your information. Push notifications are delivered through Apple;
-        shared photos are stored with Cloudflare (R2).
+        We don't sell or share your information. Push notifications are delivered through Apple
+        (iPhone) and Google's Firebase Cloud Messaging (Android); shared photos are stored with
+        Cloudflare (R2).
       </p>
 
       <h2>Children</h2>

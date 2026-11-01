@@ -125,7 +125,7 @@ In the `app-release` environment (the same one the iOS release uses):
 - **Variables:** `ANDROID_APPLICATION_ID`, `BRIDGEVIEW_API_URL`, `ANDROID_FIREBASE_APP_ID`,
   `ANDROID_FIREBASE_API_KEY`, `ANDROID_FIREBASE_PROJECT_ID`, `ANDROID_FIREBASE_SENDER_ID`,
   and optionally `ANDROID_PLAY_TRACK` (default `internal`).
-- **Secrets:** `ANDROID_KEYSTORE_BASE64` (the upload key's keystore, `base64 -w0 upload.jks`),
+- **Secrets:** `ANDROID_KEYSTORE_BASE64` (the upload key's keystore, `base64 -w0 upload.jks`, or `base64 -i upload.jks` on macOS),
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and
   `ANDROID_PLAY_SERVICE_ACCOUNT` (a Google Cloud service account's JSON key, invited in the
   Play Console under Users and permissions with permission to release to testing tracks).
