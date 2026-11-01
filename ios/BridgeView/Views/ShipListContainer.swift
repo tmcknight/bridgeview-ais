@@ -26,6 +26,7 @@ struct ShipListContainer<Empty: View>: View {
                         }
                         .padding(.horizontal)
                         .padding(.bottom)
+                        .readableWidth()
                     }
                 } else if ships == nil, let error = store.error {
                     ContentUnavailableView {
@@ -74,6 +75,7 @@ struct ShipListContainer<Empty: View>: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 4)
+                .readableWidth()
             }
         }
     }

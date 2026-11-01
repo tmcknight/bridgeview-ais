@@ -1,5 +1,13 @@
 import SwiftUI
 
+extension View {
+    /// Keeps cards and text to a comfortable width, centred, on wide screens (iPhone Duo's
+    /// inner display, landscape); no change on a phone held upright
+    func readableWidth() -> some View {
+        frame(maxWidth: 640).frame(maxWidth: .infinity)
+    }
+}
+
 /// The screen background: the river's blue at the top, fading into fog (or
 /// night water) with a few faint swells that drift slowly (still with Reduce Motion)
 struct RiverBackground: View {

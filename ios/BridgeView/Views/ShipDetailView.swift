@@ -126,6 +126,7 @@ private struct ShipDetailContent: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 24)
+            .readableWidth()
         }
         .background { RiverBackground() }
         .sheet(isPresented: $sharingPhoto) {

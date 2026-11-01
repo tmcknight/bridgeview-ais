@@ -28,7 +28,7 @@ sends the alerts. See [API.md](API.md) for the endpoints and push payloads.
 
 ## Requirements
 
-- Xcode 26 or later, iOS 18 or later
+- Xcode 26 or later (27.1 or later for full screen on iPhone Duo), iOS 18 or later
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) if you change `project.yml`
   (`brew install xcodegen`)
 - For real pushes: an Apple Developer Program membership
@@ -64,6 +64,19 @@ The app icon (`BridgeView/Resources/Assets.xcassets/AppIcon.appiconset`) has
 default, dark and tinted 1024×1024 versions. The launch screen shows the logo on river blue,
 and the Live Activity uses the white logo (`LogoMark` in the widget's assets); the
 full-size artwork is in `Brand/`.
+
+## iPhone Duo
+
+The app runs on both of iPhone Duo's displays and turns sideways with the phone
+(portrait and landscape, so it works stood open like a tent; the inner display
+ignores supported orientations anyway). Layout follows size classes, never the
+device or orientation: on the inner display (regular width) the tabs can become a
+sidebar (`.sidebarAdaptable`), and lists, ship details and the map's ship card keep
+to a readable width (`readableWidth()` in `Views/Styling.swift`). Build with Xcode
+27.1 or later (the iOS 27.1 SDK) for edge to edge; with an earlier SDK it still runs
+there, letterboxed. The release workflow uses the newest Xcode on its runner and
+warns if that's older than 27.1. Try it in Xcode's iPhone Duo simulator, opening and
+closing it from Device Hub.
 
 ## Project layout
 

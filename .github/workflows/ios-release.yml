@@ -54,6 +54,17 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: "26"
+      - name: Newest Xcode
+        # iPhone Duo shows the app edge to edge only when it's built with the iOS 27.1 SDK (Xcode 27.1);
+        # earlier SDKs still run there, letterboxed. Use the newest Xcode on the runner and say if it's too old.
+        run: |
+          xcode=$(ls -d /Applications/Xcode_*.app | grep -E 'Xcode_[0-9.]+\.app$' | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          version=$(xcodebuild -version | awk 'NR==1 {print $2}')
+          echo "Using $xcode ($version)"
+          if [ "$(printf '%s\n' 27.1 "$version" | sort -V | head -1)" != 27.1 ]; then
+            echo "::warning::Xcode $version is older than 27.1: on iPhone Duo the app will be letterboxed, not full screen."
+          fi
       - run: brew install xcodegen
       - name: App settings
         # The bundle ID, team and server live in repository variables, not in the repo (ios/README.md)
