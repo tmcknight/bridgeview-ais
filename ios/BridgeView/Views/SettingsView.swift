@@ -25,14 +25,14 @@ struct SettingsView: View {
                 Section {
                     Toggle("Bridge alerts", isOn: $enabled)
                 } footer: {
-                    Text("Get a notification when a ship is about 5–10 minutes from the \(Bridge.name).")
+                    Text("Get notified when a ship is 5–10 minutes from the \(Bridge.name).")
                 }
                 .listRowBackground(Theme.surface)
                 if push.authorization == .denied {
                     Section {
                         Button("Turn on notifications in Settings") { openSettings() }
                     } footer: {
-                        Text("Notifications are off for BridgeView, so alerts can't reach this phone.")
+                        Text("Notifications are off for BridgeView.")
                     }
                     .listRowBackground(Theme.surface)
                 }
@@ -75,7 +75,7 @@ struct SettingsView: View {
                     } header: {
                         Text("Where you are")
                     } footer: {
-                        Text("Alerts pause while you're farther from the bridge and start again when you come back. Your location stays on this phone; BridgeView only tells the server whether to send alerts.")
+                        Text("Alerts pause while you're away. Your location stays on this phone.")
                     }
                     .listRowBackground(Theme.surface)
                     Section {
@@ -86,7 +86,7 @@ struct SettingsView: View {
                             Button("Turn on in Settings") { openSettings() }
                         }
                     } footer: {
-                        Text("With Live Activities on, an alert also puts a countdown on your Lock Screen and in the Dynamic Island until the ship goes under the bridge. Off, you get just the notification. To choose for one ship, open it, or press and hold it in Coming up.")
+                        Text("Adds a countdown to the Lock Screen and Dynamic Island. To change it for one ship, open the ship or press and hold it in Coming up.")
                     }
                     .listRowBackground(Theme.surface)
                 }
@@ -102,7 +102,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Appearance")
                 } footer: {
-                    Text("System follows your iPhone's Light or Dark setting.")
+                    Text("System matches your iPhone.")
                 }
                 if let error = push.lastRegistrationError {
                     Section {
@@ -116,11 +116,11 @@ struct SettingsView: View {
                 Section {
                     Text("BridgeView is a gift to the Sarnia and Port Huron communities, for everyone who loves watching the ships go by.")
                         .font(.footnote)
-                    Text("Ship positions come from AIS, the radio beacons ships broadcast, received by a local antenna and the feeds credited below. Arrival times are estimates from each ship's speed and course. Photos and ship details from Wikidata and Wikimedia Commons, under their contributors' licences.")
+                    Text("Positions come from ships' AIS radio beacons, via a local antenna and the feeds below. Arrival times are estimates. Photos and details from Wikidata and Wikimedia Commons, under their contributors' licences.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     if let attribution = store.snapshot?.attribution, !attribution.isEmpty {
-                        DataCredits(attribution: attribution)
+                        DataCredits(attribution: attribution, alignment: .leading)
                     }
                     Link("About BridgeView", destination: AppConfig.apiURL.appending(path: "about.html"))
                     Link("Terms", destination: AppConfig.apiURL.appending(path: "terms.html"))
@@ -128,7 +128,7 @@ struct SettingsView: View {
                 } header: {
                     Text("About")
                 } footer: {
-                    Text("BridgeView is for watching ships. Don't use it for navigation or safety.")
+                    Text("Not for navigation or safety.")
                 }
                 .listRowBackground(Theme.surface)
             }
@@ -165,11 +165,11 @@ struct SettingsView: View {
     @ViewBuilder private var nearBridgeStatus: some View {
         switch nearBridge.authorization {
         case .denied, .restricted:
-            Label("Location is off for BridgeView, so alerts aren't paused", systemImage: "location.slash")
+            Label("Location is off, so alerts won't pause", systemImage: "location.slash")
                 .foregroundStyle(.secondary)
             Button("Turn on in Settings") { openSettings() }
         case .authorizedWhenInUse:
-            Label("Allow location access \u{201C}Always\u{201D} so alerts can pause when you leave", systemImage: "location")
+            Label("Allow location \u{201C}Always\u{201D} to pause alerts when you leave", systemImage: "location")
                 .foregroundStyle(.secondary)
             Button("Change in Settings") { openSettings() }
         case .authorizedAlways:
@@ -178,7 +178,7 @@ struct SettingsView: View {
                 Label("You're near the bridge", systemImage: "location.fill")
                     .foregroundStyle(Theme.upbound)
             case false?:
-                Label("You're away, so alerts are paused", systemImage: "pause.circle.fill")
+                Label("You're away. Alerts paused", systemImage: "pause.circle.fill")
                     .foregroundStyle(.secondary)
             case nil:
                 Label("Finding where you are…", systemImage: "location")

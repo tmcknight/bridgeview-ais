@@ -4,6 +4,9 @@ import SwiftUI
 /// terms ask for "Data: AISHub contributors" clearly visible near the data.
 struct DataCredits: View {
     var attribution: [Attribution]
+    /// Centred under maps and lists; leading in a form, where a centred row
+    /// pulls the list separator below it in to where its text starts
+    var alignment: Alignment = .center
 
     var body: some View {
         HStack(spacing: 6) {
@@ -19,7 +22,7 @@ struct DataCredits: View {
         .tint(.secondary)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: alignment)
     }
 }
 
