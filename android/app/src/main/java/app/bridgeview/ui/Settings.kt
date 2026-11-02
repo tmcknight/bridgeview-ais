@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -32,6 +33,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -97,7 +99,16 @@ fun SettingsScreen() {
             locationSettingsChanged()
         }
     }
+    // Google Play wants a disclosure in the app before each location prompt, since the
+    // geofence uses location in the background
+    var disclosure by remember { mutableStateOf<LocationAsk?>(null) }
     fun askForLocation() {
+        disclosure = LocationAsk.WhileUsing
+    }
+    fun askForBackgroundLocation() {
+        disclosure = LocationAsk.AllTheTime
+    }
+    fun requestLocation() {
         graph.nearBridge.markAsked()
         val permissions = buildList {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -106,6 +117,20 @@ fun SettingsScreen() {
             if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
         foregroundLocation.launch(permissions.toTypedArray())
+    }
+
+    disclosure?.let { ask ->
+        LocationDisclosure(
+            ask,
+            onContinue = {
+                disclosure = null
+                when (ask) {
+                    LocationAsk.WhileUsing -> requestLocation()
+                    LocationAsk.AllTheTime -> backgroundLocation.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                }
+            },
+            onDismiss = { disclosure = null },
+        )
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -179,7 +204,7 @@ fun SettingsScreen() {
                                 }
                                 NearBridgeStatus(
                                     askForeground = ::askForLocation,
-                                    askBackground = { backgroundLocation.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION) },
+                                    askBackground = ::askForBackgroundLocation,
                                 )
                             }
                         }
@@ -366,4 +391,28 @@ private fun StatusRow(icon: ImageVector, text: String, tint: Color) {
         Icon(icon, contentDescription = null, tint = tint)
         Text(text, style = Theme.text(Theme.Style.Body), color = tint)
     }
+}
+
+/** Which location prompt a disclosure comes before */
+private enum class LocationAsk { WhileUsing, AllTheTime }
+
+/** Says what location is for before Android asks for it (Google Play's prominent disclosure) */
+@Composable
+private fun LocationDisclosure(ask: LocationAsk, onContinue: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ask == LocationAsk.WhileUsing) "Use your location?" else "Allow location all the time?") },
+        text = {
+            Text(
+                buildString {
+                    append("BridgeView uses your location to pause bridge alerts while you're away from the ${Bridge.NAME} ")
+                    append("and start them again when you're back, even when the app is closed or not in use. ")
+                    append("Your location stays on this phone and is never sent to BridgeView or anyone else.")
+                    if (ask == LocationAsk.AllTheTime) append("\n\nOn the next screen, choose \u201cAllow all the time\u201d.")
+                },
+            )
+        },
+        confirmButton = { TextButton(onClick = onContinue) { Text("Continue") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
+    )
 }
