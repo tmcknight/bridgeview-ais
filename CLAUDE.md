@@ -54,6 +54,7 @@ src/
 │   ├── aircraft.ts    # Aircraft server messages and display helpers
 │   ├── shipCams.ts    # Ship cam video IDs from the server
 │   ├── motion.ts      # Dead reckoning and easing between position reports
+│   ├── shipUpdates.ts # Batched ship updates (applied ~4×/s) and stale-ship purging
 │   ├── tvMode.ts      # Which ship TV mode shows on the cam
 │   └── logger.ts      # Logging utility
 ├── test/              # Test infrastructure

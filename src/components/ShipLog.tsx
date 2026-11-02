@@ -65,7 +65,7 @@ export default function ShipLog({
                 tabIndex={live && !hidden ? 0 : -1}
                 aria-label={live ? `Select ${entry.name}` : undefined}
                 aria-pressed={live ? isSelected : undefined}
-                className={`bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-2 rounded-lg px-3 py-2 transition-colors focus:outline-none ${
+                className={`bg-slate-50/90 dark:bg-slate-900/90 border-2 rounded-lg px-3 py-2 transition-colors focus:outline-none ${
                   isSelected
                     ? "border-blue-500 bg-blue-50/90 dark:bg-blue-900/30"
                     : live

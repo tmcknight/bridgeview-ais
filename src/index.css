@@ -72,22 +72,49 @@
   z-index: 1000 !important;
 }
 
+/* Only transform and opacity are animated, which the compositor handles
+   without repainting; an animated filter repaints every frame */
 .selected-ship-marker .ship-marker {
+  position: relative;
   animation: pulse-selected 1.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* The glow: a soft blue disc behind the arrow, brightening with the pulse */
+.selected-ship-marker .ship-marker::after {
+  content: "";
+  position: absolute;
+  inset: -20px;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.7) 0%,
+    rgba(59, 130, 246, 0.3) 40%,
+    rgba(59, 130, 246, 0) 70%
+  );
+  pointer-events: none;
+  animation: pulse-glow 1.5s ease-in-out infinite;
+  will-change: opacity;
 }
 
 @keyframes pulse-selected {
   0%,
   100% {
     transform: scale(1.1);
-    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.8))
-      drop-shadow(0 0 24px rgba(59, 130, 246, 0.4));
   }
   50% {
     transform: scale(1.4);
-    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 1))
-      drop-shadow(0 0 40px rgba(59, 130, 246, 0.6))
-      drop-shadow(0 0 60px rgba(59, 130, 246, 0.3));
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
   }
 }
 

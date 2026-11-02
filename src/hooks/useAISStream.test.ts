@@ -161,6 +161,31 @@ describe('useAISStream', () => {
         expect(result.current.ships.size).toBe(3)
       })
     })
+
+    it('applies a burst of reports in one update', async () => {
+      const seen: number[] = []
+      const { result } = renderHook(() => {
+        const stream = useAISStream()
+        seen.push(stream.ships.size)
+        return stream
+      })
+
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      act(() => {
+        for (let i = 0; i < 50; i++) {
+          mockServer.sendPositionReport(mockAISPositionMessage(100000000 + i, 43.05, -82.42, 180, 10))
+        }
+      })
+
+      await waitFor(() => {
+        expect(result.current.ships.size).toBe(50)
+      })
+      // Straight from none to all 50, never part way
+      expect(seen.filter((size) => size > 0 && size < 50)).toEqual([])
+    })
   })
 
   describe('static data processing', () => {

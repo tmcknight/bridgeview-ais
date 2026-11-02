@@ -313,7 +313,7 @@ const MODEL_COLORS: Record<Exclude<ModelPart, "hull">, string> = {
 // Each hull comes with its 3D model (what stands on deck), which only the 3D
 // view draws, and its wake while it's under way
 function buildHullFeatures(
-  ships: Map<number, TrackedShip>,
+  ships: Iterable<TrackedShip>,
   zoom: number,
   position: (ship: TrackedShip) => MotionPosition,
   minSize: HullMinSize,
@@ -321,7 +321,7 @@ function buildHullFeatures(
 ): HullFeatures {
   const hulls: FeatureCollection<Polygon>["features"] = [];
   const ripple: FeatureCollection<Point>["features"] = [];
-  for (const ship of ships.values()) {
+  for (const ship of ships) {
     if (!showsHull(ship, zoom)) continue;
     const { lat, lon, rotation } = position(ship);
     const mpp = metresPerPixel(zoom, lat);
@@ -437,6 +437,55 @@ function useHullRipple(active: boolean): void {
 
 const EMPTY_FEATURES: FeatureCollection = { type: "FeatureCollection", features: [] };
 
+// GeoJSON sources are redrawn at most this often while what's in them moves:
+// each setData sends the whole collection to MapLibre's worker
+const SOURCE_FRAME_MS = 1000 / 30;
+
+/**
+ * Redraw GeoJSON sources while what they show is moving, at most every
+ * SOURCE_FRAME_MS, and again whenever a style reload brings a source back
+ * empty. The loop stops once nothing is moving; whoever calls this starts it
+ * again when the data changes.
+ */
+function animateSources(
+  mapInstance: maplibregl.Map,
+  sourceIds: string[],
+  isMoving: (now: number) => boolean,
+  draw: (sources: maplibregl.GeoJSONSource[], now: number) => void
+): () => void {
+  let frame = 0;
+  // The sources last drawn into: a reloaded style replaces them with empty ones
+  let drawnInto: (maplibregl.GeoJSONSource | undefined)[] = [];
+  let lastDraw = -Infinity;
+  const getSources = () => sourceIds.map((id) => mapInstance.getSource<maplibregl.GeoJSONSource>(id));
+  const replaced = () => getSources().some((source, i) => source !== drawnInto[i]);
+  const step = (now: number): void => {
+    frame = 0;
+    const sources = getSources();
+    const ready = sources.every((source) => source !== undefined);
+    const stale = sources.some((source, i) => source !== drawnInto[i]);
+    const moving = isMoving(now);
+    if (ready && (stale || (moving && now - lastDraw >= SOURCE_FRAME_MS))) {
+      draw(sources as maplibregl.GeoJSONSource[], now);
+      drawnInto = sources;
+      lastDraw = now;
+    }
+    // Sources not on the map yet are looked for again next frame
+    if (moving || !ready) frame = requestAnimationFrame(step);
+  };
+  // Fired for any style change (every frame while a paint property animates),
+  // so only a replaced source brings a redraw
+  const onStyleData = (): void => {
+    if (!frame && replaced()) frame = requestAnimationFrame(step);
+  };
+  mapInstance.on("styledata", onStyleData);
+  frame = requestAnimationFrame(step);
+  return () => {
+    cancelAnimationFrame(frame);
+    mapInstance.off("styledata", onStyleData);
+  };
+}
+
 // Flat hulls leave the 3D models out, and nothing solid has a wake
 const HULLS_ONLY: FilterSpecification = ["==", ["get", "part"], "hull"];
 const WAKES_ONLY: FilterSpecification = ["==", ["get", "part"], "wake"];
@@ -476,27 +525,23 @@ function ShipHulls({
     }
   }, [ships]);
 
-  // The sources' data is set here every frame while hulls are moving, not from props
+  // The sources' data is set here while hulls are moving, not from props
   useEffect(() => {
     if (!map) return;
     const mapInstance = map.getMap();
     const motions = motionsRef.current;
-    let drawn = false;
-    // A new map style brings the sources back empty
-    const redraw = () => {
-      drawn = false;
-    };
-    mapInstance.on("styledata", redraw);
-    let frame = requestAnimationFrame(function step(now) {
-      const moving = Array.from(ships.values()).some((ship) => {
-        const motion = motions.get(ship.mmsi);
-        return showsHull(ship, zoom) && motion !== undefined && !motionSettled(motion, now);
-      });
-      const hullSource = mapInstance.getSource<maplibregl.GeoJSONSource>("ship-hulls");
-      const rippleSource = mapInstance.getSource<maplibregl.GeoJSONSource>("ship-hull-ripple");
-      if ((!drawn || moving) && hullSource && rippleSource) {
+    const hullShips = Array.from(ships.values()).filter((ship) => showsHull(ship, zoom));
+    return animateSources(
+      mapInstance,
+      ["ship-hulls", "ship-hull-ripple"],
+      (now) =>
+        hullShips.some((ship) => {
+          const motion = motions.get(ship.mmsi);
+          return motion !== undefined && !motionSettled(motion, now);
+        }),
+      ([hullSource, rippleSource], now) => {
         const { hulls, ripple } = buildHullFeatures(
-          ships,
+          hullShips,
           zoom,
           (ship) => {
             const motion = motions.get(ship.mmsi);
@@ -507,14 +552,8 @@ function ShipHulls({
         );
         hullSource.setData(hulls);
         rippleSource.setData(ripple);
-        drawn = true;
       }
-      frame = requestAnimationFrame(step);
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-      mapInstance.off("styledata", redraw);
-    };
+    );
   }, [map, ships, zoom, selectedMmsi, minSize]);
 
   const selected = selectedMmsi !== undefined ? ships.get(selectedMmsi) : undefined;
@@ -765,38 +804,28 @@ function AircraftModels({ aircraft, zoom }: { aircraft: Aircraft[]; zoom: number
     }
   }, [aircraft]);
 
-  // The source's data is set here every frame while aircraft are moving, not from props
+  // The source's data is set here while aircraft are moving, not from props
   useEffect(() => {
     if (!map) return;
     const mapInstance = map.getMap();
     const motions = motionsRef.current;
-    let drawn = false;
-    // A new map style brings the source back empty
-    const redraw = () => {
-      drawn = false;
-    };
-    mapInstance.on("styledata", redraw);
-    let frame = requestAnimationFrame(function step(now) {
-      const moving = aircraft.some((plane) => {
-        const motion = motions.get(plane.hex);
-        return motion !== undefined && !motionSettled(motion, now);
-      });
-      const source = mapInstance.getSource<maplibregl.GeoJSONSource>("aircraft-models");
-      if ((!drawn || moving) && source) {
+    return animateSources(
+      mapInstance,
+      ["aircraft-models"],
+      (now) =>
+        aircraft.some((plane) => {
+          const motion = motions.get(plane.hex);
+          return motion !== undefined && !motionSettled(motion, now);
+        }),
+      ([source], now) => {
         source.setData(
           buildAircraftFeatures(aircraft, zoom, (plane) => {
             const motion = motions.get(plane.hex);
             return motion ? motionAt(motion, now) : { lat: plane.lat, lon: plane.lon, rotation: plane.track ?? 0 };
           })
         );
-        drawn = true;
       }
-      frame = requestAnimationFrame(step);
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-      mapInstance.off("styledata", redraw);
-    };
+    );
   }, [map, aircraft, zoom]);
 
   return (

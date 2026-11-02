@@ -3,7 +3,7 @@ import type React from "react";
 import { createPortal } from "react-dom";
 import maplibregl from "maplibre-gl";
 import { useMap } from "react-map-gl/maplibre";
-import { motionAt, startMotion, type Motion, type MotionFix } from "../utils/motion";
+import { motionAt, motionSettled, startMotion, type Motion, type MotionFix } from "../utils/motion";
 
 // One animation frame loop shared by every moving marker
 const frameListeners = new Set<(now: number) => void>();
@@ -20,6 +20,21 @@ function onFrame(listener: (now: number) => void): () => void {
   return () => {
     frameListeners.delete(listener);
   };
+}
+
+// Smallest move or turn a marker is redrawn for while gliding. MapLibre
+// rounds a marker set this way to whole pixels, so smaller steps barely show
+const MIN_MOVE_PX = 0.5;
+const MIN_TURN_DEG = 0.25;
+// Metres per pixel at zoom 0 on the equator (MapLibre's 512px tiles)
+const EQUATOR_M_PER_PX = 40_075_016.686 / 512;
+const M_PER_DEG = 111_320;
+
+/** Roughly how far apart two positions are on screen at this zoom, in pixels */
+function movedPx(lat: number, lon: number, to: { lat: number; lon: number }, zoom: number): number {
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  const metres = Math.hypot((to.lat - lat) * M_PER_DEG, (to.lon - lon) * M_PER_DEG * cosLat);
+  return metres / ((EQUATOR_M_PER_PX * cosLat) / 2 ** zoom);
 }
 
 /**
@@ -73,32 +88,36 @@ export default function MovingMarker({
   }, [map, marker]);
 
   const { lat, lon, speed, course, rotation, reportedAt } = fix;
-  // Before paint, so a new report never shows for a frame at its raw position
+  // Before paint, so a new report never shows for a frame at its raw position.
+  // The marker is moved each frame until it settles, then leaves the frame
+  // loop (which stops once no marker is moving) until its next report
   useLayoutEffect(() => {
-    motionRef.current = startMotion(
+    const motion = startMotion(
       motionRef.current,
       { lat, lon, speed, course, rotation, reportedAt },
       performance.now(),
       maxAgeMs
     );
-  }, [lat, lon, speed, course, rotation, reportedAt, maxAgeMs]);
-
-  useEffect(
-    () =>
-      onFrame((now) => {
-        const motion = motionRef.current;
-        if (!motion) return;
-        const position = motionAt(motion, now);
-        // Markers that have stopped moving are left alone
-        const current = marker.getLngLat();
-        if (current.lat !== position.lat || current.lng !== position.lon) {
-          marker.setLngLat([position.lon, position.lat]);
-          if (popupInstance.isOpen()) popupInstance.setLngLat([position.lon, position.lat]);
-        }
-        if (marker.getRotation() !== position.rotation) marker.setRotation(position.rotation);
-      }),
-    [marker, popupInstance]
-  );
+    motionRef.current = motion;
+    const stop = onFrame((now) => {
+      const position = motionAt(motion, now);
+      const settled = motionSettled(motion, now);
+      // Each move costs MapLibre a transform and a frame of its own, so
+      // movements too small to see are skipped (a ship at 10 kn crosses a
+      // fraction of a pixel a second when zoomed out); the final one isn't
+      const current = marker.getLngLat();
+      const zoom = map?.getZoom();
+      const moved = current.lat !== position.lat || current.lng !== position.lon;
+      if (moved && (settled || zoom === undefined || movedPx(current.lat, current.lng, position, zoom) >= MIN_MOVE_PX)) {
+        marker.setLngLat([position.lon, position.lat]);
+        if (popupInstance.isOpen()) popupInstance.setLngLat([position.lon, position.lat]);
+      }
+      const turn = Math.abs(((marker.getRotation() - position.rotation + 540) % 360) - 180);
+      if (turn > 0 && (settled || turn >= MIN_TURN_DEG)) marker.setRotation(position.rotation);
+      if (settled) stop();
+    });
+    return stop;
+  }, [lat, lon, speed, course, rotation, reportedAt, maxAgeMs, map, marker, popupInstance]);
 
   useEffect(() => {
     const element = marker.getElement();
