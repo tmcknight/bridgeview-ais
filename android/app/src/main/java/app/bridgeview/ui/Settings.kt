@@ -290,6 +290,7 @@ private fun NearBridgeStatus(askForeground: () -> Unit, askBackground: () -> Uni
     val monitor = context.graph.nearBridge
     val authorization by monitor.authorization.collectAsState()
     val isNear by monitor.isNear.collectAsState()
+    val unavailable by monitor.unavailable.collectAsState()
     val colors = Theme.colors
     when (authorization) {
         NearBridgeMonitor.Authorization.Denied -> {
@@ -308,7 +309,12 @@ private fun NearBridgeStatus(askForeground: () -> Unit, askBackground: () -> Uni
             Hairline()
             ButtonRow("Change in Settings") { askBackground() }
         }
-        NearBridgeMonitor.Authorization.Always -> {
+        NearBridgeMonitor.Authorization.Always -> if (unavailable) {
+            Hairline()
+            StatusRow(Icons.Filled.LocationOff, "Turn on location and Location Accuracy so alerts can pause when you leave", colors.secondaryText)
+            Hairline()
+            ButtonRow("Open location settings") { openLocationSettings(context) }
+        } else {
             Hairline()
             when (isNear) {
                 true -> StatusRow(Icons.Filled.LocationOn, "You're near the bridge", colors.upbound)
