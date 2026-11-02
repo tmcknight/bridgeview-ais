@@ -35,6 +35,9 @@ class ApiClient(
     companion object {
         val defaultClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    chain.proceed(chain.request().newBuilder().header("User-Agent", AppConfig.userAgent).build())
+                }
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
@@ -54,7 +57,7 @@ class ApiClient(
             .url(url("api/devices/${encode(deviceToken)}"))
             .put(ApiJson.encodeToString(DeviceRegistration.serializer(), registration).toRequestBody(jsonType))
             .build()
-        execute(request).use(::check)
+        execute(request, handle = ::check)
     }
 
     /** Shares a photo of a ship; it waits for approval before anyone sees it */
@@ -69,7 +72,7 @@ class ApiClient(
             .withDevice()
             .build()
         val upload = client.newBuilder().writeTimeout(120, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).build()
-        execute(request, upload).use(::checkExplained)
+        execute(request, upload, ::checkExplained)
     }
 
     /** Reports one of the ship's photos; BridgeView checks it and may hide it */
@@ -79,7 +82,7 @@ class ApiClient(
             .post(ApiJson.encodeToString(PhotoReport.serializer(), report).toRequestBody(jsonType))
             .withDevice()
             .build()
-        execute(request).use(::checkExplained)
+        execute(request, handle = ::checkExplained)
     }
 
     private fun Request.Builder.withDevice(): Request.Builder = apply {
@@ -96,7 +99,7 @@ class ApiClient(
             .url(url(path).newBuilder().addQueryParameter("v", "2").build())
             .header("Accept", "application/json")
             .build()
-        val text = execute(request).use { response ->
+        val text = execute(request) { response ->
             check(response)
             response.body.string()
         }
@@ -122,7 +125,16 @@ class ApiClient(
         check(response)
     }
 
-    private suspend fun execute(request: Request, using: OkHttpClient = client): Response =
+    /**
+     * Sends the request and hands the response to `handle` on the IO dispatcher, which
+     * reads its body: reading it on the main thread blocks on the network
+     */
+    private suspend fun <T> execute(request: Request, using: OkHttpClient = client, handle: (Response) -> T): T {
+        val response = send(request, using)
+        return withContext(Dispatchers.IO) { response.use(handle) }
+    }
+
+    private suspend fun send(request: Request, using: OkHttpClient): Response =
         suspendCancellableCoroutine { continuation ->
             val call = using.newCall(request)
             continuation.invokeOnCancellation { call.cancel() }

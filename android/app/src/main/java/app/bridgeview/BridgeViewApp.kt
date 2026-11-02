@@ -13,13 +13,17 @@ import app.bridgeview.net.DeviceId
 import app.bridgeview.push.NearBridgeMonitor
 import app.bridgeview.push.PushManager
 import app.bridgeview.sensors.Compass
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /** The app's shared objects, made once per process */
-class BridgeViewApp : Application() {
+class BridgeViewApp : Application(), SingletonImageLoader.Factory {
     lateinit var prefs: Prefs; private set
     lateinit var api: ApiClient; private set
     lateinit var store: BridgeStore; private set
@@ -52,6 +56,12 @@ class BridgeViewApp : Application() {
     }
 
     fun describe(error: Throwable): String = ApiError.message(error, isOnline())
+
+    /** Photos load through the API's client, for its User-Agent (Wikimedia refuses OkHttp's own) */
+    override fun newImageLoader(context: PlatformContext): ImageLoader =
+        ImageLoader.Builder(context)
+            .components { add(OkHttpNetworkFetcherFactory(callFactory = { ApiClient.defaultClient })) }
+            .build()
 }
 
 val Context.graph: BridgeViewApp get() = applicationContext as BridgeViewApp
