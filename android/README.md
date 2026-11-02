@@ -128,7 +128,12 @@ In the `app-release` environment (the same one the iOS release uses):
 - **Secrets:** `ANDROID_KEYSTORE_BASE64` (the upload key's keystore, `base64 -w0 upload.jks`, or `base64 -i upload.jks` on macOS),
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`, and
   `ANDROID_PLAY_SERVICE_ACCOUNT` (a Google Cloud service account's JSON key, invited in the
-  Play Console under Users and permissions with permission to release to testing tracks).
+  Play Console under Users and permissions with permission to release to testing tracks;
+  its Cloud project needs the Google Play Android Developer API turned on).
+- **Deployment branches and tags:** add a tag rule for `android-v*` beside `ios-v*`, or
+  GitHub refuses to run a release tag's job in the environment ("not allowed to deploy to
+  app-release due to environment protection rules"):
+  `gh api -X POST repos/<owner>/<repo>/environments/app-release/deployment-branch-policies -f name='android-v*' -f type=tag`
 
 Make an upload key once with
 `keytool -genkeypair -v -keystore upload.jks -keyalg RSA -keysize 4096 -validity 10000 -alias upload`
