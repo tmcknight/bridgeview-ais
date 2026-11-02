@@ -13,8 +13,10 @@ import androidx.core.content.edit
 import app.bridgeview.data.Prefs
 import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.Bridge
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofenceStatusCodes
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -43,6 +45,10 @@ class NearBridgeMonitor(private val context: Context, private val prefs: Prefs) 
     private val _isNear = MutableStateFlow(prefs.nearBridge)
     /** Inside the circle, as last reported; null when unknown */
     val isNear: StateFlow<Boolean?> = _isNear.asStateFlow()
+
+    private val _unavailable = MutableStateFlow(false)
+    /** Android refused to watch the circle: location, or Google's Location Accuracy, is off */
+    val unavailable: StateFlow<Boolean> = _unavailable.asStateFlow()
 
     /** Called when [effectiveIsNear] may have changed */
     var onChange: (() -> Unit)? = null
@@ -74,7 +80,11 @@ class NearBridgeMonitor(private val context: Context, private val prefs: Prefs) 
     /** Permissions may have changed (back from the permission prompt or system settings) */
     suspend fun refreshAuthorization() {
         val status = readAuthorization()
-        if (status == _authorization.value) return
+        if (status == _authorization.value) {
+            // Back from the phone's settings: try the circle again if Android refused it before
+            if (_unavailable.value && status == Authorization.Always) update(prefs.alertPreferences())
+            return
+        }
         _authorization.value = status
         onChange?.invoke()
         // A circle can only be added with background access; add it now that it can
@@ -91,6 +101,7 @@ class NearBridgeMonitor(private val context: Context, private val prefs: Prefs) 
     private suspend fun apply(preferences: AlertPreferences) {
         if (!preferences.enabled || !preferences.nearBridgeOnly) {
             runCatching { client.removeGeofences(listOf(REQUEST_ID)).await() }
+            _unavailable.value = false
             setNear(null)
             return
         }
@@ -109,6 +120,7 @@ class NearBridgeMonitor(private val context: Context, private val prefs: Prefs) 
         try {
             // Adding under the same ID replaces the old circle
             client.addGeofences(request, pendingIntent()).await()
+            _unavailable.value = false
             // The geofence only reports going in at first; work out "away" from where the phone is now
             val location = LocationServices.getFusedLocationProviderClient(context)
                 .getCurrentLocation(
@@ -116,6 +128,9 @@ class NearBridgeMonitor(private val context: Context, private val prefs: Prefs) 
                     null,
                 ).await()
             if (location != null) setNear(distanceToBridge(location) <= radius)
+        } catch (e: ApiException) {
+            if (e.statusCode == GeofenceStatusCodes.GEOFENCE_NOT_AVAILABLE) _unavailable.value = true
+            Log.e(TAG, "Couldn't watch the area around the bridge", e)
         } catch (e: Exception) {
             Log.e(TAG, "Couldn't watch the area around the bridge", e)
         }

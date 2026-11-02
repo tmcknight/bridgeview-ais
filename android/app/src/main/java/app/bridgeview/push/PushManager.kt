@@ -65,7 +65,8 @@ class PushManager(private val context: Context, private val prefs: Prefs) {
             )
         }
         val messaging = FirebaseMessaging.getInstance()
-        messaging.isAutoInitEnabled = true
+        // Not isAutoInitEnabled = true: once there's a token, that checks it on the calling
+        // thread and crashes on the main one. register() below gets and refreshes the token
         // The token arrives in MessagingService.onRegistered (and again whenever it changes);
         // the one from last time is sent meanwhile, in case anything changed while closed
         prefs.deviceToken?.let { scheduleRegistration(immediately = true) }

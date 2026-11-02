@@ -273,6 +273,13 @@ fun openAppSettings(context: Context) {
     )
 }
 
+/** Google's Location Accuracy setting, which geofences need, else the phone's location settings */
+fun openLocationSettings(context: Context) {
+    val accuracy = Intent("com.google.android.gms.location.settings.LOCATION_ACCURACY").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val location = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(accuracy) }.onFailure { runCatching { context.startActivity(location) } }
+}
+
 /** The app's notification settings, or one channel's */
 fun openNotificationSettings(context: Context, channel: String? = null) {
     val intent = if (channel != null) {
