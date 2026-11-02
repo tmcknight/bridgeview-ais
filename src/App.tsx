@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@headlessui/react"
 import {
   SunIcon,
@@ -11,10 +11,8 @@ import ShipList from "./components/ShipList"
 import UpcomingShips from "./components/UpcomingShips"
 import ShipLog from "./components/ShipLog"
 import NotificationPanel from "./components/NotificationPanel"
-import ShipCam from "./components/ShipCam"
 import type { ShipCamSize } from "./components/ShipCam"
 import StatusBar from "./components/StatusBar"
-import TvMode from "./components/TvMode"
 import ComponentErrorBoundary from "./components/ComponentErrorBoundary"
 import { useAISStream } from "./hooks/useAISStream"
 import { useTheme } from "./hooks/useTheme"
@@ -23,6 +21,10 @@ import { useTvShips } from "./hooks/useTvShips"
 import { isInTrackingBounds } from "./utils/geo"
 import { hasFeed, isAdsbFiFeed } from "./utils/feedStatus"
 import type { TrackedShip } from "./types/ais"
+
+// Loaded when first opened, keeping them out of the first download
+const ShipCam = lazy(() => import("./components/ShipCam"))
+const TvMode = lazy(() => import("./components/TvMode"))
 
 // TV mode hides the buttons and the cursor after this long without movement
 const TV_IDLE_MS = 3000
@@ -209,24 +211,28 @@ function App() {
           {tvMode && (
             <div ref={tvLayerRef} className="contents">
               <ComponentErrorBoundary componentName="TV Mode">
-                <TvMode
-                  {...tvShips}
-                  idle={idle}
-                  camId={tvCam}
-                  videoIds={shipCamVideoIds}
-                  onExit={exitTvMode}
-                />
+                <Suspense fallback={null}>
+                  <TvMode
+                    {...tvShips}
+                    idle={idle}
+                    camId={tvCam}
+                    videoIds={shipCamVideoIds}
+                    onExit={exitTvMode}
+                  />
+                </Suspense>
               </ComponentErrorBoundary>
             </div>
           )}
           {/* Above the map controls; alerts after it stay on top */}
           {showShipCam && !tvMode && (
             <ComponentErrorBoundary componentName="Ship Cam">
-              <ShipCam
-                onClose={() => setShowShipCam(false)}
-                onResize={handleShipCamResize}
-                videoIds={shipCamVideoIds}
-              />
+              <Suspense fallback={null}>
+                <ShipCam
+                  onClose={() => setShowShipCam(false)}
+                  onResize={handleShipCamResize}
+                  videoIds={shipCamVideoIds}
+                />
+              </Suspense>
             </ComponentErrorBoundary>
           )}
           {!tvMode && (

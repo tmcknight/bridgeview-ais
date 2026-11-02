@@ -57,7 +57,7 @@ export default function UpcomingShips({
                     : `Select ${ship.name}, at the bridge in ${formatETA(etaMinutes)}`
                 }
                 aria-pressed={isSelected}
-                className={`bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-2 rounded-lg px-3 py-2 cursor-pointer transition-colors focus:outline-none ${
+                className={`bg-slate-50/90 dark:bg-slate-900/90 border-2 rounded-lg px-3 py-2 cursor-pointer transition-colors focus:outline-none ${
                   isSelected
                     ? "border-blue-500 bg-blue-50/90 dark:bg-blue-900/30"
                     : "border-slate-300/80 dark:border-slate-700/80 hover:border-blue-400 focus:border-blue-400 dark:hover:border-blue-400 dark:focus:border-blue-400"

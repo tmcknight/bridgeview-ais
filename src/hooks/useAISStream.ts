@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AISMessage, TrackedShip } from "../types/ais";
 import {
   AIS_BOUNDING_BOX,
@@ -9,6 +9,7 @@ import {
   STALE_SHIP_TIMEOUT_MS,
 } from "../constants/bridge";
 import { distanceToBridge, isApproaching } from "../utils/geo";
+import { applyShipUpdates, purgeStaleShips } from "../utils/shipUpdates";
 import { logger } from "../utils/logger";
 import { applyShipLogMessage, type ShipLog } from "../utils/shipLog";
 import { parseFeedStatusMessage, type FeedStatus } from "../utils/feedStatus";
@@ -45,6 +46,11 @@ function parseTimeUtc(raw: string): string {
 }
 
 const MAX_PENDING_DETAILS = 2000;
+// Ship updates are gathered and applied together this often, so a busy feed
+// re-renders the app a few times a second rather than once per message
+const SHIP_FLUSH_MS = 250;
+// How often ships gone quiet are dropped
+const PURGE_INTERVAL_MS = 30_000;
 const MIN_RECONNECT_DELAY_MS = 2000;
 const MAX_RECONNECT_DELAY_MS = 60000;
 
@@ -65,49 +71,6 @@ interface UseAISStreamReturn {
   clearNotifications: () => void;
 }
 
-type ShipsAction =
-  | { type: "UPDATE_SHIP"; mmsi: number; ship: TrackedShip }
-  | { type: "UPDATE_STATIC_DATA"; mmsi: number; updates: Partial<TrackedShip> }
-  | { type: "PURGE_STALE"; staleTimeout: number };
-
-function shipsReducer(state: Map<number, TrackedShip>, action: ShipsAction): Map<number, TrackedShip> {
-  switch (action.type) {
-    case "UPDATE_SHIP": {
-      // With two feeds, one's report can land after a newer one from the
-      // other; drawing it would pull the ship back
-      const existing = state.get(action.mmsi);
-      if (existing && Date.parse(action.ship.lastUpdate) < Date.parse(existing.lastUpdate)) return state;
-      const newState = new Map(state);
-      newState.set(action.mmsi, action.ship);
-      return newState;
-    }
-    case "UPDATE_STATIC_DATA": {
-      const existing = state.get(action.mmsi);
-      if (!existing) return state;
-      const newState = new Map(state);
-      newState.set(action.mmsi, { ...existing, ...action.updates });
-      return newState;
-    }
-    case "PURGE_STALE": {
-      const now = Date.now();
-      let hasStale = false;
-      const newState = new Map<number, TrackedShip>();
-
-      for (const [mmsi, ship] of state) {
-        if (now - new Date(ship.lastUpdate).getTime() <= action.staleTimeout) {
-          newState.set(mmsi, ship);
-        } else {
-          hasStale = true;
-        }
-      }
-
-      return hasStale ? newState : state;
-    }
-    default:
-      return state;
-  }
-}
-
 export interface Notification {
   id: string;
   shipName: string;
@@ -119,7 +82,7 @@ export interface Notification {
 }
 
 export function useAISStream(): UseAISStreamReturn {
-  const [ships, dispatchShips] = useReducer(shipsReducer, new Map());
+  const [ships, setShips] = useState<Map<number, TrackedShip>>(() => new Map());
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("disconnected");
   const [shipLog, setShipLog] = useState<ShipLog>(() => new Map());
@@ -128,14 +91,53 @@ export function useAISStream(): UseAISStreamReturn {
   const [shipCamVideoIds, setShipCamVideoIds] = useState<ShipCamVideoIds>({});
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const shipsRef = useRef<Map<number, TrackedShip>>(new Map());
+  // The ships as last shown, kept here too so messages can read them between renders
+  const shipsRef = useRef<Map<number, TrackedShip>>(ships);
+  // Updates waiting for the next flush, newest per ship
+  const pendingShipsRef = useRef<Map<number, TrackedShip>>(new Map());
+  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   // Details that arrived before the ship's first position, applied when it shows up
   const pendingDetailsRef = useRef<Map<number, Partial<TrackedShip>>>(new Map());
 
-  // Keep ref in sync with reducer state
+  /** A ship as it stands, counting updates not yet shown */
+  const latestShip = useCallback(
+    (mmsi: number): TrackedShip | undefined => pendingShipsRef.current.get(mmsi) ?? shipsRef.current.get(mmsi),
+    []
+  );
+
+  const flushShips = useCallback(() => {
+    flushTimeoutRef.current = undefined;
+    const pending = pendingShipsRef.current;
+    if (pending.size === 0) return;
+    const next = applyShipUpdates(shipsRef.current, pending.values(), Date.now(), STALE_SHIP_TIMEOUT_MS);
+    pending.clear();
+    if (next === shipsRef.current) return;
+    shipsRef.current = next;
+    setShips(next);
+  }, []);
+
+  const queueShip = useCallback(
+    (ship: TrackedShip) => {
+      pendingShipsRef.current.set(ship.mmsi, ship);
+      flushTimeoutRef.current ??= setTimeout(flushShips, SHIP_FLUSH_MS);
+    },
+    [flushShips]
+  );
+
+  // Drop ships gone quiet, and any update still waiting at unmount
   useEffect(() => {
-    shipsRef.current = ships;
-  }, [ships]);
+    const purge = setInterval(() => {
+      const next = purgeStaleShips(shipsRef.current, Date.now(), STALE_SHIP_TIMEOUT_MS);
+      if (next === shipsRef.current) return;
+      shipsRef.current = next;
+      setShips(next);
+    }, PURGE_INTERVAL_MS);
+    return () => {
+      clearInterval(purge);
+      clearTimeout(flushTimeoutRef.current);
+      flushTimeoutRef.current = undefined;
+    };
+  }, []);
 
   const addNotification = useCallback(
     (
@@ -179,9 +181,10 @@ export function useAISStream(): UseAISStreamReturn {
 
   // Apply details to a tracked ship, or hold them until its first position arrives
   const applyDetails = useCallback(
-    (mmsi: number, updates: Partial<TrackedShip>, currentShips: Map<number, TrackedShip>) => {
-      if (currentShips.has(mmsi)) {
-        dispatchShips({ type: "UPDATE_STATIC_DATA", mmsi, updates });
+    (mmsi: number, updates: Partial<TrackedShip>) => {
+      const existing = latestShip(mmsi);
+      if (existing) {
+        queueShip({ ...existing, ...updates });
         return;
       }
       const pendingDetails = pendingDetailsRef.current;
@@ -197,17 +200,21 @@ export function useAISStream(): UseAISStreamReturn {
         pendingDetails.delete(pendingDetails.keys().next().value!);
       }
     },
-    []
+    [latestShip, queueShip]
   );
 
   const processMessage = useCallback(
-    (msg: AISMessage, currentShips: Map<number, TrackedShip>) => {
+    (msg: AISMessage) => {
       const { MetaData, MessageType, Message } = msg;
       const mmsi = MetaData.MMSI;
-      const existing = currentShips.get(mmsi);
+      const existing = latestShip(mmsi);
 
       if (MessageType === "PositionReport" && Message.PositionReport) {
         const pos = Message.PositionReport;
+        const lastUpdate = parseTimeUtc(MetaData.time_utc);
+        // With two feeds, one's report can land after a newer one from the
+        // other; drawing it would pull the ship back
+        if (existing && Date.parse(lastUpdate) < Date.parse(existing.lastUpdate)) return;
         const pending = pendingDetailsRef.current.get(mmsi);
         pendingDetailsRef.current.delete(mmsi);
         const details = { ...existing, ...pending };
@@ -242,7 +249,7 @@ export function useAISStream(): UseAISStreamReturn {
           sog: pos.Sog,
           trueHeading: pos.TrueHeading,
           navStatus: pos.NavigationalStatus,
-          lastUpdate: parseTimeUtc(MetaData.time_utc),
+          lastUpdate,
           source: MetaData.Source ?? "aisstream",
           signalPower: MetaData.SignalPower,
           ...(MetaData.AisClass === "B" && { classB: true }),
@@ -289,7 +296,7 @@ export function useAISStream(): UseAISStreamReturn {
           ship.notified = false;
         }
 
-        dispatchShips({ type: "UPDATE_SHIP", mmsi, ship });
+        queueShip(ship);
       } else if (MessageType === "ShipStaticData" && Message.ShipStaticData) {
         const staticData = Message.ShipStaticData;
         const updates: Partial<TrackedShip> = {
@@ -306,13 +313,10 @@ export function useAISStream(): UseAISStreamReturn {
           name: staticData.Name?.trim() || existing?.name,
           imo: staticData.ImoNumber > 0 ? staticData.ImoNumber : existing?.imo,
         };
-        applyDetails(mmsi, updates, currentShips);
+        applyDetails(mmsi, updates);
       }
-
-      // Purge stale ships
-      dispatchShips({ type: "PURGE_STALE", staleTimeout: STALE_SHIP_TIMEOUT_MS });
     },
-    [addNotification, applyDetails]
+    [addNotification, applyDetails, latestShip, queueShip]
   );
 
   // Use a ref for processMessage so the WebSocket effect doesn't re-run on callback changes
@@ -381,7 +385,7 @@ export function useAISStream(): UseAISStreamReturn {
           // Wikidata details (photo, build year) the server looked up for a ship
           const vesselInfo = parseVesselInfoMessage(data);
           if (vesselInfo) {
-            applyDetails(vesselInfo.mmsi, { vesselInfo: vesselInfo.info }, shipsRef.current);
+            applyDetails(vesselInfo.mmsi, { vesselInfo: vesselInfo.info });
             return;
           }
 
@@ -408,10 +412,10 @@ export function useAISStream(): UseAISStreamReturn {
 
           // Handle AIS messages
           const aisMessage = data as AISMessage;
-          if (!shipsRef.current.has(aisMessage.MetaData.MMSI)) {
+          if (!latestShip(aisMessage.MetaData.MMSI)) {
             logger.log("[AIS] new ship:", aisMessage.MetaData.ShipName, "MMSI:", aisMessage.MetaData.MMSI);
           }
-          processMessageRef.current(aisMessage, shipsRef.current);
+          processMessageRef.current(aisMessage);
         } catch (err) {
           logger.warn("[AIS] failed to parse message:", err, event.data);
         }
@@ -449,7 +453,7 @@ export function useAISStream(): UseAISStreamReturn {
         wsRef.current.close();
       }
     };
-  }, [applyDetails]);
+  }, [applyDetails, latestShip]);
 
   return {
     ships,

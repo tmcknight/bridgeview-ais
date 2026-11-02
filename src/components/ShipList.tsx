@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react"
+import { memo, useMemo, useState, useEffect } from "react"
 import type { TrackedShip } from "../types/ais"
 import { NAV_STATUS_LABELS } from "../types/ais"
 import {
@@ -19,7 +19,7 @@ import {
   ClockIcon,
   EyeIcon,
 } from "@heroicons/react/20/solid"
-import type { ShipLog } from "../utils/shipLog"
+import type { ShipLog, BridgePassage } from "../utils/shipLog"
 import { XMarkIcon } from "@heroicons/react/20/solid"
 import VesselInfoCard from "./VesselInfoCard"
 import SourceBadge from "./SourceBadge"
@@ -44,7 +44,7 @@ export default function ShipList({
   onClose,
 }: ShipListProps) {
   // Re-render every 30s to keep relative timestamps current
-  const [, setTick] = useState(0)
+  const [tick, setTick] = useState(0)
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30_000)
     return () => clearInterval(id)
@@ -101,217 +101,245 @@ export default function ShipList({
         </button>
       </div>
       <div className="flex flex-col gap-2 p-4 md:pl-20">
-        {sorted.map((ship) => {
-          const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog)
-          const headingDeg =
-            ship.trueHeading !== 511 ? ship.trueHeading : ship.cog
-          const isSelected = selectedShip?.mmsi === ship.mmsi
-          // Only worth showing once a ship has gone quiet
-          const seenRecently = secondsSince(ship.lastUpdate) < 60
-          const lastPassage = log?.get(ship.mmsi)?.passages[0]
-          return (
-            <div
-              key={ship.mmsi}
-              role="button"
-              tabIndex={hidden ? -1 : 0}
-              aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
-              aria-pressed={isSelected}
-              className={`group bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none ${
-                isSelected
-                  ? "border-blue-500 bg-blue-50/90 dark:bg-blue-900/30"
-                  : ship.approaching
-                    ? "border-red-500 hover:border-red-400 focus:border-red-400 dark:hover:border-red-400 dark:focus:border-red-400"
-                    : "border-slate-300/80 dark:border-slate-700/80 hover:border-blue-400 focus:border-blue-400 dark:hover:border-blue-400 dark:focus:border-blue-400"
-              }`}
-              onClick={() => onSelectShip?.(ship)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault()
-                  onSelectShip?.(ship)
-                }
-              }}
-            >
-              {/* Header: icon + name + badge */}
-              <div className="flex items-start justify-between mb-2">
-                <div
-                  className="flex items-center gap-1.5 min-w-0"
-                  title={[
-                    NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown",
-                    ship.navStatus !== 1 && ship.navStatus !== 5
-                      ? `Heading ${formatHeading(headingDeg)}`
-                      : null,
-                    ship.destination ? `Dest: ${ship.destination}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                >
-                  {(() => {
-                    const isStationary =
-                      ship.navStatus === 1 || ship.navStatus === 5
-                    const fill = ship.approaching
-                      ? "#ef4444"
-                      : isStationary
-                        ? "#9ca3af"
-                        : "#3b82f6"
-                    // Light: darker shade of fill; Dark: lighter shade of fill
-                    const stroke = ship.approaching
-                      ? "#b91c1c"
-                      : isStationary
-                        ? "#6b7280"
-                        : "#1d4ed8"
-                    const strokeDark = ship.approaching
-                      ? "#fca5a5"
-                      : isStationary
-                        ? "#d1d5db"
-                        : "#93c5fd"
-                    return isStationary ? (
-                      <svg
-                        width={18}
-                        height={18}
-                        viewBox="0 0 24 24"
-                        className="shrink-0"
-                      >
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="7"
-                          fill={fill}
-                          className="in-[.dark]:hidden"
-                          stroke={stroke}
-                          strokeWidth="1.5"
-                        />
-                        <circle
-                          cx="12"
-                          cy="12"
-                          r="7"
-                          fill={fill}
-                          className="hidden in-[.dark]:block"
-                          stroke={strokeDark}
-                          strokeWidth="1.5"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        width={18}
-                        height={18}
-                        viewBox="0 0 24 24"
-                        className="shrink-0"
-                        style={{ transform: `rotate(${headingDeg}deg)` }}
-                      >
-                        <path
-                          d="M12 2 L18 20 L12 16 L6 20 Z"
-                          fill={fill}
-                          className="in-[.dark]:hidden"
-                          stroke={stroke}
-                          strokeWidth="1.5"
-                        />
-                        <path
-                          d="M12 2 L18 20 L12 16 L6 20 Z"
-                          fill={fill}
-                          className="hidden in-[.dark]:block"
-                          stroke={strokeDark}
-                          strokeWidth="1.5"
-                        />
-                      </svg>
-                    )
-                  })()}
-                  <span className="font-semibold text-base text-slate-800 dark:text-slate-100 truncate">
-                    {ship.name}
-                  </span>
-                </div>
-                {ship.approaching && (
-                  <span className="shrink-0 text-[0.6rem] font-bold text-red-600 dark:text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
-                    APPROACHING
-                  </span>
-                )}
-              </div>
-
-              {/* Primary stats row */}
-              <div className="flex flex-wrap gap-2">
-                <div
-                  className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 whitespace-nowrap"
-                  title="Distance to bridge"
-                >
-                  <MapPinIcon className="shrink-0 w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                  <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
-                    {formatDistance(ship.distanceToBridge)}
-                  </span>
-                </div>
-                {ship.sog > 0 && isSpeedAvailable(ship.sog) && (
-                  <div
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 whitespace-nowrap"
-                    title="Speed over ground"
-                  >
-                    <BoltIcon className="shrink-0 w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
-                      {formatSpeed(ship.sog)}
-                    </span>
-                  </div>
-                )}
-                {ship.approaching && eta !== null && (
-                  <div
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 whitespace-nowrap"
-                    title="Estimated time to bridge"
-                  >
-                    <ClockIcon className="shrink-0 w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                      {formatETA(eta)}
-                    </span>
-                  </div>
-                )}
-                {lastPassage && (
-                  <div
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800/40 whitespace-nowrap"
-                    title={`Last went under the bridge ${lastPassage.direction} ${new Date(lastPassage.time).toLocaleString()}`}
-                  >
-                    {lastPassage.direction === "upbound" ? (
-                      <ArrowUpIcon className="shrink-0 w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-                    ) : (
-                      <ArrowDownIcon className="shrink-0 w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-                    )}
-                    <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
-                      Passed under {formatRelativeTime(lastPassage.time)}
-                    </span>
-                  </div>
-                )}
-                {!seenRecently && (
-                  <div
-                    className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 whitespace-nowrap"
-                    title={`Last seen ${new Date(ship.lastUpdate).toLocaleTimeString()}`}
-                  >
-                    <EyeIcon className="shrink-0 w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
-                    <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
-                      Seen {formatRelativeTime(ship.lastUpdate)}
-                    </span>
-                  </div>
-                )}
-                <ShipShape length={ship.length} width={ship.width} />
-              </div>
-
-              {isSelected && (
-                <VesselInfoCard mmsi={ship.mmsi} imo={ship.imo} storedInfo={ship.vesselInfo} hidden={hidden} />
-              )}
-
-              {/* Footer */}
-              <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-300/60 dark:border-slate-700/60 text-[0.65rem] text-slate-500 dark:text-slate-500">
-                <a
-                  href={`https://www.vesselfinder.com/vessels/details/${ship.mmsi}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="whitespace-nowrap hover:text-blue-500 dark:hover:text-blue-400 hover:underline transition-colors"
-                  title="View vessel details on VesselFinder"
-                  tabIndex={hidden ? -1 : undefined}
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseDown={(e) => e.preventDefault()}
-                >
-                  {ship.mmsi}
-                </a>
-                <SourceBadge source={ship.source} signalPower={ship.signalPower} />
-              </div>
-            </div>
-          )
-        })}
+        {sorted.map((ship) => (
+          <ShipRow
+            key={ship.mmsi}
+            ship={ship}
+            isSelected={selectedShip?.mmsi === ship.mmsi}
+            lastPassage={log?.get(ship.mmsi)?.passages[0]}
+            onSelectShip={onSelectShip}
+            hidden={hidden}
+            tick={tick}
+          />
+        ))}
       </div>
     </div>
   )
 }
+
+interface ShipRowProps {
+  ship: TrackedShip
+  isSelected: boolean
+  /** The ship's latest bridge passage from the ship log */
+  lastPassage?: BridgePassage
+  onSelectShip?: (ship: TrackedShip) => void
+  hidden: boolean
+  /** Changes every 30s, so the relative times are redrawn */
+  tick: number
+}
+
+// Memoised: ships that haven't changed keep the same object, so only the rows
+// for ships with new reports re-render
+const ShipRow = memo(function ShipRow({
+  ship,
+  isSelected,
+  lastPassage,
+  onSelectShip,
+  hidden,
+}: ShipRowProps) {
+  const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog)
+  const headingDeg =
+    ship.trueHeading !== 511 ? ship.trueHeading : ship.cog
+  // Only worth showing once a ship has gone quiet
+  const seenRecently = secondsSince(ship.lastUpdate) < 60
+  return (
+    <div
+      role="button"
+      tabIndex={hidden ? -1 : 0}
+      aria-label={`View details for ${ship.name}, ${formatDistance(ship.distanceToBridge)} from bridge`}
+      aria-pressed={isSelected}
+      className={`group bg-slate-50/90 dark:bg-slate-900/90 border-2 rounded-lg p-3 cursor-pointer transition-colors focus:outline-none ${
+        isSelected
+          ? "border-blue-500 bg-blue-50/90 dark:bg-blue-900/30"
+          : ship.approaching
+            ? "border-red-500 hover:border-red-400 focus:border-red-400 dark:hover:border-red-400 dark:focus:border-red-400"
+            : "border-slate-300/80 dark:border-slate-700/80 hover:border-blue-400 focus:border-blue-400 dark:hover:border-blue-400 dark:focus:border-blue-400"
+      }`}
+      onClick={() => onSelectShip?.(ship)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          onSelectShip?.(ship)
+        }
+      }}
+    >
+      {/* Header: icon + name + badge */}
+      <div className="flex items-start justify-between mb-2">
+        <div
+          className="flex items-center gap-1.5 min-w-0"
+          title={[
+            NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown",
+            ship.navStatus !== 1 && ship.navStatus !== 5
+              ? `Heading ${formatHeading(headingDeg)}`
+              : null,
+            ship.destination ? `Dest: ${ship.destination}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        >
+          {(() => {
+            const isStationary =
+              ship.navStatus === 1 || ship.navStatus === 5
+            const fill = ship.approaching
+              ? "#ef4444"
+              : isStationary
+                ? "#9ca3af"
+                : "#3b82f6"
+            // Light: darker shade of fill; Dark: lighter shade of fill
+            const stroke = ship.approaching
+              ? "#b91c1c"
+              : isStationary
+                ? "#6b7280"
+                : "#1d4ed8"
+            const strokeDark = ship.approaching
+              ? "#fca5a5"
+              : isStationary
+                ? "#d1d5db"
+                : "#93c5fd"
+            return isStationary ? (
+              <svg
+                width={18}
+                height={18}
+                viewBox="0 0 24 24"
+                className="shrink-0"
+              >
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="7"
+                  fill={fill}
+                  className="in-[.dark]:hidden"
+                  stroke={stroke}
+                  strokeWidth="1.5"
+                />
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="7"
+                  fill={fill}
+                  className="hidden in-[.dark]:block"
+                  stroke={strokeDark}
+                  strokeWidth="1.5"
+                />
+              </svg>
+            ) : (
+              <svg
+                width={18}
+                height={18}
+                viewBox="0 0 24 24"
+                className="shrink-0"
+                style={{ transform: `rotate(${headingDeg}deg)` }}
+              >
+                <path
+                  d="M12 2 L18 20 L12 16 L6 20 Z"
+                  fill={fill}
+                  className="in-[.dark]:hidden"
+                  stroke={stroke}
+                  strokeWidth="1.5"
+                />
+                <path
+                  d="M12 2 L18 20 L12 16 L6 20 Z"
+                  fill={fill}
+                  className="hidden in-[.dark]:block"
+                  stroke={strokeDark}
+                  strokeWidth="1.5"
+                />
+              </svg>
+            )
+          })()}
+          <span className="font-semibold text-base text-slate-800 dark:text-slate-100 truncate">
+            {ship.name}
+          </span>
+        </div>
+        {ship.approaching && (
+          <span className="shrink-0 text-[0.6rem] font-bold text-red-600 dark:text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">
+            APPROACHING
+          </span>
+        )}
+      </div>
+
+      {/* Primary stats row */}
+      <div className="flex flex-wrap gap-2">
+        <div
+          className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 whitespace-nowrap"
+          title="Distance to bridge"
+        >
+          <MapPinIcon className="shrink-0 w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
+          <span className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+            {formatDistance(ship.distanceToBridge)}
+          </span>
+        </div>
+        {ship.sog > 0 && isSpeedAvailable(ship.sog) && (
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 whitespace-nowrap"
+            title="Speed over ground"
+          >
+            <BoltIcon className="shrink-0 w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
+            <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+              {formatSpeed(ship.sog)}
+            </span>
+          </div>
+        )}
+        {ship.approaching && eta !== null && (
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 whitespace-nowrap"
+            title="Estimated time to bridge"
+          >
+            <ClockIcon className="shrink-0 w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              {formatETA(eta)}
+            </span>
+          </div>
+        )}
+        {lastPassage && (
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-800/40 whitespace-nowrap"
+            title={`Last went under the bridge ${lastPassage.direction} ${new Date(lastPassage.time).toLocaleString()}`}
+          >
+            {lastPassage.direction === "upbound" ? (
+              <ArrowUpIcon className="shrink-0 w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+            ) : (
+              <ArrowDownIcon className="shrink-0 w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
+            )}
+            <span className="text-xs font-semibold text-sky-700 dark:text-sky-300">
+              Passed under {formatRelativeTime(lastPassage.time)}
+            </span>
+          </div>
+        )}
+        {!seenRecently && (
+          <div
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 whitespace-nowrap"
+            title={`Last seen ${new Date(ship.lastUpdate).toLocaleTimeString()}`}
+          >
+            <EyeIcon className="shrink-0 w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
+            <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">
+              Seen {formatRelativeTime(ship.lastUpdate)}
+            </span>
+          </div>
+        )}
+        <ShipShape length={ship.length} width={ship.width} />
+      </div>
+
+      {isSelected && (
+        <VesselInfoCard mmsi={ship.mmsi} imo={ship.imo} storedInfo={ship.vesselInfo} hidden={hidden} />
+      )}
+
+      {/* Footer */}
+      <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-300/60 dark:border-slate-700/60 text-[0.65rem] text-slate-500 dark:text-slate-500">
+        <a
+          href={`https://www.vesselfinder.com/vessels/details/${ship.mmsi}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="whitespace-nowrap hover:text-blue-500 dark:hover:text-blue-400 hover:underline transition-colors"
+          title="View vessel details on VesselFinder"
+          tabIndex={hidden ? -1 : undefined}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {ship.mmsi}
+        </a>
+        <SourceBadge source={ship.source} signalPower={ship.signalPower} />
+      </div>
+    </div>
+  )
+})
