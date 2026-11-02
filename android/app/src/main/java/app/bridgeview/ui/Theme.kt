@@ -145,7 +145,10 @@ fun BridgeViewTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable 
         darkColorScheme(
             primary = palette.signal,
             onPrimary = Color.Black,
-            secondary = palette.shallows,
+            // The selected tab's label: shallows blue is too dark to read on the dark background
+            secondary = hex(0x8FB8DE),
+            secondaryContainer = palette.shallows,
+            onSecondaryContainer = palette.primaryText,
             background = palette.background,
             surface = palette.surface,
             surfaceContainer = palette.surface,
