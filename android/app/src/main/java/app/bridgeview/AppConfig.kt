@@ -7,6 +7,9 @@ object AppConfig {
 
     fun page(path: String): String = "$apiUrl/$path"
 
+    /** Wikimedia refuses generic user agents (like OkHttp's), so photos need one that says who's asking */
+    val userAgent: String = "BridgeViewAndroid/${BuildConfig.VERSION_NAME} (https://github.com/tmcknight/bridgeview-ais)"
+
     /** Whether this build was given a Firebase project, which bridge alerts need */
     val hasFirebase: Boolean
         get() = BuildConfig.FIREBASE_APP_ID.isNotEmpty() &&
