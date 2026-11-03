@@ -1356,6 +1356,26 @@ const TV_TURN_EASE = 0.015;
 // Each of TV mode's moves (to a new ship, or swinging round behind one)
 // starts gently, building up to full speed over this long (ms)
 const TV_RAMP_MS = 3000;
+// TV mode moves its camera at most this often (ms), as often as the ships
+// redraw: each move redraws the whole tilted, satellite map, and a TV's
+// graphics can't keep that up 60 times a second
+const TV_CAMERA_FRAME_MS = 1000 / 30;
+// ...and not at all for less than this: the camera has caught up
+const TV_SETTLED_PX = 0.25;
+const TV_SETTLED_DEG = 0.02;
+const TV_SETTLED_ZOOM = 0.001;
+
+// Whether a TV camera move would barely change what's on screen
+function tvSettled(map: maplibregl.Map, next: maplibregl.JumpToOptions): boolean {
+  const from = map.project(map.getCenter());
+  const to = map.project(next.center!);
+  return (
+    Math.hypot(to.x - from.x, to.y - from.y) < TV_SETTLED_PX &&
+    Math.abs(next.zoom! - map.getZoom()) < TV_SETTLED_ZOOM &&
+    Math.abs(next.bearing! - map.getBearing()) < TV_SETTLED_DEG &&
+    Math.abs(next.pitch! - map.getPitch()) < TV_SETTLED_DEG
+  );
+}
 
 function tvRamp(startedAt: number, now: number): number {
   const t = Math.min(1, (now - startedAt) / TV_RAMP_MS);
@@ -1469,6 +1489,11 @@ function MapController({
     mapInstance.on("dragstart", stopFollowing);
     let last = performance.now();
     let frame = requestAnimationFrame(function step(now) {
+      // TV mode skips frames (a few ms early still counts, for vsync jitter)
+      if (tvFollow && now - last < TV_CAMERA_FRAME_MS - 4) {
+        frame = requestAnimationFrame(step);
+        return;
+      }
       // In 60ths of a second, capped so a stall (a hidden tab) doesn't jump
       const frames = Math.min(4, Math.max(0, (now - last) / (1000 / 60)));
       last = now;
@@ -1479,7 +1504,8 @@ function MapController({
         const center = mapInstance.getCenter();
         if (tvFollow) {
           const ramp = tvRamp(moveStartRef.current, now);
-          mapInstance.jumpTo(tvStep(mapInstance, lat, lon, chaseRef.current, ramp, frames));
+          const next = tvStep(mapInstance, lat, lon, chaseRef.current, ramp, frames);
+          if (!tvSettled(mapInstance, next)) mapInstance.jumpTo(next);
         } else if (center.lat !== lat || center.lng !== lon) {
           mapInstance.jumpTo({ center: [lon, lat] });
         }

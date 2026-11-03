@@ -38,7 +38,7 @@ src/
 ├── hooks/
 │   ├── useAISStream.ts  # WebSocket connection management
 │   ├── useIdle.ts       # Whether the mouse has been still (TV mode hides its buttons)
-│   ├── useLiveStream.ts # Keeps a YouTube cam at the live edge (plays again if paused or behind)
+│   ├── useLiveStream.ts # Keeps a YouTube cam at the live edge (plays again if paused, behind or frozen; reloads if stuck)
 │   └── useTheme.ts      # Dark/light theme toggle
 ├── types/
 │   └── ais.ts         # AIS data type definitions

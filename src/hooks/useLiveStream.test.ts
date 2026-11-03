@@ -81,6 +81,41 @@ describe('useLiveStream', () => {
     expect(commands()).toEqual([])
   })
 
+  it('keeps a moving stream alone', () => {
+    render()
+    for (let t = 1; t <= 12; t++) {
+      fromPlayer({ playerState: 1, currentTime: t * 5 })
+      act(() => vi.advanceTimersByTime(5000))
+    }
+    expect(commands()).toEqual([])
+  })
+
+  it('jumps to live when the stream freezes, then loads it again', () => {
+    render()
+    const setSrc = vi.spyOn(frame, 'src', 'set')
+    fromPlayer({ playerState: 1, currentTime: 10, progressState: { current: 10, seekableEnd: 10, isAtLiveHead: true } })
+    act(() => vi.advanceTimersByTime(10000))
+    expect(commands()).toEqual([])
+    act(() => vi.advanceTimersByTime(5000))
+    expect(commands().map((m) => m.func)).toEqual(['seekTo', 'playVideo'])
+    expect(setSrc).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(30000))
+    expect(setSrc).toHaveBeenCalledWith('https://example.test/embed')
+  })
+
+  it('loads the embed again when the player never answers', () => {
+    render()
+    const setSrc = vi.spyOn(frame, 'src', 'set')
+    act(() => vi.advanceTimersByTime(45000))
+    expect(setSrc).toHaveBeenCalledTimes(1)
+  })
+
+  it('does nothing without a stream', () => {
+    renderHook(() => useLiveStream({ current: frame }, null))
+    act(() => vi.advanceTimersByTime(60000))
+    expect(posted).toEqual([])
+  })
+
   it('stops when unmounted', () => {
     const { unmount } = render()
     unmount()

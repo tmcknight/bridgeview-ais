@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils/renderWithProviders'
 import TvMode from './TvMode'
 import { SHIP_CAMS } from '../constants/shipCams'
@@ -11,12 +11,37 @@ vi.mock('../hooks/useVesselInfo', () => ({
 }))
 
 const cam = () => screen.getByTitle(`${SHIP_CAMS[0].name} live cam`)
+const noCam = () => screen.queryByTitle(`${SHIP_CAMS[0].name} live cam`)
 
 describe('TvMode', () => {
-  it('keeps the cam hidden behind the map while no ship is going by', () => {
+  it("doesn't load the cam while no ship is near", () => {
     renderWithProviders(<TvMode passing={null} approaching={null} following={null} idle={false} onExit={() => {}} />)
-    expect(cam()).toHaveClass('opacity-0')
+    expect(noCam()).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Ship going by')).not.toBeInTheDocument()
+  })
+
+  it('loads the cam behind the map just before a ship gets there, and unloads it after', () => {
+    vi.useFakeTimers()
+    try {
+      const ship = mockShip({ cog: 185, vesselInfo: null })
+      const soon = { ship, etaMinutes: 2, distanceNM: 0.5, direction: 'downbound' as const, cargo: null }
+      const { rerender } = renderWithProviders(
+        <TvMode passing={null} approaching={soon} following={null} idle={false} onExit={() => {}} />,
+      )
+      expect(cam()).toHaveClass('opacity-0')
+
+      // Its ETA wobbling back out doesn't unload it
+      rerender(<TvMode passing={null} approaching={{ ...soon, etaMinutes: 4 }} following={null} idle={false} onExit={() => {}} />)
+      act(() => vi.advanceTimersByTime(5000))
+      expect(cam()).toBeInTheDocument()
+
+      rerender(<TvMode passing={null} approaching={null} following={null} idle={false} onExit={() => {}} />)
+      expect(cam()).toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(2000))
+      expect(noCam()).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('switches to the cam with the ship details as a ship goes by', () => {
@@ -49,7 +74,7 @@ describe('TvMode', () => {
         onExit={() => {}}
       />,
     )
-    expect(cam()).toHaveClass('opacity-0')
+    expect(noCam()).not.toBeInTheDocument()
     expect(screen.getByLabelText('Ship coming up')).toHaveTextContent('JOHN G. MUNSON')
     expect(screen.getByRole('timer')).toHaveTextContent(/^1[12]:\d\d$/)
   })
@@ -64,7 +89,8 @@ describe('TvMode', () => {
   })
 
   it('falls back to the first cam when the URL names an unknown one', () => {
-    renderWithProviders(<TvMode passing={null} approaching={null} following={null} idle={false} camId="nope" onExit={() => {}} />)
+    const ship = mockShip({ distanceToBridge: 0.3, vesselInfo: null })
+    renderWithProviders(<TvMode passing={ship} approaching={null} following={null} idle={false} camId="nope" onExit={() => {}} />)
     expect(cam()).toBeInTheDocument()
   })
 
