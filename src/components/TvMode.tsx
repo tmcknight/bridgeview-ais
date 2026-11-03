@@ -18,6 +18,12 @@ import { vesselPhotos } from "../utils/vesselInfo"
 
 // How long each of the ship's photos shows before the next
 const TV_PHOTO_INTERVAL_MS = 8000
+// The cam loads this many minutes before a ship reaches the bridge. Until
+// then it isn't loaded at all: a video playing behind the map slows the map
+// down on a TV, and a stream left running for hours can freeze
+export const CAM_PRELOAD_MIN = 3
+// ...and is unloaded this long after the last ship has gone, once it's faded
+const CAM_UNLOAD_MS = 2000
 
 const M_TO_FT = 3.28084
 
@@ -48,23 +54,36 @@ export default function TvMode({
   const cam = withLiveVideo(SHIP_CAMS.find((c) => c.id === camId) ?? SHIP_CAMS[0], videoIds)
   const frameRef = useRef<HTMLIFrameElement>(null)
   const src = shipCamEmbedUrl(cam)
-  // Hidden behind the map for long stretches, so it can fall behind live
-  useLiveStream(frameRef, src)
+  // Loaded once a ship is nearly there; kept while any ship is on screen
+  const wantCam =
+    !!passing || (!!approaching && approaching.etaMinutes <= CAM_PRELOAD_MIN)
+  const keepCam = !!passing || !!approaching
+  const [camOn, setCamOn] = useState(wantCam)
+  if (wantCam && !camOn) setCamOn(true)
+  useEffect(() => {
+    if (!camOn || keepCam) return
+    const id = setTimeout(() => setCamOn(false), CAM_UNLOAD_MS)
+    return () => clearTimeout(id)
+  }, [camOn, keepCam])
+  // Loads behind the map before the ship gets there, so it can fall behind live
+  useLiveStream(frameRef, camOn ? src : null)
 
   return (
     <div className="absolute inset-0 z-40 pointer-events-none">
-      {/* Kept loaded behind the map so the switch is instant. Clicks and
-          mouse moves go through it, so the map stays usable and moving the
-          mouse still wakes the controls */}
-      <iframe
-        ref={frameRef}
-        className={`absolute inset-0 w-full h-full bg-black transition-opacity duration-1000 ${passing ? "opacity-100" : "opacity-0"}`}
-        src={src}
-        title={`${cam.name} live cam`}
-        allow="autoplay; encrypted-media"
-        referrerPolicy="strict-origin-when-cross-origin"
-        tabIndex={-1}
-      />
+      {/* Loaded behind the map ahead of time so the switch is instant.
+          Clicks and mouse moves go through it, so the map stays usable and
+          moving the mouse still wakes the controls */}
+      {camOn && (
+        <iframe
+          ref={frameRef}
+          className={`absolute inset-0 w-full h-full bg-black transition-opacity duration-1000 ${passing ? "opacity-100" : "opacity-0"}`}
+          src={src}
+          title={`${cam.name} live cam`}
+          allow="autoplay; encrypted-media"
+          referrerPolicy="strict-origin-when-cross-origin"
+          tabIndex={-1}
+        />
+      )}
       {passing ? (
         <ShipCard key={passing.mmsi} ship={passing} onCam />
       ) : (
