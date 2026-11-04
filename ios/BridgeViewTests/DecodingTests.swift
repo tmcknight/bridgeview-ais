@@ -124,8 +124,8 @@ struct DecodingTests {
         #expect(ship.info?.allPhotos.count == 2)
         #expect(ship.info?.allPhotos.first?.credit == "Pete Markham · CC BY-SA 2.0")
         let titles = ShipLinks.for(ship).map(\.title)
-        #expect(titles.contains("USCG vessel records"))
         #expect(titles.contains("Transport Canada vessel register"))
+        #expect(!titles.contains("USCG vessel records"))
         #expect(!titles.contains("Wikidata"))
     }
 
@@ -136,13 +136,8 @@ struct DecodingTests {
         }
     }
 
-    @Test func linksToVesselPages() throws {
-        let ship = Ship(mmsi: 316001234, name: "ALGOMA EQUINOX")
-        let links = ShipLinks.for(ship)
-        let urls = links.map(\.url.absoluteString)
-        #expect(urls.contains("https://www.vesselfinder.com/vessels/details/316001234"))
-        #expect(urls.contains("https://www.marinetraffic.com/en/ais/details/ships/mmsi:316001234"))
-        #expect(!links.contains { $0.title == "Wikipedia" })
+    @Test func noLinksWithoutInfo() {
+        #expect(ShipLinks.for(Ship(mmsi: 316001234, name: "ALGOMA EQUINOX")).isEmpty)
     }
 
     @Test func linksToShipCam() {

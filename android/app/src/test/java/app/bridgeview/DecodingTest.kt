@@ -141,8 +141,8 @@ class DecodingTest {
         assertEquals(2, ship.info?.allPhotos?.size)
         assertEquals("Pete Markham · CC BY-SA 2.0", ship.info?.allPhotos?.first()?.credit)
         val titles = ShipLinks.forShip(ship).map { it.title }
-        assertTrue("USCG vessel records" in titles)
         assertTrue("Transport Canada vessel register" in titles)
+        assertFalse("USCG vessel records" in titles)
         assertFalse("Wikidata" in titles)
     }
 
@@ -156,15 +156,8 @@ class DecodingTest {
         assertThrows(SerializationException::class.java) { ApiJson.decodeFromString<Ship>("""{ "mmsi": 1 }""") }
     }
 
-    @Test fun linksToVesselPages() {
-        val links = ShipLinks.forShip(Ship(mmsi = 316001234, name = "ALGOMA EQUINOX"))
-        val urls = links.map { it.url }
-        assertTrue("https://www.vesselfinder.com/vessels/details/316001234" in urls)
-        assertTrue("https://www.marinetraffic.com/en/ais/details/ships/mmsi:316001234" in urls)
-        assertFalse(links.any { it.title == "Wikipedia" })
-        // By IMO when known
-        val byImo = ShipLinks.forShip(Ship(mmsi = 316001234, name = "X", imo = 9613927)).map { it.url }
-        assertTrue("https://www.marinetraffic.com/en/ais/details/ships/imo:9613927" in byImo)
+    @Test fun noLinksWithoutInfo() {
+        assertTrue(ShipLinks.forShip(Ship(mmsi = 316001234, name = "ALGOMA EQUINOX")).isEmpty())
     }
 
     @Test fun linksToShipCam() {
