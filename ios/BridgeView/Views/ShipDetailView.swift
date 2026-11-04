@@ -210,7 +210,8 @@ private struct ShipDetailContent: View {
                     .allowsHitTesting(false)
                 }
                 .overlay(alignment: .bottomLeading) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    // Last baseline, so the flag sits beside the name's second line when it wraps
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
                         Text(ship.name)
                             .font(Theme.hull(.title))
                             .lineLimit(2)

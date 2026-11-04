@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -333,11 +334,11 @@ private fun Header(
             )
             Row(
                 Modifier.align(Alignment.BottomStart).padding(16.dp),
-                verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(ship.name, style = Theme.hull(Theme.Style.Title), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                ship.flagEmoji?.let { Text(it, style = Theme.text(Theme.Style.Title2)) }
+                // Last baseline, so the flag sits beside the name's second line when it wraps
+                Text(ship.name, style = Theme.hull(Theme.Style.Title), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false).alignBy(LastBaseline))
+                ship.flagEmoji?.let { Text(it, style = Theme.text(Theme.Style.Title2), modifier = Modifier.alignBy(LastBaseline)) }
             }
             // The photo's credit, small along the bottom edge below the name
             currentPhoto?.credit?.let { credit ->
