@@ -50,7 +50,7 @@ away, and start again when you come back. Your location never leaves your phone.
 EVERY SHIP'S STORY
 Each ship has a page with its photo, where it's going, what it's likely carrying,
 when it was built and who runs it, its recent trips under the bridge, a map, and
-links to VesselFinder, MarineTraffic and Wikipedia.
+links to Wikipedia.
 
 SHARE YOUR PHOTOS
 Caught a great shot of a laker under the bridge? Add it to the ship's page. Every

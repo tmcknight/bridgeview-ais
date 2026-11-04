@@ -30,11 +30,9 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsBoat
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.OpenInFull
 import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -528,13 +526,15 @@ private fun Passages(ship: Ship) {
 
 @Composable
 private fun Links(ship: Ship) {
+    val links = ShipLinks.forShip(ship)
+    if (links.isEmpty()) return
     val context = LocalContext.current
     val colors = Theme.colors
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel("More about this ship")
         Card(padding = 0.dp) {
             Column(Modifier.padding(vertical = 2.dp)) {
-                ShipLinks.forShip(ship).forEachIndexed { index, link ->
+                links.forEachIndexed { index, link ->
                     if (index > 0) Box(Modifier.padding(horizontal = 16.dp)) { Hairline() }
                     Row(
                         Modifier.fillMaxWidth().clickable { openUrl(context, link.url) }.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -553,8 +553,6 @@ private fun Links(ship: Ship) {
 
 private val ExternalLink.Kind.icon: ImageVector
     get() = when (this) {
-        ExternalLink.Kind.Search -> Icons.Filled.TravelExplore
-        ExternalLink.Kind.Map -> Icons.Filled.Map
         ExternalLink.Kind.Book -> Icons.AutoMirrored.Filled.MenuBook
         ExternalLink.Kind.Data -> Icons.AutoMirrored.Filled.ListAlt
         ExternalLink.Kind.Photo -> Icons.Filled.Photo

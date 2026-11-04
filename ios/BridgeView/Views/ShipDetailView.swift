@@ -464,31 +464,34 @@ private struct ShipDetailContent: View {
     }
 
     @ViewBuilder private var links: some View {
-        VStack(spacing: 8) {
-            SectionLabel("More about this ship")
-            VStack(spacing: 0) {
-                ForEach(Array(ShipLinks.for(ship).enumerated()), id: \.element.id) { index, link in
-                    if index > 0 { Divider().overlay(Theme.hairline) }
-                    Link(destination: link.url) {
-                        HStack(spacing: 12) {
-                            Image(systemName: link.symbol)
-                                .foregroundStyle(Theme.signal)
-                                .frame(width: 24)
-                            Text(link.title)
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Image(systemName: "arrow.up.right")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.tertiary)
+        let links = ShipLinks.for(ship)
+        if !links.isEmpty {
+            VStack(spacing: 8) {
+                SectionLabel("More about this ship")
+                VStack(spacing: 0) {
+                    ForEach(Array(links.enumerated()), id: \.element.id) { index, link in
+                        if index > 0 { Divider().overlay(Theme.hairline) }
+                        Link(destination: link.url) {
+                            HStack(spacing: 12) {
+                                Image(systemName: link.symbol)
+                                    .foregroundStyle(Theme.signal)
+                                    .frame(width: 24)
+                                Text(link.title)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.vertical, 12)
+                            .contentShape(.rect)
                         }
-                        .padding(.vertical, 12)
-                        .contentShape(.rect)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 2)
+                .card(padding: 0)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 2)
-            .card(padding: 0)
         }
     }
 
