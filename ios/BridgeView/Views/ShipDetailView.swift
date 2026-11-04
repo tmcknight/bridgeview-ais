@@ -405,6 +405,7 @@ private struct ShipDetailContent: View {
             ("Gross tonnage", ship.info?.grossTonnage.map { $0.formatted(.number.precision(.fractionLength(0))) }),
             ("Deadweight", ship.info?.uscg?.deadweight.map { "\($0.formatted(.number.precision(.fractionLength(0)))) t" }),
             ("Engine power", ship.info?.registry?.enginePowerKw.map { "\($0.formatted(.number.precision(.fractionLength(0)))) kW" }),
+            ("Flag", ship.flagDescription),
             ("Port of registry", ship.info?.registry?.portOfRegistry?.capitalized),
             ("Official number", ship.info?.registry?.officialNumber ?? ship.info?.uscg?.officialNumber),
             ("Hull number", ship.info?.registry?.hullNumber),

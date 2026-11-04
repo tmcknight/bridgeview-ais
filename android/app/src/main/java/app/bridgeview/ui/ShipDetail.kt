@@ -469,6 +469,7 @@ private fun Facts(ship: Ship) {
         "Gross tonnage" to info?.grossTonnage?.let(Format::whole),
         "Deadweight" to info?.uscg?.deadweight?.let { "${Format.whole(it)} t" },
         "Engine power" to info?.registry?.enginePowerKw?.let { "${Format.whole(it)} kW" },
+        "Flag" to ship.flagDescription,
         "Port of registry" to info?.registry?.portOfRegistry?.let(Format::place),
         "Official number" to (info?.registry?.officialNumber ?: info?.uscg?.officialNumber),
         "Hull number" to info?.registry?.hullNumber,

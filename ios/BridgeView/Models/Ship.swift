@@ -39,6 +39,13 @@ struct Ship: Codable, Identifiable, Hashable, Sendable {
         let scalars = flag.uppercased().unicodeScalars.compactMap { Unicode.Scalar(127_397 + $0.value) }
         return String(String.UnicodeScalarView(scalars))
     }
+
+    /// "🇨🇦 Canada": the flag and its country's name in the device's language
+    var flagDescription: String? {
+        guard let flag, let emoji = flagEmoji else { return nil }
+        let country = Locale.current.localizedString(forRegionCode: flag.uppercased()) ?? flag.uppercased()
+        return "\(emoji) \(country)"
+    }
 }
 
 struct Position: Codable, Hashable, Sendable {
