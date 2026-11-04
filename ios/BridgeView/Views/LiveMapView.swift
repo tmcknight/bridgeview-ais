@@ -72,8 +72,8 @@ struct LiveMapView: View {
                 .padding(.bottom, 4)
                 .readableWidth()
             }
-            .navigationTitle("Map")
-            .toolbarTitleDisplayMode(.inline)
+            // No header: the map runs to the top of the screen (ship pages keep theirs)
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Int.self) { mmsi in
                 ShipDetailView(mmsi: mmsi)
             }
