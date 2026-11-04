@@ -2,7 +2,7 @@
   "name": "bridgeview-ais",
   "version": "1.0.0",
   "description": "Real-time maritime tracking application for vessel traffic near the Blue Water Bridge using AIS data",
-  "author": "Thomas McKnight",
+  "author": "UtilityOS Inc.",
   "license": "MIT",
   "repository": {
     "type": "git",

@@ -20,7 +20,7 @@ Media Manager); the large set is optional.
 | Support URL | `https://ships.utilityos.com/support.html` |
 | License agreement | Apple's standard EULA (terms of use: `https://ships.utilityos.com/terms.html`) |
 | Marketing URL (optional) | `https://ships.utilityos.com/` |
-| Copyright | 2026 Tom McKnight |
+| Copyright | 2026 UtilityOS Inc. |
 
 ## Promotional text (170)
 
