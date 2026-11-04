@@ -4,6 +4,7 @@ import app.bridgeview.net.InstantSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.time.Instant
+import java.util.Locale
 
 /** A ship as the server describes it (ios/API.md, "Ship") */
 @Serializable
@@ -42,6 +43,15 @@ data class Ship(
             val code = flag?.uppercase() ?: return null
             if (code.length != 2 || !code.all { it in 'A'..'Z' }) return null
             return code.map { String(Character.toChars(127_397 + it.code)) }.joinToString("")
+        }
+
+    /** "🇨🇦 Canada": the flag and its country's name in the device's language */
+    val flagDescription: String?
+        get() {
+            val emoji = flagEmoji ?: return null
+            val code = flag!!.uppercase()
+            val country = Locale.Builder().setRegion(code).build().displayCountry.ifEmpty { code }
+            return "$emoji $country"
         }
 }
 
