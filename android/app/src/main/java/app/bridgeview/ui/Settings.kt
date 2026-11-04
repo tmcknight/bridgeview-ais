@@ -253,7 +253,7 @@ fun SettingsScreen() {
                             )
                         }
                     }
-                    Section(header = "About", footer = "BridgeView is for watching ships, not for navigation or safety.") {
+                    Section(header = "About", footer = "BridgeView is for watching ships, not for navigation or safety.\n\n© 2026 UtilityOS Inc.") {
                         Column(Modifier.padding(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(
                                 "BridgeView is a gift to the Sarnia and Port Huron communities, for everyone who loves watching the ships go by.",

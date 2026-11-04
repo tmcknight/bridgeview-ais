@@ -68,3 +68,11 @@ a {
 li {
   margin: 6px 0;
 }
+
+footer {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 20px 32px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

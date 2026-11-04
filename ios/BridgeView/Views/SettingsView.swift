@@ -131,7 +131,7 @@ struct SettingsView: View {
                 } header: {
                     Text("About")
                 } footer: {
-                    Text("BridgeView is for watching ships, not for navigation or safety.")
+                    Text("BridgeView is for watching ships, not for navigation or safety.\n\n© 2026 UtilityOS Inc.")
                 }
                 .listRowBackground(Theme.surface)
             }
