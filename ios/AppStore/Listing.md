@@ -29,42 +29,24 @@ minutes before one goes under, so there's time to get to the river.
 
 ## Description
 
-BridgeView tells you when a ship is about to go under the Blue Water Bridge between
-Port Huron and Sarnia, with enough time to get down to the river and watch it pass.
+BridgeView lets you know when a ship is about to go under the Blue Water Bridge, so you have time to get down to the river in Port Huron or Sarnia and see it.
 
-COMING UP
-See the ships heading for the bridge in the next three hours, soonest first, with a
-live countdown, how far out each one is, and which way it's going: upbound to Lake
-Huron or downbound to Lake St. Clair.
+WHAT'S COMING
+The app lists the ships due at the bridge in the next three hours, with a countdown, how far away each one is, and whether it's heading up to Lake Huron or down to Lake St. Clair.
 
-ALERTS BEFORE IT PASSES
-Get a notification about ten minutes before a ship reaches the bridge. With Live
-Activities on, a countdown stays on your Lock Screen and in the Dynamic Island until
-the ship goes under.
+ALERTS
+You'll get a notification about ten minutes before a ship gets to the bridge. With Live Activities on, the countdown sits on your Lock Screen and in the Dynamic Island until it's gone under.
 
-ONLY THE SHIPS YOU CARE ABOUT
-Choose cargo ships, tankers or passenger ships, a minimum length, and which
-directions. Turn on "Only when I'm near the bridge" and alerts pause while you're
-away, and start again when you come back. Your location never leaves your phone.
+You don't have to hear about every boat. Pick cargo ships, tankers or passenger ships, set a minimum length, and choose which directions. If you only want alerts when you're nearby, turn on "Only when I'm near the bridge". Your location stays on your phone.
 
-EVERY SHIP'S STORY
-Each ship has a page with its photo, where it's going, what it's likely carrying,
-when it was built and who runs it, its recent trips under the bridge, a map, and
-links to Wikipedia.
+SHIP PAGES
+Tap a ship to see its photos, where it's headed, what it's probably carrying, when it was built, who runs it, the last few times it went under the bridge, and where it is on the map, plus a Wikipedia link when there is one.
 
-SHARE YOUR PHOTOS
-Caught a great shot of a laker under the bridge? Add it to the ship's page. Every
-photo is checked before it appears, and you can be credited by name.
+Got a good shot of a laker? Add it to the ship's page. We look at every photo before it goes up, and you can put your name on it.
 
-WATCH IT PASS
-Jump to the Port Huron ship cam to watch the next ship go by live.
+There's also a link to the Port Huron ship cam for when you can't make it down in time, a list of the ships that went by in the last day, and light and dark modes.
 
-Also: the ships that went under the bridge in the last day, and Light and Dark
-modes.
-
-Ship positions come from AIS, the radio signals ships broadcast, received by a local
-antenna and public data feeds. Arrival times are estimates from each ship's speed
-and course. BridgeView is for watching ships, not for navigation.
+Positions come from AIS, the signal ships broadcast, picked up by a local antenna and public data feeds. Arrival times are estimates from each ship's speed and course. BridgeView is for watching ships, not for navigation.
 
 Terms: https://ships.utilityos.com/terms.html
 
