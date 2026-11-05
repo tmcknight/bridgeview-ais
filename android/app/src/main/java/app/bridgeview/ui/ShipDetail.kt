@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -88,6 +89,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
 
+/** How often a ship's page fetches the ship again while it's open */
+private const val SHIP_REFRESH_INTERVAL_MS = 10_000L
+
 /** Everything known about one ship, with links to find out more */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,7 +115,14 @@ fun ShipDetailScreen(mmsi: Int, onBack: () -> Unit, closeIcon: Boolean = false) 
             error = graph.describe(e)
         }
     }
-    LaunchedEffect(mmsi) { load() }
+    // Fetched again every few seconds, so the map, countdown and last position keep up;
+    // a failed refresh keeps what's shown (the error shows only before the first load)
+    LaunchedEffect(mmsi) {
+        while (true) {
+            load()
+            delay(SHIP_REFRESH_INTERVAL_MS)
+        }
+    }
 
     val shown = ship ?: cached
     Box(Modifier.fillMaxSize()) {
@@ -333,11 +344,11 @@ private fun Header(
             )
             Row(
                 Modifier.align(Alignment.BottomStart).padding(16.dp),
-                verticalAlignment = Alignment.Bottom,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(ship.name, style = Theme.hull(Theme.Style.Title), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                ship.flagEmoji?.let { Text(it, style = Theme.text(Theme.Style.Title2)) }
+                // Last baseline, so the flag sits beside the name's second line when it wraps
+                Text(ship.name, style = Theme.hull(Theme.Style.Title), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false).alignBy(LastBaseline))
+                ship.flagEmoji?.let { Text(it, style = Theme.text(Theme.Style.Title2), modifier = Modifier.alignBy(LastBaseline)) }
             }
             // The photo's credit, small along the bottom edge below the name
             currentPhoto?.credit?.let { credit ->
@@ -572,9 +583,14 @@ private fun ShipPositionMap(ship: Ship, position: Position, interactive: Boolean
     var latest by remember { mutableStateOf(position) }
     val followed = ship.copy(position = latest)
 
-    LaunchedEffect(interactive) {
-        motion.update(listOf(followed))
+    // The page fetches the ship again every few seconds; ease it onto each new report
+    LaunchedEffect(position) {
+        if (position.time.isAfter(latest.time)) latest = position
+        motion.update(others + ship.copy(position = latest))
         version++
+    }
+
+    LaunchedEffect(interactive) {
         if (!interactive) return@LaunchedEffect
         // Polls only while full screen; a failed poll just keeps the last ships
         while (true) {

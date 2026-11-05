@@ -11,6 +11,10 @@ struct ShipDetailView: View {
 
     private let api = APIClient()
 
+    /// How often the page fetches the ship again, so its map, countdown and last
+    /// position keep up while it's open
+    static let refreshInterval: Duration = .seconds(10)
+
     var body: some View {
         Group {
             if let ship = ship ?? cachedShip {
@@ -31,7 +35,13 @@ struct ShipDetailView: View {
         .background { RiverBackground() }
         .navigationTitle(ship?.name ?? cachedShip?.name ?? "Ship")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: mmsi) { await load() }
+        .task(id: mmsi) {
+            // A failed refresh keeps what's shown; the error shows only before the first load
+            while !Task.isCancelled {
+                await load()
+                try? await Task.sleep(for: Self.refreshInterval)
+            }
+        }
         .refreshable { await load() }
     }
 
@@ -210,7 +220,8 @@ private struct ShipDetailContent: View {
                     .allowsHitTesting(false)
                 }
                 .overlay(alignment: .bottomLeading) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    // Last baseline, so the flag sits beside the name's second line when it wraps
+                    HStack(alignment: .lastTextBaseline, spacing: 8) {
                         Text(ship.name)
                             .font(Theme.hull(.title))
                             .lineLimit(2)
@@ -533,10 +544,10 @@ private struct ShipMap: View {
 
     var body: some View {
         let coordinate = CLLocationCoordinate2D(latitude: position.latitude, longitude: position.longitude)
-        // Redrawn every frame while ships move (full screen), so they glide between reports
+        // Redrawn every frame while ships move, so they glide between reports
         TimelineView(.animation(
             minimumInterval: ShipMotion.frameInterval,
-            paused: !interactive || !motion.isMoving(at: .now)
+            paused: !motion.isMoving(at: .now)
         )) { context in
             Map(
                 initialPosition: .rect(Self.rect(coordinate, Bridge.center)),
@@ -572,6 +583,10 @@ private struct ShipMap: View {
             }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { mapHeight = $0 }
+        // The page fetches the ship again every few seconds; ease it onto each new report
+        .onChange(of: position, initial: true) {
+            motion.update((snapshot?.ships.filter { $0.mmsi != ship.mmsi } ?? []) + [followed])
+        }
         .task(id: interactive) {
             guard interactive else { return }
             // Polls only while full screen; a failed poll just keeps the last ships
