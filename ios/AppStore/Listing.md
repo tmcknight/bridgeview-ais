@@ -23,7 +23,7 @@ its pages, and its pages redirect to the new address.
 | Privacy policy URL | `https://bluewaterbridge.app/privacy.html` |
 | Support URL | `https://bluewaterbridge.app/support.html` |
 | License agreement | Apple's standard EULA (terms of use: `https://bluewaterbridge.app/terms.html`) |
-| Marketing URL (optional) | `https://bluewaterbridge.app/app.html` (the app's page, `public/app.html`) |
+| Marketing URL (optional) | `https://bluewaterbridge.app/` (the app's page, `public/app.html`, served at the root; the web map is at `https://map.bluewaterbridge.app`) |
 | Copyright | 2026 UtilityOS Inc. |
 
 ## Promotional text (170)
