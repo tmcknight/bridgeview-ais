@@ -116,14 +116,13 @@ describe('ShipList', () => {
       expect(screen.queryByTitle(/Dest:/)).not.toBeInTheDocument()
     })
 
-    it('should display MMSI as a link', () => {
+    it('should display MMSI as plain text, not a link', () => {
       const ship = mockShip({ mmsi: 367123456 })
       renderWithProviders(<ShipList ships={new Map([[ship.mmsi, ship]])} />)
 
-      const mmsiLink = screen.getByText('367123456')
-      expect(mmsiLink).toBeInTheDocument()
-      expect(mmsiLink.tagName).toBe('A')
-      expect(mmsiLink).toHaveAttribute('href', 'https://www.vesselfinder.com/vessels/details/367123456')
+      const mmsi = screen.getByText('367123456')
+      expect(mmsi).toBeInTheDocument()
+      expect(mmsi.closest('a')).toBeNull()
     })
 
     it('should display when the ship was last seen', () => {
