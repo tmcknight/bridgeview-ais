@@ -125,6 +125,14 @@ docker compose up -d
 
 For secure WebSocket connections (wss://), configure TLS termination in your reverse proxy or load balancer.
 
+## Map on Its Own Host
+
+By default the map is the home page on every host. Set `MAP_HOST` (for the frontend container) to give the map a host of its own: `/` then shows the map on that host only, and the iPhone app's page (`public/app.html`) on every other host. Everything else is served the same on all hosts.
+
+```bash
+MAP_HOST=map.your-domain.com docker compose up -d
+```
+
 ## Production Considerations
 
 
