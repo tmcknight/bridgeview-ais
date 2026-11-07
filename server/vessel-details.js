@@ -261,10 +261,18 @@ export function createVesselDetails({
       return names.get(mmsi);
     },
 
-    // The latest ShipStaticData message heard for a ship, if any
+    // The latest ShipStaticData message heard for a ship, if any, without the
+    // position it was heard at: that's stale by the time it's replayed, and when it
+    // came from AISHub, its terms don't allow passing on positions, live or historical
     detailsMessage(mmsi) {
       const row = selectDetails.get(mmsi);
-      return row?.details_message ? JSON.parse(row.details_message) : undefined;
+      if (!row?.details_message) return undefined;
+      const message = JSON.parse(row.details_message);
+      if (message.MetaData) {
+        delete message.MetaData.latitude;
+        delete message.MetaData.longitude;
+      }
+      return message;
     },
 
     // What's stored about a ship ({ name, callSign, imo, shipType, destination,

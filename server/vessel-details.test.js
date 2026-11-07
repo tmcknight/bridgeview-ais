@@ -50,6 +50,19 @@ describe("createVesselDetails", () => {
     expect(details.detailsMessage(2)).toBeUndefined();
   });
 
+  it("replays stored details without the position they were heard at", () => {
+    details = createVesselDetails();
+    const message = staticData(1, "LAKER");
+    message.MetaData = { ...message.MetaData, latitude: 42.9, longitude: -82.4, Source: "aishub" };
+    details.handleMessage(message);
+
+    const replayed = details.detailsMessage(1);
+    expect(replayed.MetaData).not.toHaveProperty("latitude");
+    expect(replayed.MetaData).not.toHaveProperty("longitude");
+    expect(replayed.MetaData.MMSI).toBe(1);
+    expect(replayed.Message.ShipStaticData.Name).toBe("LAKER");
+  });
+
   it("learns names from details and from AISStream position reports", () => {
     details = createVesselDetails();
     details.handleMessage(staticData(1, "LAKER  "));
