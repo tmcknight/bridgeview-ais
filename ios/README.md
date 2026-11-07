@@ -119,7 +119,7 @@ that tag on a GitHub-hosted Mac, uploads it to TestFlight with the release notes
 Test**, and once Apple has processed it (5 to 15 minutes) adds it to the TestFlight groups named
 in the `IOS_BETA_GROUP` variable (comma-separated). When any is external (a public beta) that also
 submits it for Beta App Review; later builds of the same version usually pass at once. Submitting a version to
-the App Store stays a step in App Store Connect.
+the App Store is a separate step (below).
 
 A TestFlight build is a beta, so its release is a **prerelease** (`--prerelease`).
 
@@ -144,6 +144,31 @@ A TestFlight build is a beta, so its release is a **prerelease** (`--prerelease`
   the workflow does, signed by Xcode's account and with your `Config/Local.xcconfig`.
 
 Builds expire from TestFlight after 90 days.
+
+### Submitting to the App Store
+
+The listing text, screenshots, privacy answers and review notes are in
+[AppStore/Listing.md](AppStore/Listing.md); keep App Store Connect matching it. To send a
+TestFlight build to App Review:
+
+1. In App Store Connect, add the new version (e.g. 1.4.1) if it isn't there, pick its build,
+   and check the listing, screenshots and review notes against `Listing.md`. The version's
+   release is set to **manual**, so once approved it waits as **Pending Developer Release**.
+2. **App Privacy** must be **published**, not just saved; it can only be edited on the
+   website. Until it is, adding the version to a submission fails with
+   `STATE_ERROR.APP_DATA_USAGES_REQUIRED`.
+3. Submit, in App Store Connect or with the API (the same key as the release workflow;
+   `credentials()` and `token()` in `scripts/testflight.js` make the token):
+   - `POST /v1/reviewSubmissions` with `platform: IOS` and the app;
+   - `POST /v1/reviewSubmissionItems` with that submission and the `appStoreVersion`
+     (Apple sometimes answers 500 without adding it: list the submission's `items` before
+     retrying);
+   - `PATCH /v1/reviewSubmissions/<id>` with `submitted: true`. The version goes to
+     **Waiting for Review**.
+4. App Review's messages come by email and in App Store Connect (the API shows only the
+   state). Once approved, press **Release**.
+
+The app is free, in Canada and the US only.
 
 ### App settings for the workflow
 
