@@ -19,7 +19,7 @@ Media Manager); the large set is optional.
 | Privacy policy URL | `https://ships.utilityos.com/privacy.html` |
 | Support URL | `https://ships.utilityos.com/support.html` |
 | License agreement | Apple's standard EULA (terms of use: `https://ships.utilityos.com/terms.html`) |
-| Marketing URL (optional) | `https://ships.utilityos.com/` |
+| Marketing URL (optional) | `https://ships.utilityos.com/app.html` (the app's page, `public/app.html`) |
 | Copyright | 2026 UtilityOS Inc. |
 
 ## Promotional text (170)
@@ -77,12 +77,14 @@ In this order:
 2. `2-next-ship.png`: the next ship's page: photo, countdown, map
 3. `3-ship-details.png`: a ship's photo and details
 4. `4-coming-up-dark.png`: Coming up in Dark mode
-5. `5-passed.png`: ships that went under the bridge in the last day
+5. `5-recent.png`: ships that went under the bridge in the last day
 6. `6-alert-settings.png`: alert settings
 
 Taken in the simulator (iPhone 17 Pro Max) against the live server's ships,
-photos and details. For 1, 2 and 4, four of the day's ships were given positions
-and ETAs heading for the bridge, since none were on their way at the time. Worth
+photos and details (retaken for 1.4.1). For 1, 2 and 4, four of the day's ships
+were given positions and ETAs heading for the bridge by a local proxy, since none
+were on their way at the time. The Map tab is left out: at its opening zoom the
+to-scale ships are too small to see. Worth
 adding later: a Lock Screen shot of the Live Activity from a real device (the
 simulator can't start one).
 
