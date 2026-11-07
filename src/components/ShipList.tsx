@@ -326,7 +326,18 @@ const ShipRow = memo(function ShipRow({
 
       {/* Footer */}
       <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5 mt-2 pt-1.5 border-t border-slate-300/60 dark:border-slate-700/60 text-[0.65rem] text-slate-500 dark:text-slate-500">
-        <span className="whitespace-nowrap" title="MMSI">{ship.mmsi}</span>
+        <a
+          href={`https://www.vesselfinder.com/vessels/details/${ship.mmsi}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="whitespace-nowrap hover:text-blue-500 dark:hover:text-blue-400 hover:underline transition-colors"
+          title="View vessel details on VesselFinder"
+          tabIndex={hidden ? -1 : undefined}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {ship.mmsi}
+        </a>
         <SourceBadge source={ship.source} signalPower={ship.signalPower} />
       </div>
     </div>
