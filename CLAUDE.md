@@ -273,7 +273,7 @@ See [TESTING.md](TESTING.md) for comprehensive test documentation.
 
 - MapLibre GL handles high-performance map rendering via react-map-gl
 - Custom ship markers show vessel positions and headings with rotation
-- Map supports dark/light themes and 3D pitch alignment
+- Map supports dark/light themes and 3D pitch alignment; `?theme=dark` or `?theme=light` in the URL overrides the saved and system theme (the toggle then changes the URL, not the saved theme), e.g. `/?tv&theme=dark`
 - Map updates smoothly without full re-renders
 - TV mode (header TV button, or open `/?tv`; `/?tv=<cam id>` picks the cam): full-screen map with no header or panels, and the map's buttons and cursor hidden after 3s without movement; shows the biggest ship heading for the bridge (the closest of equal ones; kept once followed) from about 12 min out (details, photo, countdown) with the map tilted to frame it and the bridge, looking from the ship to the bridge, then from about 9 min drops lower in behind it; switches to the full-screen ship cam with the ship's details in the corner while a ship under way (the biggest) is within 1 NM of the bridge (0.8 NM downbound; until it's 1.3 NM away). Esc or the Exit button leaves
 - In 3D (pitched) view the map fades to satellite imagery (Esri World Imagery), ships become simple 3D models by AIS type with a wake (`utils/shipModel.ts`, `wakeOutline` in `utils/hull.ts`), the bridge is modelled in 3D (`utils/bridgeModel.ts`, spans from OpenStreetMap), aircraft fly as 3D models at their altitude (`utils/aircraftModel.ts`), and there's a sky and a wider field of view. In TV mode the imagery covers the whole base map (no labels or borders)

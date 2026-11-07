@@ -5,6 +5,42 @@ import { useTheme } from './useTheme'
 describe('useTheme', () => {
   beforeEach(() => {
     localStorage.clear()
+    window.history.replaceState(null, '', '/')
+  })
+
+  describe('theme query parameter', () => {
+    it('uses ?theme=dark over the stored theme', () => {
+      localStorage.setItem('theme', 'light')
+      window.history.replaceState(null, '', '/?theme=dark')
+      const { result } = renderHook(() => useTheme())
+      expect(result.current.theme).toBe('dark')
+    })
+
+    it('uses ?theme=light over the system theme', () => {
+      window.history.replaceState(null, '', '/?tv&theme=light')
+      const { result } = renderHook(() => useTheme())
+      expect(result.current.theme).toBe('light')
+    })
+
+    it('ignores invalid values', () => {
+      localStorage.setItem('theme', 'dark')
+      window.history.replaceState(null, '', '/?theme=purple')
+      const { result } = renderHook(() => useTheme())
+      expect(result.current.theme).toBe('dark')
+    })
+
+    it('toggling updates the URL and leaves the stored theme alone', () => {
+      localStorage.setItem('theme', 'light')
+      window.history.replaceState(null, '', '/?tv&theme=dark')
+      const { result } = renderHook(() => useTheme())
+      act(() => {
+        result.current.toggleTheme()
+      })
+      expect(result.current.theme).toBe('light')
+      expect(new URLSearchParams(window.location.search).get('theme')).toBe('light')
+      expect(new URLSearchParams(window.location.search).has('tv')).toBe(true)
+      expect(localStorage.getItem('theme')).toBe('light')
+    })
   })
 
   describe('initial theme', () => {
