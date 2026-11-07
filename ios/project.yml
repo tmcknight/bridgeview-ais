@@ -60,6 +60,7 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: bridgeview
             CFBundleURLSchemes: [bridgeview]
+        NSHumanReadableCopyright: © 2026 UtilityOS Inc.
         ITSAppUsesNonExemptEncryption: false
     entitlements:
       path: BridgeView/BridgeView.entitlements
