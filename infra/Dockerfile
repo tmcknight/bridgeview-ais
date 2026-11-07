@@ -61,7 +61,10 @@ CMD ["node", "dist/index.js"]
 # Stage 5: Nginx frontend server
 FROM nginx:alpine AS frontend
 
-COPY infra/nginx.conf /etc/nginx/conf.d/default.conf
+# A template: the image's entrypoint fills in MAP_HOST (and nothing else) at start
+ENV MAP_HOST=""
+ENV NGINX_ENVSUBST_FILTER="^MAP_HOST$"
+COPY infra/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

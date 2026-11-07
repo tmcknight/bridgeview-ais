@@ -61,6 +61,8 @@ services:
     build:
       dockerfile: infra/Dockerfile
       target: frontend
+    environment:
+      - MAP_HOST=${MAP_HOST:-}
     ports:
       - "${APP_BIND:-0.0.0.0}:${APP_PORT:-3000}:80"
     depends_on:
