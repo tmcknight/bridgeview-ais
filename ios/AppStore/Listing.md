@@ -8,6 +8,10 @@ Media Manager); the large set is optional.
 
 ## App information
 
+The website is `https://bluewaterbridge.app`. The old address, `https://ships.utilityos.com`,
+stays up for good: app builds made before the switch (iOS 1.4.1, Android 1.1.0 and older) call its API and link
+its pages, and its pages redirect to the new address.
+
 | Field | Value |
 | --- | --- |
 | Name | BridgeView |
@@ -16,10 +20,10 @@ Media Manager); the large set is optional.
 | Secondary category | Reference |
 | Age rating | 4+ (no objectionable content). The questionnaire's user-generated content question: yes, shared ship photos, all reviewed before they're shown |
 | Price | Free |
-| Privacy policy URL | `https://ships.utilityos.com/privacy.html` |
-| Support URL | `https://ships.utilityos.com/support.html` |
-| License agreement | Apple's standard EULA (terms of use: `https://ships.utilityos.com/terms.html`) |
-| Marketing URL (optional) | `https://ships.utilityos.com/app.html` (the app's page, `public/app.html`) |
+| Privacy policy URL | `https://bluewaterbridge.app/privacy.html` |
+| Support URL | `https://bluewaterbridge.app/support.html` |
+| License agreement | Apple's standard EULA (terms of use: `https://bluewaterbridge.app/terms.html`) |
+| Marketing URL (optional) | `https://bluewaterbridge.app/app.html` (the app's page, `public/app.html`) |
 | Copyright | 2026 UtilityOS Inc. |
 
 ## Promotional text (170)
@@ -48,7 +52,7 @@ There's also a link to the Port Huron ship cam for when you can't make it down i
 
 Positions come from AIS, the signal ships broadcast, picked up by a local antenna and public data feeds. Arrival times are estimates from each ship's speed and course. BridgeView is for watching ships, not for navigation.
 
-Terms: https://ships.utilityos.com/terms.html
+Terms: https://bluewaterbridge.app/terms.html
 
 ## Keywords (100)
 
