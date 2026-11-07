@@ -13,6 +13,8 @@ A real-time ship tracking application that displays vessel traffic near the Blue
 
 BridgeView AIS is a web-based maritime tracking tool that provides live visualization of ship movements and detailed vessel information. Built with modern web technologies, it offers an intuitive interface for monitoring shipping activity in the Blue Water Bridge area.
 
+It runs at [bluewaterbridge.app](https://bluewaterbridge.app) (the app's page) and [map.bluewaterbridge.app](https://map.bluewaterbridge.app) (the live map), with companion apps for iPhone ([App Store](https://apps.apple.com/app/id6829033068)) and Android.
+
 ## ✨ Features
 
 - **Real-time Ship Tracking**: Live AIS data streaming via WebSocket for up-to-the-second vessel positions
@@ -26,6 +28,7 @@ BridgeView AIS is a web-based maritime tracking tool that provides live visualiz
 - **Modern UI**: Built with Tailwind CSS and Headless UI for a clean, responsive interface
 - **Notification System**: Real-time approach and close-approach alerts
 - **iOS App**: Ships coming up and recently passed, with a push notification or Live Activity about 10 minutes before a ship reaches the bridge ([ios/README.md](ios/README.md))
+- **Android App**: The iOS app's screens and features, with alerts over Firebase Cloud Messaging and a live countdown notification in place of the Live Activity ([android/README.md](android/README.md))
 - **Error Boundaries**: Graceful error handling with component-level and app-level boundaries
 - **Secure WebSocket Proxy**: Rate limiting, authentication support, and input validation
 
@@ -152,7 +155,9 @@ This project was mostly vibe coded with [Claude](https://claude.ai) - an AI assi
 ## 📖 Documentation
 
 - [infra/DOCKER.md](infra/DOCKER.md) - Docker containerization setup and usage
-- [ios/README.md](ios/README.md) - iOS app setup; [ios/API.md](ios/API.md) - its API and push payloads
+- [ios/README.md](ios/README.md) - iOS app setup and releases; [ios/API.md](ios/API.md) - the apps' API and push payloads
+- [ios/AppStore/Listing.md](ios/AppStore/Listing.md) - App Store listing, privacy answers and review notes
+- [android/README.md](android/README.md) - Android app setup and releases
 - [TESTING.md](TESTING.md) - Comprehensive test documentation and coverage details
 - [SECURITY.md](SECURITY.md) - Security policies and vulnerability reporting
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
