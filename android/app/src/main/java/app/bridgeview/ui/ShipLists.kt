@@ -47,7 +47,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +63,7 @@ import app.bridgeview.model.Bridge
 import app.bridgeview.model.Ship
 import app.bridgeview.model.ShipLinks
 import kotlinx.coroutines.launch
+import java.time.Duration
 
 /** List of ships from the bridge snapshot, with loading, empty and error states */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,7 +139,7 @@ fun ShipListScreen(
                         )
                     }
                     ships == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        if (loading || error == null) CircularProgressIndicator()
+                        if (loading || error == null) CircularProgressIndicator(Modifier.semantics { contentDescription = "Loading ships" })
                     }
                     // A little down from the title, not jammed against it
                     else -> CenteredScroll { empty() }
@@ -143,7 +148,8 @@ fun ShipListScreen(
         }
         // A small pill floating over the list when an update failed but ships are still shown
         if (ships != null && error != null) {
-            Pill(Modifier.align(Alignment.BottomCenter).padding(16.dp).readableWidth()) {
+            // Announced when it appears or changes, not on every failed refresh
+            Pill(Modifier.align(Alignment.BottomCenter).padding(16.dp).readableWidth().semantics { liveRegion = LiveRegionMode.Polite }) {
                 Row(
                     Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -177,6 +183,7 @@ fun LongPressMenu(mmsi: Int, enabled: Boolean, onClick: () -> Unit, content: @Co
             .clip(RoundedCornerShape(Theme.cornerRadius + 4.dp))
             .combinedClickable(
                 onClick = onClick,
+                onClickLabel = "Show details",
                 onLongClick = if (enabled && follow.visible) ({ open = true }) else null,
                 onLongClickLabel = "Ship options",
             ),
@@ -198,7 +205,7 @@ fun LargeTitleBar(title: String, actions: @Composable () -> Unit = {}) {
             .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(title, style = Theme.hull(Theme.Style.Title), modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(title, style = Theme.hull(Theme.Style.Title), modifier = Modifier.weight(1f).semantics { heading() }, maxLines = 2, overflow = TextOverflow.Ellipsis)
         actions()
     }
 }
@@ -216,7 +223,18 @@ fun NextShipCard(ship: Ship, approach: Approach) {
             .shadow(14.dp, shape, ambientColor = colors.river, spotColor = colors.river)
             .clip(shape)
             .background(Brush.linearGradient(listOf(colors.shallows, colors.river)))
-            .semantics(mergeDescendants = true) {},
+            // Read as one sentence (the countdown in minutes, not "8:23"); the
+            // follow toggle stays its own control
+            .semantics {
+                contentDescription = listOfNotNull(
+                    "Next at the bridge: ${ship.name}",
+                    Format.flagCountry(ship),
+                    Format.spokenSummary(ship).ifEmpty { null },
+                    Format.spokenHeading(approach.direction, ship.position?.course),
+                    "${Format.spokenDistance(approach.distanceNM)} away",
+                    Format.spokenArrival(Duration.between(now, approach.eta).toMillis() / 60_000.0, approach.eta),
+                ).joinToString(", ")
+            },
     ) {
         Canvas(Modifier.matchParentSize()) {
             drawSwells(time.toDouble(), top = size.height - 98.dp.toPx(), height = 90.dp.toPx(), color = Color.White.copy(alpha = 0.1f), width = 1.dp.toPx())
@@ -227,10 +245,10 @@ fun NextShipCard(ship: Ship, approach: Approach) {
                     "NEXT AT THE BRIDGE",
                     style = Theme.text(Theme.Style.Caption, FontWeight.Bold).copy(letterSpacing = 1.4.sp),
                     color = SignalOnRiver,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).clearAndSetSemantics {},
                 )
                 FollowToggle(ship.mmsi, FollowStyle.Icon, onDark = true)
-                Pill(onDark = true) {
+                Pill(Modifier.clearAndSetSemantics {}, onDark = true) {
                     Row(
                         Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -241,16 +259,16 @@ fun NextShipCard(ship: Ship, approach: Approach) {
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.clearAndSetSemantics {}, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(ship.name, style = Theme.hull(Theme.Style.Title2), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(ship.name, style = Theme.hull(Theme.Style.Title2), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     ship.flagEmoji?.let { Text(it, style = Theme.text(Theme.Style.Title3)) }
                 }
                 if (ship.summary.isNotEmpty()) {
-                    Text(ship.summary, style = Theme.text(Theme.Style.Subheadline), color = Color.White.copy(alpha = 0.75f))
+                    Text(ship.summary, style = Theme.text(Theme.Style.Subheadline), color = Color.White.copy(alpha = 0.85f))
                 }
             }
-            Row(verticalAlignment = Alignment.Bottom) {
+            Row(Modifier.clearAndSetSemantics {}, verticalAlignment = Alignment.Bottom) {
                 Text(
                     if (approach.eta.isAfter(now)) Format.countdown(now, approach.eta) else "Now",
                     style = Theme.figure(Theme.Style.LargeTitle, 900),
@@ -259,7 +277,7 @@ fun NextShipCard(ship: Ship, approach: Approach) {
                 )
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(Format.time(approach.eta), style = Theme.figure(Theme.Style.Headline), color = Color.White)
-                    Text(Format.distance(approach.distanceNM), style = Theme.text(Theme.Style.Subheadline), color = Color.White.copy(alpha = 0.75f))
+                    Text(Format.distance(approach.distanceNM), style = Theme.text(Theme.Style.Subheadline), color = Color.White.copy(alpha = 0.85f))
                 }
             }
         }

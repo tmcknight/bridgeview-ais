@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -47,11 +48,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -147,16 +152,20 @@ fun SharePhotoScreen(mmsi: Int, shipName: String, onDismiss: () -> Unit) {
                             "Share a photo",
                             style = Theme.text(Theme.Style.Headline, FontWeight.SemiBold),
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).semantics { heading() },
                         )
                         when {
                             sent -> Box(Modifier.size(72.dp, 48.dp))
-                            sending -> Box(Modifier.size(72.dp, 48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp) }
+                            sending -> Box(Modifier.size(72.dp, 48.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(Modifier.size(22.dp).semantics { contentDescription = "Sending" }, strokeWidth = 2.dp) }
                             else -> TextButton(onClick = ::send, enabled = image != null && agreed) { Text("Send", fontWeight = FontWeight.SemiBold) }
                         }
                     }
                     if (sent) {
-                        Column(Modifier.fillMaxSize().padding(top = 72.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Announced, since the form it replaces had focus
+                        Column(
+                            Modifier.fillMaxSize().padding(top = 72.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
                             EmptyState(
                                 Icons.Filled.CheckCircle,
                                 "Thanks!",
@@ -215,7 +224,7 @@ fun SharePhotoScreen(mmsi: Int, shipName: String, onDismiss: () -> Unit) {
                                     footer = "Photos are checked before they appear, and may not be used. Sending photos that aren't yours, or that aren't of ships, can get you blocked from sharing.",
                                 ) {
                                     Row(
-                                        Modifier.fillMaxWidth().clickable(role = Role.Checkbox) { agreed = !agreed }.padding(vertical = 10.dp),
+                                        Modifier.fillMaxWidth().toggleable(value = agreed, role = Role.Checkbox) { agreed = it }.padding(vertical = 10.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
@@ -230,14 +239,16 @@ fun SharePhotoScreen(mmsi: Int, shipName: String, onDismiss: () -> Unit) {
                                     Text(
                                         "Read the terms",
                                         color = Theme.colors.signal,
-                                        modifier = Modifier.fillMaxWidth().clickable { openUrl(context, AppConfig.page("terms.html")) }.padding(vertical = 14.dp),
+                                        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) { openUrl(context, AppConfig.page("terms.html")) }.padding(vertical = 14.dp),
                                     )
                                 }
                                 error?.let {
-                                    Card {
+                                    // Read out when it appears; a lighter red in dark mode, to read on the dark card
+                                    val red = androidx.compose.ui.graphics.Color(if (Theme.colors.isDark) 0xFFFF6B6B else 0xFFD32F2F)
+                                    Card(Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }) {
                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Icon(Icons.Filled.Warning, contentDescription = null, tint = androidx.compose.ui.graphics.Color(0xFFD32F2F))
-                                            Text(it, color = androidx.compose.ui.graphics.Color(0xFFD32F2F))
+                                            Icon(Icons.Filled.Warning, contentDescription = "Error", tint = red)
+                                            Text(it, color = red)
                                         }
                                     }
                                 }
@@ -267,6 +278,6 @@ private fun ActionRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Icon(icon, contentDescription = null, tint = Theme.colors.signal)
-        Text(title, color = Theme.colors.signal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(title, color = Theme.colors.signal)
     }
 }

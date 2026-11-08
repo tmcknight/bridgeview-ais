@@ -66,6 +66,15 @@ class ShipMotionTest {
         assertEquals(43.0, motion.drawn(report, now)!!.coordinate.latitude, 0.0)
     }
 
+    @Test fun jumpsToNewReportsWithAnimationsOff() {
+        val motion = ShipMotion(ease = false)
+        motion.update(listOf(ship(42.95, time = start)), start)
+        val now = start.plusSeconds(5)
+        val report = ship(42.951, sog = 0.0, time = now)
+        motion.update(listOf(report), now)
+        assertEquals(42.951, motion.drawn(report, now)!!.coordinate.latitude, 0.0)
+    }
+
     @Test fun settlesOnceShipsStopMoving() {
         val motion = ShipMotion()
         motion.update(listOf(ship(42.95, sog = 0.0, time = start)), start)

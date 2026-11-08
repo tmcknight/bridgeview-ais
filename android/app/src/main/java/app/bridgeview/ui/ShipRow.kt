@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import app.bridgeview.graph
 import app.bridgeview.model.Direction
 import app.bridgeview.model.Ship
+import java.time.Instant
 
 /** One ship in the "Coming up" or "Recent" list */
 enum class ListMode { Upcoming, Recent }
@@ -47,28 +49,35 @@ fun ShipRow(ship: Ship, mode: ListMode) {
         if (mode == ListMode.Upcoming) ship.approach?.let { add(Format.distance(it.distanceNM)) }
     }.joinToString(" · ")
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        DirectionBadge(
-            direction = direction,
-            course = if (mode == ListMode.Upcoming) ship.position?.course else null,
-            followsCompass = mode == ListMode.Upcoming,
-        )
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(ship.name, style = Theme.hull(Theme.Style.Subheadline), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (details.isNotEmpty()) {
-                Text(details, style = Theme.text(Theme.Style.Subheadline), color = colors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-        when (mode) {
-            ListMode.Upcoming -> ship.approach?.let { approach ->
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(Format.minutes(approach.etaMinutes), style = Theme.figure(Theme.Style.Subheadline), color = colors.signal)
-                    Text(Format.time(approach.eta), style = Theme.text(Theme.Style.Caption), color = colors.secondaryText)
+        // Read as one sentence; the follow toggle beside it stays its own control
+        Row(
+            Modifier.weight(1f).clearAndSetSemantics { contentDescription = describe(ship, mode, now) },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            DirectionBadge(
+                direction = direction,
+                course = if (mode == ListMode.Upcoming) ship.position?.course else null,
+                followsCompass = mode == ListMode.Upcoming,
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(ship.name, style = Theme.hull(Theme.Style.Subheadline), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (details.isNotEmpty()) {
+                    Text(details, style = Theme.text(Theme.Style.Subheadline), color = colors.secondaryText, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
-            ListMode.Recent -> ship.lastPassage?.let { passage ->
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(Format.relative(passage.time, now), style = Theme.figure(Theme.Style.Subheadline, 600))
-                    Text(Format.time(passage.time), style = Theme.text(Theme.Style.Caption), color = colors.secondaryText)
+            when (mode) {
+                ListMode.Upcoming -> ship.approach?.let { approach ->
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(Format.minutes(approach.etaMinutes), style = Theme.figure(Theme.Style.Subheadline), color = colors.signal)
+                        Text(Format.time(approach.eta), style = Theme.text(Theme.Style.Caption), color = colors.secondaryText)
+                    }
+                }
+                ListMode.Recent -> ship.lastPassage?.let { passage ->
+                    Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(Format.relative(passage.time, now), style = Theme.figure(Theme.Style.Subheadline, 600))
+                        Text(Format.time(passage.time), style = Theme.text(Theme.Style.Caption), color = colors.secondaryText)
+                    }
                 }
             }
         }
@@ -76,6 +85,25 @@ fun ShipRow(ship: Ship, mode: ListMode) {
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.tertiaryText)
     }
 }
+
+/**
+ * What a screen reader says for a row: "ALGOMA EQUINOX, Cargo, 225 metres, Upbound,
+ * heading north, 1.6 nautical miles away, reaches the bridge in 8 minutes, at 2:10 PM"
+ */
+private fun describe(ship: Ship, mode: ListMode, now: Instant): String = when (mode) {
+    ListMode.Upcoming -> listOfNotNull(
+        ship.name,
+        Format.spokenSummary(ship).ifEmpty { null },
+        ship.approach?.let { Format.spokenHeading(it.direction, ship.position?.course) },
+        ship.approach?.let { "${Format.spokenDistance(it.distanceNM)} away" },
+        ship.approach?.let { Format.spokenArrival(it.etaMinutes, it.eta) },
+    )
+    ListMode.Recent -> listOfNotNull(
+        ship.name,
+        Format.spokenSummary(ship).ifEmpty { null },
+        ship.lastPassage?.let { "went under the bridge ${it.direction.label.lowercase()} ${Format.relative(it.time, now)}, at ${Format.time(it.time)}" },
+    )
+}.joinToString(", ")
 
 /**
  * Arrow for a ship's direction through the river, pointing the way the ship is
@@ -89,7 +117,7 @@ fun DirectionBadge(direction: Direction?, course: Double?, followsCompass: Boole
             .size(38.dp)
             .clip(RoundedCornerShape(11.dp))
             .background(Brush.verticalGradient(listOf(color.copy(alpha = 0.85f), color)))
-            .semantics { contentDescription = direction?.label ?: "Ship" },
+            .semantics { contentDescription = direction?.let { Format.spokenHeading(it, course) } ?: "Ship" },
         contentAlignment = Alignment.Center,
     ) {
         DirectionArrow(direction, course, followsCompass, tint = Color.White)

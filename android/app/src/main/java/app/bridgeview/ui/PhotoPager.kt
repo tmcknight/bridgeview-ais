@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -37,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -48,6 +50,15 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,11 +67,17 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.bridgeview.model.VesselPhoto
 import coil3.compose.SubcomposeAsyncImage
+import kotlinx.coroutines.launch
 
 /**
  * A ship's photos, swiped one at a time. Swiping on from the last photo comes round
  * to the first, and back from the first to the last (a long run of pages, each
  * showing photo `page % count`, started in the middle).
+ *
+ * To screen readers the pager is one item, "Photo 2 of 5 of ALGOMA EQUINOX. Photo:
+ * credit" (announced again as it changes), with Next photo and Previous photo
+ * actions in place of swiping, and [onClick] (e.g. opening it full screen) as its
+ * double-tap.
  */
 @Composable
 fun PhotoPager(
@@ -68,16 +85,33 @@ fun PhotoPager(
     index: Int,
     onIndexChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    /** Whose photos these are, for screen readers */
+    title: String? = null,
     /** Stops swiping, e.g. while a photo is zoomed in */
     swipeEnabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    onClickLabel: String? = null,
     page: @Composable (VesselPhoto) -> Unit,
 ) {
     val count = photos.size
     if (count == 0) return
+    fun describe(i: Int): String = buildString {
+        append(if (count > 1) "Photo ${i + 1} of $count" else "Photo")
+        title?.let { append(" of $it") }
+        photos[i].credit?.let { append(". Photo: $it") }
+    }
+    fun Modifier.photoSemantics(actions: List<CustomAccessibilityAction>): Modifier = this
+        .then(if (onClick != null) Modifier.clickable(onClickLabel = onClickLabel, role = Role.Image, onClick = onClick) else Modifier)
+        .clearAndSetSemantics {
+            contentDescription = describe(index.coerceIn(0, count - 1))
+            liveRegion = LiveRegionMode.Polite
+            if (actions.isNotEmpty()) customActions = actions
+        }
     if (count == 1) {
-        Box(modifier) { page(photos[0]) }
+        Box(modifier.photoSemantics(emptyList())) { page(photos[0]) }
         return
     }
+    val scope = rememberCoroutineScope()
     val laps = 10_000
     val state = rememberPagerState(initialPage = count * (laps / 2) + index.coerceIn(0, count - 1)) { count * laps }
     LaunchedEffect(state, count) {
@@ -88,7 +122,16 @@ fun PhotoPager(
         val shown = state.currentPage % count
         if (shown != index) state.scrollToPage(state.currentPage - shown + index.coerceIn(0, count - 1))
     }
-    HorizontalPager(state, modifier, userScrollEnabled = swipeEnabled, beyondViewportPageCount = 1) { slot ->
+    // Not while swiping is off (a photo zoomed in)
+    val actions = if (swipeEnabled) {
+        listOf(
+            CustomAccessibilityAction("Next photo") { scope.launch { state.animateScrollToPage(state.currentPage + 1) }; true },
+            CustomAccessibilityAction("Previous photo") { scope.launch { state.animateScrollToPage(state.currentPage - 1) }; true },
+        )
+    } else {
+        emptyList()
+    }
+    HorizontalPager(state, modifier.photoSemantics(actions), userScrollEnabled = swipeEnabled, beyondViewportPageCount = 1) { slot ->
         Box(Modifier.fillMaxSize()) { page(photos[slot % count]) }
     }
 }
@@ -141,7 +184,7 @@ fun PhotoViewer(photos: List<VesselPhoto>, title: String, index: Int, onIndexCha
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            PhotoPager(photos, index, onIndexChange, Modifier.fillMaxSize(), swipeEnabled = !zoomed) { photo ->
+            PhotoPager(photos, index, onIndexChange, Modifier.fillMaxSize(), title = title, swipeEnabled = !zoomed) { photo ->
                 ZoomablePhoto(photo.url) { zoomed = it }
             }
             Row(
@@ -153,7 +196,7 @@ fun PhotoViewer(photos: List<VesselPhoto>, title: String, index: Int, onIndexCha
                     title,
                     color = Color.White,
                     style = Theme.text(Theme.Style.Headline, FontWeight.SemiBold),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).semantics { heading() },
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -173,7 +216,8 @@ fun PhotoViewer(photos: List<VesselPhoto>, title: String, index: Int, onIndexCha
                 exit = fadeOut(),
                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Already part of the photo's description for screen readers
+                Column(Modifier.clearAndSetSemantics {}, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     if (photos.size > 1) {
                         Text("${index + 1} / ${photos.size}", color = Color.White, style = Theme.figure(Theme.Style.Caption, 600))
                     }
@@ -210,7 +254,7 @@ private fun ZoomablePhoto(url: String, onZoomed: (Boolean) -> Unit) {
         }
         SubcomposeAsyncImage(
             model = url,
-            contentDescription = "Photo",
+            contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxSize()

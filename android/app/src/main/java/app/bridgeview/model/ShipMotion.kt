@@ -9,9 +9,10 @@ import kotlin.math.abs
  * and the iOS app (ShipMotion.swift). Each ship is dead-reckoned from its latest
  * report, and when a newer report lands the gap between where it was drawn and
  * where the report puts it closes over [BLEND] instead of in one jump, its heading
- * turning the same way.
+ * turning the same way. Without [ease] (the system's Remove animations), it jumps
+ * to the new report instead; dead reckoning still keeps it where it should be.
  */
-class ShipMotion {
+class ShipMotion(private val ease: Boolean = true) {
     companion object {
         val BLEND: Duration = Duration.ofSeconds(2)
         /** A new report further than this from where the ship was drawn (~2 km) is jumped to */
@@ -59,7 +60,7 @@ class ShipMotion {
             val target = position.coordinateAt(now)
             val dLat = shown.coordinate.latitude - target.latitude
             val dLon = shown.coordinate.longitude - target.longitude
-            next[ship.mmsi] = if (abs(dLat) < MAX_BLEND_DEGREES && abs(dLon) < MAX_BLEND_DEGREES) {
+            next[ship.mmsi] = if (ease && abs(dLat) < MAX_BLEND_DEGREES && abs(dLon) < MAX_BLEND_DEGREES) {
                 val from = shown.course
                 val to = position.course
                 Track(position, now, dLat, dLon, if (from != null && to != null) turn(to, from) else 0.0)

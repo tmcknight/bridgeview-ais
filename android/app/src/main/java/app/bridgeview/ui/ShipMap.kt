@@ -1,13 +1,17 @@
 package app.bridgeview.ui
 
 import android.graphics.PointF
+import android.view.View
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +20,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -28,12 +33,17 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -89,7 +99,8 @@ fun ShipMap(
     modifier: Modifier = Modifier,
     interactive: Boolean = true,
     selected: Int? = null,
-    onSelect: (Int) -> Unit = {},
+    /** Tapping a ship (or activating it with a screen reader); null where ships can't be picked */
+    onSelect: ((Int) -> Unit)? = null,
     /** Drawn over the others and picked out (the ship whose page this is) */
     highlighted: Int? = null,
 ) {
@@ -105,7 +116,11 @@ fun ShipMap(
 
     val mapView = remember {
         MapLibre.getInstance(context)
-        MapView(context, MapLibreMapOptions.createFromAttributes(context).textureMode(true)).apply { onCreate(null) }
+        MapView(context, MapLibreMapOptions.createFromAttributes(context).textureMode(true)).apply {
+            onCreate(null)
+            // A still preview is described as a whole by its container; keep screen readers out of the map view
+            if (!interactive) importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        }
     }
 
     DisposableEffect(lifecycle) {
@@ -168,8 +183,9 @@ fun ShipMap(
                         val p = m.projection.toScreenLocation(LatLng(drawn.coordinate.latitude, drawn.coordinate.longitude))
                         ship to hypot((p.x - tap.x).toDouble(), (p.y - tap.y).toDouble())
                     }.filter { it.second <= hit }.minByOrNull { it.second }
-                    nearest?.let { currentSelect(it.first.mmsi) }
-                    nearest != null
+                    val select = currentSelect
+                    if (nearest != null && select != null) select(nearest.first.mmsi)
+                    nearest != null && select != null
                 }
             }
             map = m
@@ -223,8 +239,52 @@ fun ShipMap(
             }
             if (interactive && metresPerPx > 0) drawScale(metresPerPx, measurer, colors.isDark)
         }
+        // The ships and the bridge are drawn, not views, so screen readers get an
+        // invisible 48dp target over each, following it as it moves (placed at
+        // layout, so moving doesn't recompose). Touches pass through to the map.
+        if (interactive) {
+            val selectedMmsi = selected
+            Box(Modifier.fillMaxSize().clipToBounds()) {
+                fun target(coordinate: () -> Coordinate?): Modifier = Modifier
+                    .offset {
+                        @Suppress("UNUSED_EXPRESSION") cameraTick
+                        val half = 24.dp.roundToPx()
+                        val c = map?.let { coordinate() }
+                        val p = c?.let { map?.projection?.toScreenLocation(LatLng(it.latitude, it.longitude)) }
+                        if (p == null) IntOffset(-100_000, -100_000) else IntOffset(p.x.toInt() - half, p.y.toInt() - half)
+                    }
+                    .size(48.dp)
+                Box(target { Coordinate(Bridge.LATITUDE, Bridge.LONGITUDE) }.semantics { contentDescription = Bridge.NAME })
+                for (ship in ships) {
+                    key(ship.mmsi) {
+                        Box(
+                            target { motion.drawn(ship, Instant.ofEpochMilli(frameTime))?.coordinate }.semantics {
+                                contentDescription = describeOnMap(ship)
+                                this.selected = ship.mmsi == selectedMmsi
+                                onSelect?.let { select -> onClick(label = "Show details") { select(ship.mmsi); true } }
+                            },
+                        )
+                    }
+                }
+            }
+        }
     }
 }
+
+/** "ALGOMA EQUINOX, Cargo, 225 metres, Upbound, heading north, 11.2 knots, reaches the bridge in 8 minutes, at 2:10 PM" */
+private fun describeOnMap(ship: Ship): String = listOfNotNull(
+    ship.name,
+    Format.spokenSummary(ship).ifEmpty { null },
+    Format.spokenHeading(ship.approach?.direction, ship.position?.course).ifEmpty { null },
+    ship.position?.let { position ->
+        when (position.navStatus) {
+            1 -> "at anchor"
+            5 -> "moored"
+            else -> position.sog?.let(Format::spokenSpeed)
+        }
+    },
+    ship.approach?.let { Format.spokenArrival(it.etaMinutes, it.eta) },
+).joinToString(", ")
 
 /** A box around both points with some margin */
 private fun fitBounds(a: Coordinate, b: Coordinate): LatLngBounds {

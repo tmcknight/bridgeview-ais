@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PauseCircle
@@ -47,6 +49,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.bridgeview.AppConfig
@@ -344,7 +348,8 @@ private fun Section(header: String? = null, footer: String? = null, card: Boolea
 @Composable
 private fun SwitchRow(title: String, checked: Boolean, icon: ImageVector? = null, iconTint: Color = Color.Unspecified, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clickable(role = Role.Switch) { onChange(!checked) }.padding(vertical = 8.dp),
+        // toggleable, not clickable, so screen readers hear whether it's on
+        Modifier.fillMaxWidth().toggleable(value = checked, role = Role.Switch, onValueChange = onChange).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -358,7 +363,7 @@ private fun SwitchRow(title: String, checked: Boolean, icon: ImageVector? = null
 private fun <T> PickerRow(title: String, options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().clickable { open = true }.padding(vertical = 14.dp),
+        Modifier.fillMaxWidth().clickable(onClickLabel = "Change", role = Role.DropdownList) { open = true }.padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, style = Theme.text(Theme.Style.Body), modifier = Modifier.weight(1f))
@@ -366,7 +371,13 @@ private fun <T> PickerRow(title: String, options: List<T>, selected: T, label: (
             Text(label(selected), style = Theme.text(Theme.Style.Body), color = Theme.colors.signal)
             DropdownMenu(open, onDismissRequest = { open = false }) {
                 options.forEach { option ->
-                    DropdownMenuItem(text = { Text(label(option)) }, onClick = { open = false; onSelect(option) })
+                    // The current choice is ticked, and said to be selected
+                    DropdownMenuItem(
+                        text = { Text(label(option)) },
+                        onClick = { open = false; onSelect(option) },
+                        trailingIcon = if (option == selected) ({ Icon(Icons.Filled.Check, contentDescription = null) }) else null,
+                        modifier = Modifier.semantics { this.selected = option == selected },
+                    )
                 }
             }
         }
@@ -375,7 +386,7 @@ private fun <T> PickerRow(title: String, options: List<T>, selected: T, label: (
 
 @Composable
 private fun ValueRow(title: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 14.dp)) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 14.dp).semantics(mergeDescendants = true) {}) {
         Text(title, style = Theme.text(Theme.Style.Body), modifier = Modifier.weight(1f))
         Text(value, style = Theme.text(Theme.Style.Body), color = Theme.colors.secondaryText)
     }
@@ -395,7 +406,8 @@ private fun ButtonRow(title: String, onClick: () -> Unit) {
 private fun StatusRow(icon: ImageVector, text: String, tint: Color) {
     Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Icon(icon, contentDescription = null, tint = tint)
-        Text(text, style = Theme.text(Theme.Style.Body), color = tint)
+        // The icon takes the colour; the text stays secondary, which reads on the card (light upbound green doesn't, at 4.3:1)
+        Text(text, style = Theme.text(Theme.Style.Body), color = Theme.colors.secondaryText)
     }
 }
 
