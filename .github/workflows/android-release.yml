@@ -112,7 +112,7 @@ jobs:
         run: |
           [ -n "${BRIDGEVIEW_PLAY_SERVICE_ACCOUNT_FILE:-}" ] || { echo "::error::Add the ANDROID_PLAY_SERVICE_ACCOUNT secret"; exit 1; }
           ./gradlew :app:publishReleaseBundle
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: bridgeview-${{ env.BRIDGEVIEW_VERSION_NAME }}.aab
           path: android/app/build/outputs/bundle/release/*.aab
