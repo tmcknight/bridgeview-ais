@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		052F679801C49D202877CA96 /* ShipRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F5E147BDB8F9F2087E07C7 /* ShipRow.swift */; };
 		08402141FD858E64A814981B /* ShipMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E37FDE0A5F969141B691A4A /* ShipMotion.swift */; };
+		0B0AE99DD8CB56983751C6B6 /* StopFollowingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */; };
 		13F46E249030CC75A40F3D99 /* ShipApproachAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */; };
 		1DD5F1A38770A83201CC5A75 /* PhotoReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CAF57BCEEE451F02C0DFEEB /* PhotoReport.swift */; };
 		1F6F0FF9B5FF8AEC3457F54C /* DecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B53116F5EFC8F811D2E5DD28 /* DecodingTests.swift */; };
@@ -51,6 +52,7 @@
 		CC59EA6B6605875C121FF8B7 /* APIErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0158ED2F6564EF26A2D0294 /* APIErrorTests.swift */; };
 		CE03B618CB58228E63D67311 /* SharedPhoto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */; };
 		D682A2DB996586269E00400B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1803C12C123A310A829E6F4 /* SettingsView.swift */; };
+		D8293F1EA9F2FC1AD1F6DDFC /* StopFollowingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */; };
 		DCA9CF7E5C17F8EE5EA6469F /* ShipMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316DDD42EC695E3459F90B80 /* ShipMotionTests.swift */; };
 		E0DCE9B44D842C48099F7830 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC39982F5302200CF991BF1 /* Router.swift */; };
 		E6C9DDC2F748232DD0CD506E /* BridgeViewApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B717E8DB26102D4BB6B8A5B /* BridgeViewApp.swift */; };
@@ -117,6 +119,7 @@
 		6E25B1C6E0986F638CC62B92 /* LiveActivityToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityToggle.swift; sourceTree = "<group>"; };
 		6EB43B6FFC18F7C6898D237C /* AlertPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertPreferences.swift; sourceTree = "<group>"; };
 		6F30DE6D55D2F51B3A6D977D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopFollowingIntent.swift; sourceTree = "<group>"; };
 		74B633CB45C2138852905A82 /* RegistrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationTests.swift; sourceTree = "<group>"; };
 		7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPhoto.swift; sourceTree = "<group>"; };
 		80C70708A663AF386FF9BE04 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
@@ -153,6 +156,7 @@
 			isa = PBXGroup;
 			children = (
 				A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */,
+				722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */,
 				6F30DE6D55D2F51B3A6D977D /* Theme.swift */,
 			);
 			path = Shared;
@@ -429,6 +433,7 @@
 				69F81F664C50492502DB45E1 /* BridgeViewWidgets.swift in Sources */,
 				13F46E249030CC75A40F3D99 /* ShipApproachAttributes.swift in Sources */,
 				3D0D1F5AE7BDB35A64AE13F4 /* ShipApproachLiveActivity.swift in Sources */,
+				0B0AE99DD8CB56983751C6B6 /* StopFollowingIntent.swift in Sources */,
 				693C5C29771B24DF906314A9 /* Theme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -484,6 +489,7 @@
 				256A93ABF3E3E59DBB476B71 /* ShipListContainer.swift in Sources */,
 				08402141FD858E64A814981B /* ShipMotion.swift in Sources */,
 				052F679801C49D202877CA96 /* ShipRow.swift in Sources */,
+				D8293F1EA9F2FC1AD1F6DDFC /* StopFollowingIntent.swift in Sources */,
 				7D9997CFC0EDB375ED03CCA4 /* Styling.swift in Sources */,
 				78607F02DD78AD8E66B21F7B /* Theme.swift in Sources */,
 			);

@@ -38,12 +38,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- bridgeview://ship/<mmsi>, as on iOS -->
+            <!-- bridgeview://ship/<mmsi>, bridgeview://map/<mmsi> and bridgeview://cam, as on iOS -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="bridgeview" android:host="ship" />
+                <data android:scheme="bridgeview" />
+                <data android:host="ship" />
+                <data android:host="map" />
+                <data android:host="cam" />
             </intent-filter>
         </activity>
 
@@ -57,6 +60,10 @@
 
         <receiver
             android:name=".push.GeofenceReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".push.StopFollowingReceiver"
             android:exported="false" />
 
         <receiver

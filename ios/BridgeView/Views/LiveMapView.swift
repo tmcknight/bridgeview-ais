@@ -17,6 +17,7 @@ struct LiveMapView: View {
     @State private var metresPerPoint: Double = 30
     @State private var mapHeight: CGFloat = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(Router.self) private var router
 
     private let api = APIClient()
 
@@ -84,11 +85,26 @@ struct LiveMapView: View {
             .task { await poll() }
             // With Reduce Motion, ships jump to each new report instead of gliding onto it
             .onChange(of: reduceMotion, initial: true) { motion.eases = !reduceMotion }
+            // The Live Activity's Map button: select the ship, and centre on it once it's in
+            .onChange(of: router.mapShip, initial: true) { focusRequestedShip() }
+            .onChange(of: snapshot?.generatedAt) { focusRequestedShip() }
         }
     }
 
     private var ships: [Ship] {
         snapshot?.ships.filter { $0.position != nil } ?? []
+    }
+
+    private func focusRequestedShip() {
+        guard let mmsi = router.mapShip else { return }
+        selected = mmsi
+        guard let ship = ships.first(where: { $0.mmsi == mmsi }),
+              let coordinate = motion.drawn(ship, at: .now)?.coordinate
+        else { return }
+        router.mapShip = nil
+        withAnimation(reduceMotion ? nil : .easeInOut) {
+            camera = .region(MKCoordinateRegion(center: coordinate, latitudinalMeters: 4000, longitudinalMeters: 4000))
+        }
     }
 
     private var selectedShip: Ship? {

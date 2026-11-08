@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(PushManager.self) private var push
     @Environment(Router.self) private var router
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
     @AppStorage(Appearance.key) private var appearance = Appearance.system
     @AppStorage(AlertPreferences.Key.liveActivityShips) private var liveActivityShips = ""
 
@@ -46,6 +47,9 @@ struct ContentView: View {
             liveActivityShips = AlertPreferences.encodeShips(kept)
             push.preferencesChanged()
         }
+        // The Live Activity's ship cam button, once the cam's video is known
+        .onChange(of: router.camRequested) { openCamIfAsked() }
+        .onChange(of: store.snapshot?.shipCamVideoId) { openCamIfAsked() }
         .sheet(item: $router.openedShip) { link in
             NavigationStack {
                 ShipDetailView(mmsi: link.mmsi)
@@ -58,5 +62,11 @@ struct ContentView: View {
             // A sheet is its own presentation, so it needs the setting too
             .preferredColorScheme(appearance.colorScheme)
         }
+    }
+
+    private func openCamIfAsked() {
+        guard router.camRequested, let url = ShipLinks.shipCam(videoId: store.snapshot?.shipCamVideoId) else { return }
+        router.camRequested = false
+        openURL(url)
     }
 }

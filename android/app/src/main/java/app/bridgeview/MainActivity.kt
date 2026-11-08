@@ -51,6 +51,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handle(intent: Intent?) {
-        DeepLink.mmsi(intent?.data)?.let { graph.router.open(it) }
+        DeepLink.target(intent?.data)?.let { graph.router.open(it) }
     }
 }

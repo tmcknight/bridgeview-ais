@@ -297,6 +297,13 @@ Sent once per ship when its ETA first falls to 10 minutes or less (and is still
 Started by push-to-start on a per-passage broadcast channel (`input-push-channel`),
 then updated and ended with broadcast pushes on that channel. iOS 18+.
 
+Started with the ship's alert, or from 60 minutes out on devices whose
+`liveActivityShips` has the ship as `true` (no notification then; it comes with the
+alert at 10 minutes, if wanted). A device that turns a ship on after its alert gets
+one at the next check (within a minute), while the ship is 3 to 60 minutes out.
+Start and update pushes carry `relevance-score` (100 less the minutes to the bridge,
+1 to 100), so the soonest ship gets the Dynamic Island.
+
 `attributes` (fixed for the activity):
 
 ```json
@@ -306,9 +313,13 @@ then updated and ended with broadcast pushes on that channel. iOS 18+.
   "direction": "upbound",
   "shipTypeName": "Cargo",
   "length": 225,
-  "destination": "THUNDER BAY"
+  "destination": "THUNDER BAY",
+  "startedAt": 815089520.0
 }
 ```
+
+`startedAt`: when the server started it, for the progress bar (optional; servers
+before it leave it out).
 
 `content-state` (changes):
 
@@ -317,18 +328,42 @@ then updated and ended with broadcast pushes on that channel. iOS 18+.
   "eta": 815090000.0,
   "distanceNM": 1.6,
   "sog": 11.2,
-  "phase": "approaching"
+  "phase": "approaching",
+  "updatedAt": 815089580.0
 }
 ```
 
-- `eta` is seconds since 2001-01-01 (Swift `Date`'s default `Codable` form, which the
-  system decodes Live Activity payloads with).
+On the end of a passed ship, also (each optional):
+
+```json
+{
+  "passedAt": 815090010.0,
+  "nextName": "MANITOULIN",
+  "nextEta": 815091500.0
+}
+```
+
+- `updatedAt`: when the server sent it; shown once the activity is stale.
+- `passedAt`: when the ship log recorded it going under. `nextName`/`nextEta`: the
+  next ship coming up within 90 minutes.
+
+- `eta` and every other date are seconds since 2001-01-01 (Swift `Date`'s default
+  `Codable` form, which the system decodes Live Activity payloads with).
 - `phase`: `approaching` while it heads for the bridge, `passed` once it's gone
   under (sent with `event: end`), `lost` if the ship stops or turns away.
 
-Updates go out at most once a minute, only when the ETA moves by a minute or more.
-The activity ends when the ship passes (dismissed 15 minutes later) or after
-30 minutes with no passage.
+Updates go out at most once a minute, when the ETA moves by a minute or more or the
+distance by 0.25 NM. In the last 3 minutes, at most every 20 seconds, for 15 seconds
+or 0.1 NM. These are priority 5; one priority 10 update goes out when the ship comes
+within 0.3 NM. The activity ends when the ship passes (dismissed 15 minutes later),
+as `lost` once the ship has stopped heading for the bridge for 2 minutes (unless it
+was last within 1 NM, likely going under), or with no passage 30 minutes after the
+start or 20 minutes after the latest ETA, whichever is later. Activities under way
+are carried on through a server restart.
+
+The widget's buttons open `bridgeview://map/<mmsi>` (the map, on the ship) and
+`bridgeview://cam` (the ship cam); "Stop following" turns the ship off in
+`liveActivityShips` and ends the activity on the phone.
 
 ## Android
 
@@ -395,9 +430,13 @@ then `update` under the same rules as Live Activity updates, then `end`.
 ```
 
 - `shipTypeName`, `length`, `destination`: optional. `title`/`body` on `start` only.
+- `startedAt`: when the countdown started (ISO), for its progress bar. Optional.
 - `update`: the same fields without `title`/`body`, with the new `eta`, `distanceNM`,
   `sog` and `staleAt` (5 minutes past the ETA).
 - `end`: `mmsi`, `name`, `direction` (and the optional details) as at the start,
   `eta`, `distanceNM`, `sog`, `phase` `passed` or `lost`, and `dismissAt` (15
-  minutes on), with no `staleAt`. Render it even if the start never arrived.
-- After a server restart no `end` is sent; the app expires the countdown itself.
+  minutes on), with no `staleAt`. Render it even if the start never arrived. A
+  passed end may add `passedAt`, `nextName` and `nextEta` (ISO), as on iOS.
+- Started, updated and ended as the Live Activity is, followed ships from 60
+  minutes out. Activities are carried on through a server restart; one that can't
+  be is never ended, and the app expires the countdown itself.

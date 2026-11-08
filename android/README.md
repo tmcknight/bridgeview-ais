@@ -6,7 +6,9 @@ minutes before a ship goes under the bridge, so there's time to get to the river
 With live countdowns on (the Android counterpart of iOS Live Activities), the alert
 becomes an ongoing notification counting down to the ship reaching the bridge, shown
 on the lock screen and, on Android 16, as a Live Update chip in the status bar, until
-the ship has passed.
+the ship has passed. It has a progress bar and Map, Ship cam and Stop following
+buttons, and shows the passage time and the next ship once it's through. A ship
+you follow gets its countdown from about an hour out.
 
 It lists the ships heading for the bridge ("Coming up") and those that went under it
 in the last day ("Recent"), shows every ship nearby on a live map (hulls drawn to
