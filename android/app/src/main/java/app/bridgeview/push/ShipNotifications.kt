@@ -149,7 +149,8 @@ object ShipNotifications {
             }
             else -> {
                 headline = if (phase == "passed") "Went under the bridge" else "No longer heading for the bridge"
-                critical = if (phase == "passed") "Passed" else "—"
+                // Words, not a dash: the status bar chip is read out by screen readers
+                critical = if (phase == "passed") "Passed" else "Ended"
                 data["destination"]?.let { details += "to ${Format.place(it)}" }
                 val dismiss = data["dismissAt"]?.let { runCatching { InstantSerializer.parse(it) }.getOrNull() }
                     ?: now.plus(Duration.ofMinutes(15))

@@ -1,6 +1,8 @@
 package app.bridgeview.ui
 
 import android.text.format.DateUtils
+import app.bridgeview.model.Direction
+import app.bridgeview.model.Ship
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
@@ -52,4 +54,55 @@ object Format {
         DateUtils.getRelativeTimeSpanString(instant.toEpochMilli(), now.toEpochMilli(), DateUtils.MINUTE_IN_MILLIS).toString()
 
     fun whole(value: Double): String = String.format(Locale.getDefault(), "%,.0f", value)
+
+    // Spoken forms for screen readers, where "1.6 NM", "11.2 kn" and "8:23" read badly
+
+    /** "1.6 nautical miles" */
+    fun spokenDistance(nm: Double): String {
+        val value = if (nm < 10) String.format(Locale.US, "%.1f", nm) else String.format(Locale.US, "%.0f", nm)
+        return "$value nautical ${if (value == "1" || value == "1.0") "mile" else "miles"}"
+    }
+
+    /** "11.2 knots" */
+    fun spokenSpeed(knots: Double): String = String.format(Locale.US, "%.1f knots", knots)
+
+    /** "now", "8 minutes" or "1 hour 5 minutes" */
+    fun spokenMinutes(value: Double): String {
+        val total = value.roundToInt()
+        return when {
+            total < 1 -> "now"
+            total < 60 -> plural(total, "minute")
+            total % 60 == 0 -> plural(total / 60, "hour")
+            else -> "${plural(total / 60, "hour")} ${plural(total % 60, "minute")}"
+        }
+    }
+
+    /** "reaches the bridge in 8 minutes, at 2:10 PM" */
+    fun spokenArrival(etaMinutes: Double, eta: Instant): String {
+        val minutes = spokenMinutes(etaMinutes)
+        return if (minutes == "now") "at the bridge now" else "reaches the bridge in $minutes, at ${time(eta)}"
+    }
+
+    /** "north-northeast", for a course in degrees */
+    fun compassPoint(degrees: Double): String {
+        val points = listOf(
+            "north", "north-northeast", "northeast", "east-northeast", "east", "east-southeast", "southeast", "south-southeast",
+            "south", "south-southwest", "southwest", "west-southwest", "west", "west-northwest", "northwest", "north-northwest",
+        )
+        val normalized = ((degrees % 360) + 360) % 360
+        return points[((normalized / 22.5).roundToInt()) % 16]
+    }
+
+    /** "Upbound, heading north-northeast" */
+    fun spokenHeading(direction: Direction?, course: Double?): String =
+        listOfNotNull(direction?.label, course?.let { "heading ${compassPoint(it)}" }).joinToString(", ")
+
+    /** "Cargo, 225 metres" (Ship.summary is "Cargo · 225 m") */
+    fun spokenSummary(ship: Ship): String =
+        listOfNotNull(ship.shipTypeName, ship.length?.let { "$it metres" }).joinToString(", ")
+
+    /** "Canada", the ship's flag in words */
+    fun flagCountry(ship: Ship): String? = ship.flagDescription?.substringAfter(' ')
+
+    private fun plural(count: Int, unit: String) = if (count == 1) "1 $unit" else "$count ${unit}s"
 }

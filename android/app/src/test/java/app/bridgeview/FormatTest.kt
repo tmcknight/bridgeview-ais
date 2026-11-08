@@ -21,6 +21,22 @@ class FormatTest {
         assertEquals("Thunder Bay", Format.place("THUNDER BAY"))
     }
 
+    @Test fun spellsOutFiguresForScreenReaders() {
+        assertEquals("1.6 nautical miles", Format.spokenDistance(1.6))
+        assertEquals("1.0 nautical mile", Format.spokenDistance(1.0))
+        assertEquals("12 nautical miles", Format.spokenDistance(12.4))
+        assertEquals("11.2 knots", Format.spokenSpeed(11.2))
+        assertEquals("now", Format.spokenMinutes(0.4))
+        assertEquals("1 minute", Format.spokenMinutes(1.2))
+        assertEquals("8 minutes", Format.spokenMinutes(8.4))
+        assertEquals("1 hour 5 minutes", Format.spokenMinutes(65.0))
+        assertEquals("2 hours", Format.spokenMinutes(120.0))
+        assertEquals("north", Format.compassPoint(355.0))
+        assertEquals("north-northeast", Format.compassPoint(22.0))
+        assertEquals("south", Format.compassPoint(-180.0))
+        assertEquals("west-northwest", Format.compassPoint(290.0))
+    }
+
     @Test fun countsDownLikeATimer() {
         val now = Instant.ofEpochSecond(1_000)
         assertEquals("8:23", Format.countdown(now, now.plusSeconds(8 * 60 + 23)))

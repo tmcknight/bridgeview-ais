@@ -16,6 +16,7 @@ struct LiveMapView: View {
     /// Ground metres across one point on screen, so hulls are drawn to scale
     @State private var metresPerPoint: Double = 30
     @State private var mapHeight: CGFloat = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let api = APIClient()
 
@@ -32,6 +33,8 @@ struct LiveMapView: View {
                             Annotation(ship.name, coordinate: drawn.coordinate, anchor: .center) {
                                 MapShipMarker(ship: ship, course: drawn.course, isSelected: ship.mmsi == selected, metresPerPoint: metresPerPoint)
                                     .onTapGesture { selected = ship.mmsi }
+                                    .accessibilityAction { selected = ship.mmsi }
+                                    .accessibilityHint("Shows the ship below the map")
                             }
                             .annotationTitles(ship.mmsi == selected ? .visible : .hidden)
                         }
@@ -79,6 +82,8 @@ struct LiveMapView: View {
             }
             // Polls only while the map is on screen
             .task { await poll() }
+            // With Reduce Motion, ships jump to each new report instead of gliding onto it
+            .onChange(of: reduceMotion, initial: true) { motion.eases = !reduceMotion }
         }
     }
 
@@ -146,8 +151,32 @@ struct MapShipMarker: View {
         }
         // A bigger target than the ship, so small ones are easy to tap
         .contentShape(.circle)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(ship.name)
-        .accessibilityAddTraits(.isButton)
+        .accessibilityValue(MapShipMarker.accessibilityDetails(ship))
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// "Upbound, in 12 minutes. Cargo, 225 metres. 11.2 knots", read for a ship on the map
+    static func accessibilityDetails(_ ship: Ship) -> String {
+        var sentences: [String] = []
+        if let approach = ship.approach {
+            sentences.append(
+                approach.etaMinutes < 0.5
+                    ? "\(approach.direction.label), at the bridge now"
+                    : "\(approach.direction.label), at the bridge in \(Format.spokenMinutes(approach.etaMinutes))"
+            )
+        }
+        if !ship.summary.isEmpty { sentences.append(Format.spoken(ship.summary)) }
+        if let position = ship.position {
+            switch position.navStatus {
+            case 1: sentences.append("At anchor")
+            case 5: sentences.append("Moored")
+            default:
+                if let sog = position.sog { sentences.append(Format.spoken(Format.speed(sog))) }
+            }
+        }
+        return sentences.joined(separator: ". ")
     }
 
     @ViewBuilder private var arrow: some View {
@@ -212,6 +241,10 @@ private struct SelectedShipCard: View {
     var ship: Ship
     var close: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// VoiceOver moves to the card when a ship is picked on the map
+    @AccessibilityFocusState private var focused: Bool
+
     var body: some View {
         HStack(spacing: 12) {
             NavigationLink(value: ship.mmsi) {
@@ -220,14 +253,14 @@ private struct SelectedShipCard: View {
                         HStack(spacing: 6) {
                             Text(ship.name)
                                 .font(Theme.hull(.subheadline))
-                                .lineLimit(1)
+                                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                                 .minimumScaleFactor(0.7)
                             if let flag = ship.flagEmoji { Text(flag) }
                         }
                         Text(details)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
                     }
                     Spacer(minLength: 8)
                     if let approach = ship.approach {
@@ -242,12 +275,20 @@ private struct SelectedShipCard: View {
                 .contentShape(.rect)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(ship.name)
+            .accessibilityValue(MapShipMarker.accessibilityDetails(ship))
+            .accessibilityHint("Shows the ship's details")
+            .accessibilityFocused($focused)
             Button("Close", systemImage: "xmark", action: close)
                 .labelStyle(.iconOnly)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
+                .accessibilityLabel("Close \(ship.name)")
+                .accessibilityInputLabels(["Close"])
         }
         .card(padding: 12)
+        .onChange(of: ship.mmsi, initial: true) { focused = true }
+        .accessibilityAction(.escape, close)
     }
 
     /// "Cargo · 225 m · 11.2 kn", or "at anchor"/"moored" when stopped

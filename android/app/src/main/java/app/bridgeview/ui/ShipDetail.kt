@@ -61,7 +61,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -87,6 +90,7 @@ import app.bridgeview.model.VesselPhoto
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.util.Locale
 
 /** How often a ship's page fetches the ship again while it's open */
@@ -138,7 +142,7 @@ fun ShipDetailScreen(mmsi: Int, onBack: () -> Unit, closeIcon: Boolean = false) 
                 Text(
                     shown?.name ?: "Ship",
                     style = Theme.hull(Theme.Style.Headline, heavy = false),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).semantics { heading() },
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -220,12 +224,15 @@ private fun ShipDetailContent(
                     // A still preview; tapping opens it full screen to pan and zoom
                     val shape = RoundedCornerShape(Theme.cornerRadius)
                     Box(
-                        Modifier.fillMaxWidth().height(230.dp).clip(shape).border(1.dp, Theme.colors.hairline, shape)
-                            .semantics { contentDescription = "Map of ${ship.name}. Opens the map full screen" },
+                        Modifier.fillMaxWidth().height(230.dp).clip(shape).border(1.dp, Theme.colors.hairline, shape),
                     ) {
                         ShipPositionMap(ship, position, interactive = false)
                         // Taps go to the box, not the still map
-                        Box(Modifier.matchParentSize().clickable { mapExpanded = true })
+                        Box(
+                            Modifier.matchParentSize()
+                                .clickable(onClickLabel = "Open the map full screen", role = Role.Button) { mapExpanded = true }
+                                .semantics { contentDescription = "Map of ${ship.name} and the bridge" },
+                        )
                         Pill(Modifier.align(Alignment.TopEnd).padding(10.dp).size(28.dp), onDark = true) {
                             Icon(Icons.Filled.OpenInFull, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
                         }
@@ -272,7 +279,7 @@ private fun ShipDetailContent(
                     PhotoReportReason.entries.forEach { reason ->
                         Text(
                             reason.label,
-                            modifier = Modifier.fillMaxWidth().clickable {
+                            modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) {
                                 reportingPhoto = null
                                 scope.launch {
                                     reportResult = try {
@@ -325,11 +332,15 @@ private fun Header(
                 PhotoPlaceholder()
             } else {
                 // Swipe through the ship's photos (round from the last to the first); tap to see them full screen
-                PhotoPager(photos, photoIndex, onPhotoIndex, Modifier.fillMaxSize()) { photo ->
-                    Box(Modifier.fillMaxSize().clickable(onClickLabel = "Open the photos full screen", onClick = onExpand)) {
-                        FilledPhoto(photo.url)
-                    }
-                }
+                PhotoPager(
+                    photos,
+                    photoIndex,
+                    onPhotoIndex,
+                    Modifier.fillMaxSize(),
+                    title = ship.name,
+                    onClick = onExpand,
+                    onClickLabel = "Open the photos full screen",
+                ) { photo -> FilledPhoto(photo.url) }
             }
             // Shaded at the top too, so the buttons and credit read on a light photo
             Box(
@@ -358,8 +369,9 @@ private fun Header(
                     color = Color.White.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.MiddleEllipsis,
+                    // Read as part of the photo
                     modifier = Modifier.align(Alignment.BottomEnd).widthIn(max = 240.dp).padding(horizontal = 8.dp, vertical = 3.dp)
-                        .semantics { contentDescription = "Photo: $credit" },
+                        .clearAndSetSemantics {},
                 )
             }
             if (photos.size > 1) {
@@ -367,18 +379,17 @@ private fun Header(
                     "${photoIndex + 1} / ${photos.size}",
                     style = Theme.figure(Theme.Style.Caption2, 600),
                     color = Color.White,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(10.dp)
+                    modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).clearAndSetSemantics {}
                         .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                 )
             }
-            Row(Modifier.align(Alignment.TopStart).padding(10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // The pills' 48dp touch targets reach past the small ones, so less padding keeps them drawn where they were
+            Row(Modifier.align(Alignment.TopStart).padding(start = if (photoSharing) 10.dp else 0.dp)) {
                 if (photoSharing) {
-                    Pill(onDark = true, onClick = onShare) {
+                    Pill(Modifier.semantics { contentDescription = "Add a photo of ${ship.name}" }, onDark = true, onClick = onShare) {
                         Row(
-                            Modifier.padding(horizontal = 10.dp, vertical = 6.dp).semantics(mergeDescendants = true) {
-                                contentDescription = "Share a photo of ${ship.name}"
-                            },
+                            Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
@@ -412,6 +423,7 @@ private fun Header(
                         ship.summary.uppercase(),
                         style = Theme.text(Theme.Style.Caption, FontWeight.Bold).copy(letterSpacing = 1.2.sp),
                         color = colors.signal,
+                        modifier = Modifier.semantics { contentDescription = Format.spokenSummary(ship) },
                     )
                 }
                 description?.let { Text(it, color = colors.secondaryText, style = Theme.text(Theme.Style.Body)) }
@@ -434,7 +446,14 @@ private fun ApproachCard(ship: Ship, approach: Approach) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SectionLabel("Heading for the bridge", Modifier.weight(1f))
-                Box(Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(colors.color(approach.direction)), contentAlignment = Alignment.Center) {
+                // The arrow turns with the phone's compass; in words, the ship's course
+                Box(
+                    Modifier.size(32.dp).clip(RoundedCornerShape(9.dp)).background(colors.color(approach.direction))
+                        .clearAndSetSemantics {
+                            ship.position?.course?.let { contentDescription = "Heading ${Format.compassPoint(it)}" }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
                     DirectionArrow(approach.direction, ship.position?.course, tint = Color.White, size = 18.dp)
                 }
             }
@@ -442,14 +461,19 @@ private fun ApproachCard(ship: Ship, approach: Approach) {
                 if (approach.eta.isAfter(now)) Format.countdown(now, approach.eta) else "Now",
                 style = Theme.figure(Theme.Style.LargeTitle, 900),
                 color = colors.signal,
+                // In minutes, not read as a time of day ("8:23"); not a live region, so it doesn't talk every second
+                modifier = Modifier.clearAndSetSemantics {
+                    val minutes = Duration.between(now, approach.eta).toMillis() / 60_000.0
+                    contentDescription = Format.spokenArrival(minutes, approach.eta).replaceFirstChar { it.uppercase() }
+                },
             )
             Row {
                 Stat("ETA", Format.time(approach.eta), Modifier.weight(1f))
-                Stat("Distance", Format.distance(approach.distanceNM), Modifier.weight(1f))
+                Stat("Distance", Format.distance(approach.distanceNM), Modifier.weight(1f), spokenValue = Format.spokenDistance(approach.distanceNM))
             }
             Row {
                 Stat("Direction", approach.direction.label, Modifier.weight(1f))
-                ship.position?.sog?.let { Stat("Speed", Format.speed(it), Modifier.weight(1f)) } ?: Box(Modifier.weight(1f))
+                ship.position?.sog?.let { Stat("Speed", Format.speed(it), Modifier.weight(1f), spokenValue = Format.spokenSpeed(it)) } ?: Box(Modifier.weight(1f))
             }
             FollowToggle(ship.mmsi, FollowStyle.Pill)
         }
@@ -486,13 +510,25 @@ private fun Facts(ship: Ship) {
         "MMSI" to ship.mmsi.toString(),
         "Call sign" to ship.callSign,
     ).mapNotNull { (title, value) -> value?.takeIf { it.isNotEmpty() }?.let { title to it } }
+    // How a screen reader should say the figures with units ("225 by 24 metres")
+    fun spoken(title: String, value: String): String = when (title) {
+        "Size" -> value.replace(" × ", " by ").replace(" m", " metres")
+        "Draught" -> value.replace(" m", " metres")
+        "Deadweight" -> value.replace(" t", " tonnes")
+        "Engine power" -> value.replace(" kW", " kilowatts")
+        "Flag" -> Format.flagCountry(ship) ?: value
+        else -> value
+    }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel("Details")
         Card(padding = 0.dp) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 2.dp)) {
                 rows.forEachIndexed { index, (title, value) ->
                     if (index > 0) Hairline()
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 10.dp).clearAndSetSemantics { contentDescription = "$title: ${spoken(title, value)}" },
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         Text(title, style = Theme.text(Theme.Style.Body))
                         Text(
                             value,
@@ -519,7 +555,11 @@ private fun Passages(ship: Ship) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 2.dp)) {
                 list.take(10).forEachIndexed { index, passage ->
                     if (index > 0) Hairline()
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 10.dp).semantics(mergeDescendants = true) {},
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
                         Icon(
                             if (passage.direction == Direction.Upbound) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
                             contentDescription = null,
@@ -548,7 +588,7 @@ private fun Links(ship: Ship) {
                 links.forEachIndexed { index, link ->
                     if (index > 0) Box(Modifier.padding(horizontal = 16.dp)) { Hairline() }
                     Row(
-                        Modifier.fillMaxWidth().clickable { openUrl(context, link.url) }.padding(horizontal = 16.dp, vertical = 12.dp),
+                        Modifier.fillMaxWidth().clickable(role = Role.Button) { openUrl(context, link.url) }.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
@@ -577,7 +617,8 @@ private val ExternalLink.Kind.icon: ImageVector
 @Composable
 private fun ShipPositionMap(ship: Ship, position: Position, interactive: Boolean) {
     val graph = LocalContext.current.graph
-    val motion = remember { ShipMotion() }
+    val reduceMotion = rememberReduceMotion()
+    val motion = remember { ShipMotion(ease = !reduceMotion) }
     var version by remember { mutableIntStateOf(0) }
     var others by remember { mutableStateOf<List<Ship>>(emptyList()) }
     var latest by remember { mutableStateOf(position) }
@@ -633,7 +674,7 @@ fun FullScreenDialog(onDismiss: () -> Unit, title: String, content: @Composable 
                         title,
                         style = Theme.hull(Theme.Style.Headline, heavy = false),
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).semantics { heading() },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

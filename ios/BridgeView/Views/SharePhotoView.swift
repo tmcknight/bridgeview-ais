@@ -48,9 +48,11 @@ struct SharePhotoView: View {
                     ToolbarItem(placement: .confirmationAction) {
                         if sending {
                             ProgressView()
+                                .accessibilityLabel("Sending")
                         } else {
                             Button("Send") { Task { await send() } }
                                 .disabled(image == nil || !agreed)
+                                .accessibilityHint(sendHint)
                         }
                     }
                 }
@@ -63,7 +65,21 @@ struct SharePhotoView: View {
         .onChange(of: pickerItem) { _, item in
             Task { await load(item) }
         }
+        // VoiceOver doesn't move to the error or the thanks on its own, so say them
+        .onChange(of: error) { _, error in
+            if let error { AccessibilityNotification.Announcement(error).post() }
+        }
+        .onChange(of: sent) { _, sent in
+            if sent { AccessibilityNotification.Announcement("Photo sent. Thanks!").post() }
+        }
         .interactiveDismissDisabled(sending)
+    }
+
+    /// Why Send is dimmed, for VoiceOver
+    private var sendHint: String {
+        if image == nil { return "Take or choose a photo first" }
+        if !agreed { return "Agree to share the photo first" }
+        return "Sends the photo to BridgeView to be checked"
     }
 
     private var form: some View {

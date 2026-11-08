@@ -127,12 +127,17 @@ struct SectionLabel: View {
 struct Stat: View {
     var label: String
     var value: Text
+    /// What VoiceOver reads for the value when the figure doesn't read well
+    /// ("1.6 nautical miles" for "1.6 NM")
+    var spoken: String? = nil
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             value
                 .font(Theme.figure(.title3))
-                .lineLimit(1)
+                .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
                 .minimumScaleFactor(0.7)
             Text(label.uppercased())
                 .font(.caption2.weight(.semibold))
@@ -140,6 +145,9 @@ struct Stat: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+        // The label, then its value: "Distance, 1.6 nautical miles"
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(spoken.map { Text($0) } ?? value)
     }
 }

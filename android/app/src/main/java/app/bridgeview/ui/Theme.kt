@@ -68,7 +68,9 @@ val LightPalette = Palette(
     hairline = hex(0x0A3C61, 0.10f),
     river = hex(0x0A3C61),
     shallows = hex(0x1A6A9A),
-    signal = hex(0xD9530F),
+    // Matches iOS. The old D9530F was 4.0:1 on white: links, buttons and
+    // the white text on filled buttons need 4.5:1 (this is 5.2:1)
+    signal = hex(0xC2410C),
     upbound = hex(0x0B8A7A),
     downbound = hex(0x4651C8),
     primaryText = hex(0x0B1A26),

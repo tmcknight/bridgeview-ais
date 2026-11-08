@@ -2,10 +2,13 @@ package app.bridgeview.ui
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.outlined.NotificationAdd
@@ -13,19 +16,19 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.bridgeview.graph
@@ -68,20 +71,21 @@ fun FollowToggle(mmsi: Int, style: FollowStyle, modifier: Modifier = Modifier, o
     if (!state.visible) return
     val haptics = LocalHapticFeedback.current
     val colors = Theme.colors
-    val toggle = {
-        haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
-        state.set(!state.on)
-    }
-    val description = Modifier.semantics {
-        role = Role.Switch
-        contentDescription = "Live countdown"
-        stateDescription = if (state.on) "On" else "Off"
-    }
+    // A switch to screen readers ("Live countdown, on"; "Follow, on" for the capsule,
+    // matching what it says for Voice Access), at least 48dp to tap
+    val toggle = Modifier
+        .minimumInteractiveComponentSize()
+        .clip(CircleShape)
+        .toggleable(value = state.on, role = Role.Switch) { on ->
+            haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+            state.set(on)
+        }
+        .semantics { contentDescription = if (style == FollowStyle.Pill) "Follow" else "Live countdown" }
     val tint = if (state.on) colors.signal else if (onDark) androidx.compose.ui.graphics.Color.White else colors.primaryText
     val icon = if (state.on) Icons.Filled.NotificationsActive else Icons.Outlined.NotificationAdd
     when (style) {
         FollowStyle.Pill -> Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-            Pill(description, onDark = onDark, onClick = toggle) {
+            Pill(toggle, onDark = onDark) {
                 Row(
                     Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -94,8 +98,10 @@ fun FollowToggle(mmsi: Int, style: FollowStyle, modifier: Modifier = Modifier, o
                 }
             }
         }
-        FollowStyle.Icon -> Pill(modifier.size(34.dp).then(description), onDark = onDark, onClick = toggle) {
-            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+        FollowStyle.Icon -> Box(modifier.then(toggle), contentAlignment = Alignment.Center) {
+            Pill(Modifier.size(34.dp), onDark = onDark) {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp))
+            }
         }
     }
 }

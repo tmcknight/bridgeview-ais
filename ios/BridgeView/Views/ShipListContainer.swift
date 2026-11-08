@@ -86,6 +86,7 @@ struct ShipListContainer<Empty: View>: View {
                 NextShipCard(ship: next, approach: approach)
             }
             .buttonStyle(.plain)
+            .liveActivityMenu(mmsi: next.mmsi)
             if let shipCam {
                 ShipCamCard(url: shipCam)
             }
@@ -106,6 +107,7 @@ struct ShipListContainer<Empty: View>: View {
                     .card(padding: 12)
             }
             .buttonStyle(.plain)
+            .liveActivityMenu(mmsi: ship.mmsi, if: mode == .upcoming)
         }
     }
 }
@@ -113,6 +115,7 @@ struct ShipListContainer<Empty: View>: View {
 /// The next ship to reach the bridge, big, with a countdown
 struct NextShipCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var ship: Ship
     var approach: Approach
@@ -139,7 +142,7 @@ struct NextShipCard: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(ship.name)
                         .font(Theme.hull(.title2))
-                        .lineLimit(1)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
                         .minimumScaleFactor(0.6)
                     if let flag = ship.flagEmoji { Text(flag).font(.title3) }
                 }
@@ -149,12 +152,18 @@ struct NextShipCard: View {
                         .opacity(0.75)
                 }
             }
-            HStack(alignment: .lastTextBaseline) {
+            // The time and distance go under the countdown at accessibility text sizes
+            let figures = dynamicTypeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                : AnyLayout(HStackLayout(alignment: .lastTextBaseline))
+            figures {
                 countdown
                     .font(Theme.figure(.largeTitle, weight: .heavy))
                     .contentTransition(.numericText(countsDown: true))
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
+                if !dynamicTypeSize.isAccessibilitySize {
+                    Spacer()
+                }
+                VStack(alignment: dynamicTypeSize.isAccessibilitySize ? .leading : .trailing, spacing: 2) {
                     Text(approach.eta, style: .time)
                         .font(Theme.figure(.headline))
                     Text(Format.distance(approach.distanceNM))
@@ -181,8 +190,28 @@ struct NextShipCard: View {
         }
         .shadow(color: Theme.river.opacity(0.35), radius: 14, y: 8)
         .padding(.top, 4)
-        .accessibilityElement(children: .combine)
+        // Read as one: the countdown's ticking seconds would otherwise be read out,
+        // and "NM" letter by letter
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Next at the bridge: \(ship.name)")
+        .accessibilityValue(accessibilityDetails)
+        .accessibilityInputLabels([ship.name, "Next ship"])
         .accessibilityHint("Shows the ship's details")
+    }
+
+    /// "Canada. Upbound, heading north. Cargo, 225 metres. In 12 minutes, at 3:45 PM,
+    /// 1.6 nautical miles away"
+    private var accessibilityDetails: String {
+        var sentences: [String] = []
+        if let country = ship.flagCountry { sentences.append("Flag: \(country)") }
+        var heading = approach.direction.label
+        if let course = ship.position?.course { heading += ", \(Format.spokenCourse(course))" }
+        sentences.append(heading)
+        if !ship.summary.isEmpty { sentences.append(Format.spoken(ship.summary)) }
+        let time = approach.eta.formatted(date: .omitted, time: .shortened)
+        let when = approach.eta > .now ? "In \(Format.spokenMinutes(approach.etaMinutes)), at \(time)" : "At the bridge now"
+        sentences.append("\(when), \(Format.spoken(Format.distance(approach.distanceNM))) away")
+        return sentences.joined(separator: ". ")
     }
 
     @ViewBuilder private var countdown: some View {
@@ -198,14 +227,17 @@ struct NextShipCard: View {
 struct ShipCamCard: View {
     var url: URL
 
+    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 38
+
     var body: some View {
         Link(destination: url) {
             HStack(spacing: 12) {
                 Image(systemName: "video.fill")
                     .font(.body.weight(.bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 38, height: 38)
+                    .foregroundStyle(Theme.onAccent)
+                    .frame(width: iconSize, height: iconSize)
                     .background(Theme.signal.gradient, in: .rect(cornerRadius: 11))
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Watch it pass")
                         .font(.headline)
@@ -218,6 +250,7 @@ struct ShipCamCard: View {
                 Image(systemName: "arrow.up.right")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .multilineTextAlignment(.leading)
             .contentShape(.rect)

@@ -45,6 +45,8 @@ struct ShipApproachLiveActivity: Widget {
                         .font(.caption2.weight(.bold))
                 }
                 .foregroundStyle(Theme.signalOnRiver)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(context.attributes.name), \(context.attributes.direction.label)")
             } compactTrailing: {
                 Countdown(state: context.state)
                     .font(Theme.figure(.body))
@@ -54,6 +56,11 @@ struct ShipApproachLiveActivity: Widget {
             } minimal: {
                 Image(systemName: context.state.phase == .passed ? "checkmark" : "ferry.fill")
                     .foregroundStyle(Theme.signalOnRiver)
+                    .accessibilityLabel(
+                        context.state.phase == .passed
+                            ? "\(context.attributes.name) went under the bridge"
+                            : "\(context.attributes.name) heading for the bridge"
+                    )
             }
             .widgetURL(DeepLink.ship(context.attributes.mmsi))
             .keylineTint(Theme.signalOnRiver)
@@ -133,6 +140,7 @@ private struct Countdown: View {
             Text("Passed")
         case .lost:
             Text("—")
+                .accessibilityLabel("No longer heading for the bridge")
         }
     }
 }
@@ -143,17 +151,19 @@ private struct DetailLine: View {
     var state: ShipApproachAttributes.ContentState
 
     var body: some View {
-        Text(parts.joined(separator: " · "))
+        Text(parts(spoken: false).joined(separator: " · "))
             .lineLimit(1)
+            // Units in words: VoiceOver reads "NM" and "kn" as letters
+            .accessibilityLabel(parts(spoken: true).joined(separator: ", "))
     }
 
-    private var parts: [String] {
+    private func parts(spoken: Bool) -> [String] {
         var parts: [String] = []
         if let type = attributes.shipTypeName { parts.append(type) }
-        if let length = attributes.length { parts.append("\(length) m") }
+        if let length = attributes.length { parts.append(spoken ? "\(length) metres" : "\(length) m") }
         if state.phase == .approaching {
-            parts.append(String(format: "%.1f NM", state.distanceNM))
-            parts.append(String(format: "%.1f kn", state.sog))
+            parts.append(String(format: spoken ? "%.1f nautical miles away" : "%.1f NM", state.distanceNM))
+            parts.append(String(format: spoken ? "%.1f knots" : "%.1f kn", state.sog))
         } else if let destination = attributes.destination {
             parts.append("to \(destination.capitalized)")
         }

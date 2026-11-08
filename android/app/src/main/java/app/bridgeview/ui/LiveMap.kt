@@ -26,6 +26,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.bridgeview.graph
@@ -46,7 +52,8 @@ val liveMapCamera = MapCamera(LatLng(app.bridgeview.model.Bridge.LATITUDE, app.b
 fun LiveMapScreen(onOpenShip: (Int) -> Unit) {
     val graph = LocalContext.current.graph
     var snapshot by remember { mutableStateOf<MapSnapshot?>(null) }
-    val motion = remember { ShipMotion() }
+    val reduceMotion = rememberReduceMotion()
+    val motion = remember { ShipMotion(ease = !reduceMotion) }
     var motionVersion by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var selected by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -89,7 +96,7 @@ fun LiveMapScreen(onOpenShip: (Int) -> Unit) {
         ) {
             selectedShip?.let { ship -> SelectedShipCard(ship, open = { onOpenShip(ship.mmsi) }, close = { selected = null }) }
             error?.let {
-                Pill {
+                Pill(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
                     Row(
                         Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -101,7 +108,8 @@ fun LiveMapScreen(onOpenShip: (Int) -> Unit) {
                 }
             }
             snapshot?.attribution?.takeIf { it.isNotEmpty() }?.let { credits ->
-                Pill { DataCredits(credits, Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) }
+                // No vertical padding: the credits' links are already 48dp tall
+                Pill { DataCredits(credits, Modifier.padding(horizontal = 10.dp)) }
             }
         }
     }
@@ -124,36 +132,51 @@ private fun SelectedShipCard(ship: Ship, open: () -> Unit, close: () -> Unit) {
     }.joinToString(" · ")
     Card(padding = 12.dp) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // One control that opens the ship, read as one sentence
             Row(
-                Modifier.weight(1f),
+                Modifier.weight(1f)
+                    .clickable(onClickLabel = "Show details", role = Role.Button, onClick = open)
+                    .clearAndSetSemantics {
+                        contentDescription = listOfNotNull(
+                            ship.name,
+                            Format.flagCountry(ship),
+                            spokenDetails(ship).ifEmpty { null },
+                            ship.approach?.let { Format.spokenArrival(it.etaMinutes, it.eta) },
+                        ).joinToString(", ")
+                    },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Column(
-                    Modifier.weight(1f).clickableNoRipple(open),
+                    Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(ship.name, style = Theme.hull(Theme.Style.Subheadline), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        Text(ship.name, style = Theme.hull(Theme.Style.Subheadline), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                         ship.flagEmoji?.let { Text(it) }
                     }
-                    Text(details, style = Theme.text(Theme.Style.Subheadline), color = colors.secondaryText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(details, style = Theme.text(Theme.Style.Subheadline), color = colors.secondaryText, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 ship.approach?.let {
                     Text(Format.minutes(it.etaMinutes), style = Theme.figure(Theme.Style.Subheadline), color = colors.signal)
                 }
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "Show ${ship.name}",
-                    tint = colors.tertiaryText,
-                    modifier = Modifier.clickableNoRipple(open),
-                )
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.tertiaryText)
             }
-            IconButton(onClick = close, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = close) {
                 Icon(Icons.Filled.Close, contentDescription = "Close", tint = colors.secondaryText, modifier = Modifier.size(18.dp))
             }
         }
     }
 }
 
-private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)
+/** "Cargo, 225 metres, 11.2 knots", the card's details as a screen reader should say them */
+private fun spokenDetails(ship: Ship): String = listOfNotNull(
+    Format.spokenSummary(ship).ifEmpty { null },
+    ship.position?.let { position ->
+        when (position.navStatus) {
+            1 -> "at anchor"
+            5 -> "moored"
+            else -> position.sog?.let(Format::spokenSpeed)
+        }
+    },
+).joinToString(", ")

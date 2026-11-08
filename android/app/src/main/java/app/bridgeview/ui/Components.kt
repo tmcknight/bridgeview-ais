@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -45,6 +46,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -71,14 +75,20 @@ fun rememberNow(intervalMs: Long = 1_000): State<Instant> = produceState(Instant
     }
 }
 
+/** Whether the system's Remove animations (animator duration scale 0) is on */
+@Composable
+fun rememberReduceMotion(): Boolean {
+    val context = LocalContext.current
+    return remember {
+        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+    }
+}
+
 /** Seconds since start, advanced every frame (paused when the system turns animations off) */
 @Composable
 fun rememberAnimationSeconds(): State<Float> {
     val time = remember { mutableFloatStateOf(0f) }
-    val context = LocalContext.current
-    val reduceMotion = remember {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-    }
+    val reduceMotion = rememberReduceMotion()
     LaunchedEffect(reduceMotion) {
         if (reduceMotion) return@LaunchedEffect
         val start = withInfiniteAnimationFrameMillis { it }
@@ -146,7 +156,7 @@ fun Card(
             .clip(shape)
             .background(colors.surface)
             .border(1.dp, colors.hairline, shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(padding),
         content = content,
     )
@@ -165,15 +175,22 @@ fun SectionLabel(text: String, modifier: Modifier = Modifier) {
         text.uppercase(),
         style = Theme.text(Theme.Style.Caption, FontWeight.Bold).copy(letterSpacing = 1.4.sp),
         color = Theme.colors.secondaryText,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp).semantics { heading() },
+        // Read as written, not spelled out as capitals
+        modifier = modifier.fillMaxWidth().padding(horizontal = 4.dp).semantics {
+            heading()
+            contentDescription = text
+        },
     )
 }
 
-/** A figure with a label under it, for the ship page */
+/**
+ * A figure with a label under it, for the ship page; read as "Distance: 1.6
+ * nautical miles" ([spokenValue] when the figure's units read badly)
+ */
 @Composable
-fun Stat(label: String, value: String, modifier: Modifier = Modifier) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(value, style = Theme.figure(Theme.Style.Title3), maxLines = 1, overflow = TextOverflow.Ellipsis)
+fun Stat(label: String, value: String, modifier: Modifier = Modifier, spokenValue: String = value) {
+    Column(modifier.clearAndSetSemantics { contentDescription = "$label: $spokenValue" }, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(value, style = Theme.figure(Theme.Style.Title3), maxLines = 2, overflow = TextOverflow.Ellipsis)
         Text(
             label.uppercase(),
             style = Theme.text(Theme.Style.Caption2, FontWeight.SemiBold).copy(letterSpacing = 0.8.sp),
@@ -196,11 +213,14 @@ fun Pill(
         else -> colors.surface.copy(alpha = 0.92f)
     }
     Box(
-        modifier
+        // Tappable pills take at least 48dp, though they're drawn smaller (before
+        // `modifier`, so it holds with a fixed size)
+        (if (onClick != null) Modifier.minimumInteractiveComponentSize() else Modifier)
+            .then(modifier)
             .clip(CircleShape)
             .background(background)
             .border(1.dp, if (onDark) Color.White.copy(alpha = 0.18f) else colors.hairline, CircleShape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
         contentAlignment = Alignment.Center,
         content = content,
     )
@@ -220,13 +240,15 @@ fun DataCredits(attribution: List<Attribution>, modifier: Modifier = Modifier, a
         verticalAlignment = Alignment.CenterVertically,
     ) {
         attribution.forEachIndexed { index, credit ->
-            if (index > 0) Text("·", style = Theme.text(Theme.Style.Caption2), color = colors.secondaryText)
+            if (index > 0) Text("·", style = Theme.text(Theme.Style.Caption2), color = colors.secondaryText, modifier = Modifier.clearAndSetSemantics {})
             Text(
                 credit.text,
                 style = Theme.text(Theme.Style.Caption2),
                 color = colors.secondaryText,
                 maxLines = 1,
-                modifier = Modifier.clickable { openUrl(context, credit.url) },
+                modifier = Modifier
+                    .minimumInteractiveComponentSize()
+                    .clickable(onClickLabel = "Open website", role = Role.Button) { openUrl(context, credit.url) },
             )
         }
     }
@@ -248,7 +270,7 @@ fun EmptyState(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Icon(icon, contentDescription = null, tint = colors.secondaryText, modifier = Modifier.size(48.dp))
-        Text(title, style = Theme.text(Theme.Style.Title3, FontWeight.Bold), textAlign = TextAlign.Center)
+        Text(title, style = Theme.text(Theme.Style.Title3, FontWeight.Bold), textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
         Text(description, style = Theme.text(Theme.Style.Subheadline), color = colors.secondaryText, textAlign = TextAlign.Center)
         if (action != null) {
             Button(onClick = action.second, modifier = Modifier.padding(top = 6.dp)) { Text(action.first) }
