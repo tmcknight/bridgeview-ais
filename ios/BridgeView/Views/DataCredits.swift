@@ -9,18 +9,27 @@ struct DataCredits: View {
     var alignment: Alignment = .center
 
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(Array(attribution.enumerated()), id: \.element) { index, credit in
-                if index > 0 {
-                    Text("·").foregroundStyle(.secondary)
+        // One line; one credit to a line where that doesn't fit (large text)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) {
+                ForEach(Array(attribution.enumerated()), id: \.element) { index, credit in
+                    if index > 0 {
+                        Text("·").foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
+                    Link(credit.text, destination: credit.url)
                 }
-                Link(credit.text, destination: credit.url)
+            }
+            .lineLimit(1)
+            VStack(alignment: alignment.horizontal, spacing: 4) {
+                ForEach(attribution, id: \.self) { credit in
+                    Link(credit.text, destination: credit.url)
+                }
             }
         }
         .font(.caption2)
         .foregroundStyle(.secondary)
         .tint(.secondary)
-        .lineLimit(1)
         .minimumScaleFactor(0.8)
         .frame(maxWidth: .infinity, alignment: alignment)
     }

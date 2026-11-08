@@ -42,9 +42,14 @@ struct Ship: Codable, Identifiable, Hashable, Sendable {
 
     /// "🇨🇦 Canada": the flag and its country's name in the device's language
     var flagDescription: String? {
-        guard let flag, let emoji = flagEmoji else { return nil }
-        let country = Locale.current.localizedString(forRegionCode: flag.uppercased()) ?? flag.uppercased()
+        guard let emoji = flagEmoji, let country = flagCountry else { return nil }
         return "\(emoji) \(country)"
+    }
+
+    /// "Canada": the flag's country in the device's language, as VoiceOver should read it
+    var flagCountry: String? {
+        guard let flag, flagEmoji != nil else { return nil }
+        return Locale.current.localizedString(forRegionCode: flag.uppercased()) ?? flag.uppercased()
     }
 }
 

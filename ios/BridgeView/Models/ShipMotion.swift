@@ -34,6 +34,9 @@ struct ShipMotion {
     }
 
     private var tracks: [Int: Track] = [:]
+    /// Eases each ship onto its new report; off (with Reduce Motion) it jumps there.
+    /// Ships still move along their course between reports either way.
+    var eases = true
 
     /// Takes in the ships' latest positions; ships no longer sent are forgotten.
     /// Reports no newer than the one already held are ignored, so a ship never steps back.
@@ -54,7 +57,7 @@ struct ShipMotion {
             var fresh = Track(position: position, since: now)
             let dLat = shown.coordinate.latitude - target.latitude
             let dLon = shown.coordinate.longitude - target.longitude
-            if abs(dLat) < Self.maxBlendDegrees, abs(dLon) < Self.maxBlendDegrees {
+            if eases, abs(dLat) < Self.maxBlendDegrees, abs(dLon) < Self.maxBlendDegrees {
                 fresh.dLat = dLat
                 fresh.dLon = dLon
                 if let from = shown.course, let to = position.course {

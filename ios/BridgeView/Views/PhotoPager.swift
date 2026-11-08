@@ -89,7 +89,17 @@ struct PhotoViewer: View {
     var body: some View {
         NavigationStack {
             PhotoPager(photos: photos, index: $index, swipeDisabled: zoomed) { photo in
-                ZoomablePhoto(url: photo.url, zoomed: $zoomed)
+                ZoomablePhoto(url: photo.url, label: "Photo of \(title)", zoomed: $zoomed)
+                    // Swiping up or down with VoiceOver steps through the photos
+                    .accessibilityValue(photos.count > 1 ? "\(index + 1) of \(photos.count)" : "")
+                    .accessibilityAdjustableAction { direction in
+                        guard photos.count > 1 else { return }
+                        switch direction {
+                        case .increment: index = (index + 1) % photos.count
+                        case .decrement: index = (index - 1 + photos.count) % photos.count
+                        @unknown default: break
+                        }
+                    }
             }
             .overlay(alignment: .bottom) {
                 VStack(spacing: 4) {
@@ -97,6 +107,7 @@ struct PhotoViewer: View {
                         Text("\(index + 1) / \(photos.count)")
                             .monospacedDigit()
                             .font(.caption.weight(.semibold))
+                            .accessibilityLabel("Photo \(index + 1) of \(photos.count)")
                     }
                     if let credit = current?.credit {
                         Text(credit)
@@ -113,6 +124,7 @@ struct PhotoViewer: View {
                 .opacity(zoomed ? 0 : 1)
                 .animation(.easeInOut(duration: 0.2), value: zoomed)
                 .allowsHitTesting(false)
+                .accessibilityHidden(zoomed)
             }
             .background(Color.black.ignoresSafeArea())
             .navigationTitle(title)
@@ -130,17 +142,22 @@ struct PhotoViewer: View {
                             Image(systemName: "info.circle")
                         }
                         .accessibilityLabel("View on Wikimedia Commons")
+                        .accessibilityInputLabels(["Info", "Wikimedia Commons"])
                     }
                 }
             }
         }
         .environment(\.colorScheme, .dark)
+        // VoiceOver's two-finger scrub closes it, like Done
+        .accessibilityAction(.escape) { dismiss() }
     }
 }
 
 /// One photo, fitted to the screen; pinch or double-tap to zoom in, drag to look around
 private struct ZoomablePhoto: View {
     var url: URL
+    /// What VoiceOver calls the photo
+    var label = "Photo"
     /// Whether this (or any) photo is zoomed in, so the pager stops swiping
     @Binding var zoomed: Bool
 
@@ -224,7 +241,7 @@ private struct ZoomablePhoto: View {
             }
         }
         .accessibilityElement()
-        .accessibilityLabel("Photo")
+        .accessibilityLabel(label)
         .accessibilityAddTraits(.isImage)
         .accessibilityAction(named: scale > 1 ? "Zoom out" : "Zoom in") {
             withAnimation {

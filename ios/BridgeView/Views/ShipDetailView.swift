@@ -75,6 +75,8 @@ private struct ShipDetailContent: View {
     @State private var mapExpanded = false
     @State private var photosExpanded = false
     @Environment(\.openURL) private var openURL
+    /// The photo credit's small type, still growing with the text size
+    @ScaledMetric(relativeTo: .caption2) private var creditSize: CGFloat = 9
 
     private let api = APIClient()
 
@@ -126,6 +128,8 @@ private struct ShipDetailContent: View {
                                         }
                                     }
                             }
+                            // VoiceOver's two-finger scrub closes it, as it would a sheet
+                            .accessibilityAction(.escape) { mapExpanded = false }
                         }
                         Text("Last position \(position.time, format: .relative(presentation: .named))")
                             .font(.caption)
@@ -238,7 +242,7 @@ private struct ShipDetailContent: View {
                 .overlay(alignment: .bottomTrailing) {
                     if let credit = currentPhoto?.credit {
                         Text(credit)
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.system(size: creditSize, weight: .medium))
                             .foregroundStyle(.white.opacity(0.8))
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -288,6 +292,7 @@ private struct ShipDetailContent: View {
                             .font(.caption.weight(.bold))
                             .tracking(1.2)
                             .foregroundStyle(Theme.signal)
+                            .accessibilityLabel(Format.spoken(ship.summary))
                     }
                     if let description = ship.info?.description {
                         Text(description).foregroundStyle(.secondary)
@@ -352,6 +357,7 @@ private struct ShipDetailContent: View {
             .accessibilityLabel("Photos of \(ship.name), \(photoIndex + 1) of \(photos.count)")
             .accessibilityAddTraits(.isButton)
             .accessibilityHint("Opens the photos full screen")
+            .accessibilityInputLabels(["Photos", "Photo"])
             .accessibilityAction { photosExpanded = true }
             .accessibilityAdjustableAction { direction in
                 guard photos.count > 1 else { return }
@@ -380,15 +386,22 @@ private struct ShipDetailContent: View {
             }
             .font(Theme.figure(.largeTitle, weight: .heavy))
             .foregroundStyle(Theme.signal)
+            // Minutes rather than the ticking seconds, which change as they're read
+            .accessibilityLabel("Time to the bridge")
+            .accessibilityValue(approach.eta > .now ? Format.spokenMinutes(approach.etaMinutes) : "Now")
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 14) {
                 GridRow {
                     Stat(label: "ETA", value: Text(approach.eta, style: .time))
-                    Stat(label: "Distance", value: Text(Format.distance(approach.distanceNM)))
+                    Stat(
+                        label: "Distance",
+                        value: Text(Format.distance(approach.distanceNM)),
+                        spoken: Format.spoken(Format.distance(approach.distanceNM))
+                    )
                 }
                 GridRow {
                     Stat(label: "Direction", value: Text(approach.direction.label))
                     if let sog = ship.position?.sog {
-                        Stat(label: "Speed", value: Text(Format.speed(sog)))
+                        Stat(label: "Speed", value: Text(Format.speed(sog)), spoken: Format.spoken(Format.speed(sog)))
                     }
                 }
             }
@@ -435,6 +448,7 @@ private struct ShipDetailContent: View {
                     LabeledContent(row.0) {
                         Text(row.1)
                             .multilineTextAlignment(.trailing)
+                            .accessibilityLabel(Format.spoken(row.1))
                     }
                     .padding(.vertical, 10)
                 }
@@ -458,13 +472,16 @@ private struct ShipDetailContent: View {
                                 .font(.subheadline.weight(.heavy))
                                 .foregroundStyle(Theme.color(for: passage.direction))
                                 .frame(width: 20)
+                                .accessibilityHidden(true)
                             Text(passage.direction.label)
                             Spacer()
                             Text(passage.time.formatted(date: .abbreviated, time: .shortened))
                                 .font(Theme.figure(.subheadline, weight: .medium))
                                 .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
                         }
                         .padding(.vertical, 10)
+                        .accessibilityElement(children: .combine)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -487,12 +504,14 @@ private struct ShipDetailContent: View {
                                 Image(systemName: link.symbol)
                                     .foregroundStyle(Theme.signal)
                                     .frame(width: 24)
+                                    .accessibilityHidden(true)
                                 Text(link.title)
                                     .foregroundStyle(.primary)
                                 Spacer()
                                 Image(systemName: "arrow.up.right")
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(.tertiary)
+                                    .accessibilityHidden(true)
                             }
                             .padding(.vertical, 12)
                             .contentShape(.rect)
@@ -523,6 +542,7 @@ private struct PhotoPlaceholder: View {
                 Image(systemName: "ferry.fill")
                     .font(.system(size: 64))
                     .foregroundStyle(.white.opacity(0.18))
+                    .accessibilityHidden(true)
             }
     }
 }

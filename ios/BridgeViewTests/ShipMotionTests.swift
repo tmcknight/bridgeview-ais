@@ -64,6 +64,16 @@ struct ShipMotionTests {
         #expect(motion.drawn(report, at: now)?.coordinate.latitude == 43.0)
     }
 
+    @Test func jumpsToNewReportsWithoutEasing() throws {
+        var motion = ShipMotion()
+        motion.eases = false
+        motion.update([ship(latitude: 42.95, sog: 0, time: start)], at: start)
+        let now = start.addingTimeInterval(5)
+        let report = ship(latitude: 42.951, sog: 0, time: now)
+        motion.update([report], at: now)
+        #expect(motion.drawn(report, at: now)?.coordinate.latitude == 42.951)
+    }
+
     @Test func settlesOnceShipsStopMoving() {
         var motion = ShipMotion()
         motion.update([ship(latitude: 42.95, sog: 0, time: start)], at: start)
