@@ -78,6 +78,22 @@ final class PushManager {
         scheduleRegistration(immediately: false)
     }
 
+    /// "Stop following" on a ship's Live Activity: Live Activities off for that
+    /// ship, sent straight away, since iOS gives the intent only a few seconds
+    func stopFollowing(mmsi: Int) async {
+        let defaults = UserDefaults.standard
+        let key = AlertPreferences.Key.liveActivityShips
+        var ships = AlertPreferences.decodeShips(defaults.string(forKey: key) ?? "")
+        ships[mmsi] = false
+        defaults.set(AlertPreferences.encodeShips(ships), forKey: key)
+        registrationTask?.cancel()
+        let background = UIApplication.shared.beginBackgroundTask(withName: "Stop following")
+        let done = await register()
+        if background != .invalid { UIApplication.shared.endBackgroundTask(background) }
+        // Tried again later, as any other change
+        if !done { scheduleRegistration(immediately: false) }
+    }
+
     /// The phone came near the bridge or left (alerts pause while it's away)
     func nearBridgeChanged() {
         scheduleRegistration(immediately: true)

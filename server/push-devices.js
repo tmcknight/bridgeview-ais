@@ -44,6 +44,11 @@ const SCHEMA = `
     created_at TEXT NOT NULL,
     PRIMARY KEY (channel_id, environment)
   );
+  CREATE TABLE IF NOT EXISTS live_activity_state (
+    mmsi INTEGER PRIMARY KEY,
+    state TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `;
 
 // Columns added since the table was first made
@@ -198,11 +203,20 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
   );
   const clearPushToStart = db.prepare("UPDATE push_devices SET push_to_start_token = NULL WHERE push_to_start_token = ?");
   const selectEnabled = db.prepare("SELECT * FROM push_devices WHERE enabled = 1");
+  // Devices that turned a Live Activity on for this one ship (JSON true reads as 1)
+  const selectFollowers = db.prepare(
+    "SELECT * FROM push_devices WHERE enabled = 1 AND json_extract(live_activity_ships, ?) = 1"
+  );
   const insertChannel = db.prepare(
     "INSERT OR REPLACE INTO live_activity_channels (channel_id, environment, mmsi, created_at) VALUES (?, ?, ?, ?)"
   );
   const deleteChannel = db.prepare("DELETE FROM live_activity_channels WHERE channel_id = ? AND environment = ?");
   const selectChannels = db.prepare("SELECT channel_id, environment, mmsi, created_at FROM live_activity_channels");
+  const upsertActivity = db.prepare(
+    "INSERT OR REPLACE INTO live_activity_state (mmsi, state, updated_at) VALUES (?, ?, ?)"
+  );
+  const deleteActivity = db.prepare("DELETE FROM live_activity_state WHERE mmsi = ?");
+  const selectActivities = db.prepare("SELECT mmsi, state FROM live_activity_state");
 
   logger?.info(`[push] ${count.get().n} devices registered`);
 
@@ -240,6 +254,12 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
       return selectEnabled.all().map(rowToDevice).filter((device) => wantsAlert(device, ship));
     },
 
+    // Enabled devices that chose a Live Activity for this ship, whatever their
+    // other settings (they're followed from further out than other alerts)
+    followers(mmsi) {
+      return selectFollowers.all(`$."${mmsi}"`).map(rowToDevice);
+    },
+
     addChannel({ channelId, environment, mmsi }) {
       insertChannel.run(channelId, environment, mmsi, now().toISOString());
     },
@@ -256,6 +276,26 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
         mmsi: row.mmsi,
         createdAt: row.created_at,
       }));
+    },
+
+    // Live Activities under way (approach-alerts.js), kept so a restart can carry
+    // them on instead of ending them
+    saveActivity(mmsi, state) {
+      upsertActivity.run(mmsi, JSON.stringify(state), now().toISOString());
+    },
+
+    removeActivity(mmsi) {
+      deleteActivity.run(mmsi);
+    },
+
+    activities() {
+      return selectActivities.all().flatMap((row) => {
+        try {
+          return [{ mmsi: row.mmsi, state: JSON.parse(row.state) }];
+        } catch {
+          return [];
+        }
+      });
     },
 
     close() {

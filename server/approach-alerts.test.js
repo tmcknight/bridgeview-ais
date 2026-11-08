@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   ACTIVITY_TIMEOUT_MS,
   ALERT_COOLDOWN_MS,
+  LOST_AFTER_MS,
+  relevanceScore,
   alertPayload,
   createApproachAlerts,
   fcmAlertMessage,
@@ -284,6 +286,226 @@ describe("createApproachAlerts", () => {
   });
 });
 
+describe("following, updates and restarts", () => {
+  let pushDevices;
+  let alerts;
+  let apns;
+  let current;
+  let upcoming;
+  const TOKEN = "ef".repeat(40);
+
+  function start() {
+    alerts = createApproachAlerts({ apns, pushDevices, ship: () => current, upcoming: () => upcoming });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(START);
+    pushDevices = createPushDevices();
+    apns = fakeApns();
+    current = undefined;
+    upcoming = [];
+    start();
+  });
+
+  afterEach(() => {
+    alerts.stop();
+    pushDevices.close();
+    vi.useRealTimers();
+  });
+
+  const events = () => apns.broadcast.mock.calls.map(([call]) => call.payload.aps.event);
+
+  it("starts a followed ship's Live Activity from an hour out, then alerts everyone else at 10 minutes", async () => {
+    pushDevices.register(device(1, { pushToStartToken: TOKEN, liveActivityShips: { [MMSI]: true } }));
+    pushDevices.register(device(2, { liveActivities: true, pushToStartToken: "aa".repeat(40) }));
+    pushDevices.register(device(3));
+
+    current = shipAt(70);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(60_000);
+    current = shipAt(45);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity.mock.calls.map(([call]) => call.token)).toEqual([TOKEN]);
+    expect(apns.sendAlert).not.toHaveBeenCalled();
+    const started = apns.sendLiveActivity.mock.calls[0][0].payload.aps;
+    expect(started.attributes.startedAt).toBe(swiftDate(START + 60_000));
+    expect(started.alert.title).toBe("ALGOMA EQUINOX in ~45 min");
+
+    // Checked again a minute later: nobody new
+    vi.advanceTimersByTime(60_000);
+    current = shipAt(44);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).toHaveBeenCalledTimes(1);
+
+    // The alert at 10 minutes, on the same channel, skips the phone that has one
+    vi.advanceTimersByTime(60_000);
+    current = shipAt(9);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.createChannel).toHaveBeenCalledTimes(1);
+    expect(apns.sendLiveActivity.mock.calls.map(([call]) => call.token)).toEqual([TOKEN, "aa".repeat(40)]);
+    expect(apns.sendLiveActivity.mock.calls[1][0].payload.aps["input-push-channel"]).toBe("channel1");
+    expect(apns.sendAlert.mock.calls.map(([call]) => call.deviceToken)).toEqual([device(3).token]);
+  });
+
+  it("starts one for a phone that follows the ship after its alert", async () => {
+    pushDevices.register(device(1, { pushToStartToken: TOKEN }));
+    current = shipAt(9);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendAlert).toHaveBeenCalledTimes(1);
+
+    pushDevices.register(device(1, { pushToStartToken: TOKEN, liveActivityShips: { [MMSI]: true } }));
+    vi.advanceTimersByTime(60_000);
+    current = shipAt(7);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).toHaveBeenCalledTimes(1);
+    expect(apns.sendAlert).toHaveBeenCalledTimes(1);
+  });
+
+  it("ends as lost when the ship stops heading for the bridge, but not near it", async () => {
+    pushDevices.register(device(1, { liveActivities: true, pushToStartToken: TOKEN }));
+    current = shipAt(9);
+    alerts.handleMessage(position());
+    await settle();
+
+    current = shipAt(9, { approach: null });
+    alerts.handleMessage(position());
+    vi.advanceTimersByTime(LOST_AFTER_MS - 1000);
+    alerts.handleMessage(position());
+    expect(apns.broadcast).not.toHaveBeenCalled();
+    // Back on course: starts over
+    current = shipAt(8);
+    alerts.handleMessage(position());
+    current = shipAt(9, { approach: null });
+    vi.advanceTimersByTime(2000);
+    alerts.handleMessage(position());
+    expect(apns.broadcast).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(LOST_AFTER_MS);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.broadcast.mock.calls[0][0].payload.aps).toMatchObject({ event: "end", "content-state": { phase: "lost" } });
+  });
+
+  it("waits for the passage when a ship near the bridge drops out", async () => {
+    pushDevices.register(device(1, { liveActivities: true, pushToStartToken: TOKEN }));
+    current = shipAt(4); // 0.8 NM
+    alerts.handleMessage(position());
+    await settle();
+    current = shipAt(4, { approach: null });
+    alerts.handleMessage(position());
+    vi.advanceTimersByTime(LOST_AFTER_MS + 1000);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.broadcast).not.toHaveBeenCalled();
+  });
+
+  it("updates for distance as well as ETA, more often near the bridge, and once urgently on arrival", async () => {
+    pushDevices.register(device(1, { liveActivities: true, pushToStartToken: TOKEN }));
+    current = shipAt(9); // 1.8 NM
+    alerts.handleMessage(position());
+    await settle();
+
+    // Same ETA, 0.3 NM closer
+    vi.advanceTimersByTime(60_000);
+    current = shipAt(8, { approach: { ...shipAt(8).approach, eta: new Date(START + 9 * 60_000).toISOString(), distanceNM: 1.5 } });
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.broadcast).toHaveBeenCalledTimes(1);
+    const update = apns.broadcast.mock.calls[0][0].payload.aps;
+    expect(update["content-state"]).toMatchObject({ distanceNM: 1.5, updatedAt: swiftDate(START + 60_000) });
+    expect(update["relevance-score"]).toBe(relevanceScore(START + 9 * 60_000, START + 60_000));
+
+    // Final approach: every 20 s
+    vi.setSystemTime(START + 7 * 60_000);
+    current = shipAt(2.5);
+    alerts.handleMessage(position());
+    vi.advanceTimersByTime(20_000);
+    current = shipAt(1.8);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.broadcast.mock.calls.map(([call]) => call.priority)).toEqual([5, 5, 5]);
+
+    // Arriving: straight away, high priority, once
+    current = shipAt(1.4);
+    alerts.handleMessage(position());
+    current = shipAt(1.2);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.broadcast.mock.calls.map(([call]) => call.priority)).toEqual([5, 5, 5, 10]);
+  });
+
+  it("ends a passed Live Activity with the passage time and the next ship", async () => {
+    pushDevices.register(device(1, { liveActivities: true, pushToStartToken: TOKEN }));
+    current = shipAt(9);
+    alerts.handleMessage(position());
+    await settle();
+    upcoming = [
+      shipAt(0, { mmsi: 1 }),
+      { mmsi: 2, name: "MANITOULIN", approach: { etaMinutes: 25, eta: new Date(START + 25 * 60_000).toISOString() } },
+    ];
+    const passedAt = START + 60_000;
+    alerts.handleShipLogEntry({ mmsi: MMSI, passages: [{ time: new Date(passedAt).toISOString() }] });
+    await settle();
+    expect(apns.broadcast.mock.calls[0][0].payload.aps["content-state"]).toMatchObject({
+      phase: "passed",
+      passedAt: swiftDate(passedAt),
+      nextName: "MANITOULIN",
+      nextEta: swiftDate(START + 25 * 60_000),
+    });
+  });
+
+  it("carries Live Activities on through a restart", async () => {
+    pushDevices.register(device(1, { liveActivities: true, pushToStartToken: TOKEN }));
+    pushDevices.addChannel({ channelId: "stray", environment: "production", mmsi: 1 });
+    current = shipAt(9);
+    alerts.handleMessage(position());
+    await settle();
+    alerts.stop();
+
+    apns = fakeApns();
+    start();
+    await alerts.cleanUp();
+    // Only the stray channel is ended
+    expect(apns.broadcast.mock.calls.map(([call]) => call.channelId)).toEqual(["stray"]);
+    expect(pushDevices.channels().map((c) => c.channelId)).toEqual(["channel1"]);
+
+    // No second alert, and it's updated and ended as before
+    vi.advanceTimersByTime(60_000);
+    current = shipAt(6);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).not.toHaveBeenCalled();
+    expect(apns.sendAlert).not.toHaveBeenCalled();
+    expect(apns.broadcast.mock.calls[1][0]).toMatchObject({ channelId: "channel1", payload: { aps: { event: "update" } } });
+    alerts.handleShipLogEntry({ mmsi: MMSI, passages: [{ time: new Date().toISOString() }] });
+    await settle();
+    expect(events()).toEqual(["end", "update", "end"]);
+    expect(pushDevices.activities()).toEqual([]);
+  });
+
+  it("drops saved Live Activities whose time has run out", async () => {
+    pushDevices.saveActivity(MMSI, {
+      channels: [{ channelId: "old", environment: "production" }],
+      fcmTokens: [],
+      started: ["x"],
+      startedAt: START - 2 * 3600_000,
+      lastEtaMs: START - 3600_000,
+    });
+    pushDevices.addChannel({ channelId: "old", environment: "production", mmsi: MMSI });
+    await alerts.cleanUp();
+    expect(pushDevices.activities()).toEqual([]);
+    expect(apns.deleteChannel).toHaveBeenCalledWith({ channelId: "old", environment: "production" });
+  });
+});
+
 describe("Android payloads", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -322,6 +544,7 @@ describe("Android payloads", () => {
         eta: "2026-10-30T14:08:00.000Z",
         distanceNM: "1.6",
         sog: "12",
+        startedAt: "2026-10-30T14:00:00.000Z",
         phase: "approaching",
         staleAt: "2026-10-30T14:13:00.000Z",
         title: "ALGOMA EQUINOX in ~8 min",
@@ -457,6 +680,7 @@ describe("createApproachAlerts with Android devices", () => {
       shipTypeName: "Cargo",
       length: "225",
       destination: "THUNDER BAY",
+      startedAt: "2026-10-30T14:00:00.000Z",
       eta: "2026-10-30T14:06:00.000Z",
       distanceNM: "1",
       sog: "11.5",

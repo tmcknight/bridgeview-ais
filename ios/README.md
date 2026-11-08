@@ -3,7 +3,11 @@
 An iPhone app for people near the Blue Water Bridge. Its main job is a push
 notification about 5–10 minutes before a ship goes under the bridge, so there's
 time to get to the river. With Live Activities on, the alert also puts a countdown
-on the Lock Screen and in the Dynamic Island until the ship has passed.
+on the Lock Screen and in the Dynamic Island until the ship has passed, with a
+progress bar, buttons for the map, the ship cam and "Stop following", the passage
+time and the next ship once it's through, and a small layout for the Apple Watch
+Smart Stack and CarPlay. A ship you follow ("Follow" on its page) gets its Live
+Activity from about an hour out instead of 10 minutes.
 
 It also lists the ships heading for the bridge ("Coming up") and those that went
 under it in the last day ("Recent"). Each ship has a page with its photos (swiped round from the
@@ -85,7 +89,7 @@ closing it from Device Hub.
 ios/
 ├── project.yml            # XcodeGen spec; BridgeView.xcodeproj is generated from it
 ├── Config/                # xcconfigs: bundle ID, team, server URL, APNs environment
-├── Shared/                # ShipApproachAttributes (Live Activity) and deep links, in both targets
+├── Shared/                # ShipApproachAttributes (Live Activity), deep links and the Stop following intent, in both targets
 ├── BridgeView/            # The app
 │   ├── Models/            # Ship, alert preferences, device registration, ship links
 │   ├── Networking/        # API client, config from Info.plist, date decoding
@@ -252,4 +256,6 @@ or let the server send one.
 3. When a matching ship is about 5–10 minutes out, the server sends either a
    push-to-start for a `ShipApproachAttributes` Live Activity (when Live Activities
    are on) or a normal notification, then updates and ends the Live Activity on a
-   broadcast channel for that passage.
+   broadcast channel for that passage. Phones following the ship get their Live
+   Activity from 60 minutes out. "Stop following" on the Live Activity runs
+   `StopFollowingIntent` in the app, which ends it and sends the ship as off.

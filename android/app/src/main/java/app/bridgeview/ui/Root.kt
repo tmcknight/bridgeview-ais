@@ -20,6 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.saveable.listSaver
@@ -27,6 +28,7 @@ import app.bridgeview.data.Router
 import app.bridgeview.graph
 import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.Appearance
+import app.bridgeview.model.ShipLinks
 
 private val Router.Tab.label: String
     get() = when (this) {
@@ -63,6 +65,8 @@ private fun Tabs() {
     val tab by router.tab.collectAsState()
     val opened by router.openedShip.collectAsState()
     val snapshot by graph.store.snapshot.collectAsState()
+    val camRequested by router.camRequested.collectAsState()
+    val uriHandler = LocalUriHandler.current
 
     // Each tab keeps its own stack of ship pages, as on iOS
     val stacks = Router.Tab.entries.associateWith { t ->
@@ -71,6 +75,14 @@ private fun Tabs() {
         }
     }
     val stack = stacks.getValue(tab)
+
+    // The countdown's ship cam button, once the cam's video is known
+    LaunchedEffect(camRequested, snapshot?.shipCamVideoId) {
+        if (!camRequested) return@LaunchedEffect
+        val url = ShipLinks.shipCam(snapshot?.shipCamVideoId) ?: return@LaunchedEffect
+        router.camRequested.value = false
+        runCatching { uriHandler.openUri(url) }
+    }
 
     // Forget per-ship countdown choices once the ship isn't coming up any more
     LaunchedEffect(snapshot?.upcoming?.map { it.mmsi }) {

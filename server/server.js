@@ -311,7 +311,7 @@ if (ANDROID_ALERTS) {
   }
 }
 const approachAlerts = PUSH_ALERTS
-  ? createApproachAlerts({ apns, fcm, pushDevices, ship: bridgeApi.ship, logger })
+  ? createApproachAlerts({ apns, fcm, pushDevices, ship: bridgeApi.ship, upcoming: () => bridgeApi.snapshot().upcoming, logger })
   : null;
 if (approachAlerts) {
   shipLog.on("entry", (entry) => approachAlerts.handleShipLogEntry(entry));

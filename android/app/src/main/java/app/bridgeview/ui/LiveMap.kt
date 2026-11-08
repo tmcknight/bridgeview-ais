@@ -17,6 +17,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -78,6 +79,16 @@ fun LiveMapScreen(onOpenShip: (Int) -> Unit) {
 
     val ships = snapshot?.ships?.filter { it.position != null }.orEmpty()
     val selectedShip = selected?.let { mmsi -> ships.firstOrNull { it.mmsi == mmsi } }
+
+    // The countdown's Map button: select the ship once it's on the map
+    val mapShip by graph.router.mapShip.collectAsState()
+    LaunchedEffect(mapShip, snapshot) {
+        val mmsi = mapShip ?: return@LaunchedEffect
+        if (ships.any { it.mmsi == mmsi }) {
+            selected = mmsi
+            graph.router.mapShip.value = null
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         ShipMap(

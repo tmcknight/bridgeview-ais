@@ -13,6 +13,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         push = PushManager(nearBridge: nearBridge)
         super.init()
         nearBridge.onChange = { [push] in push.nearBridgeChanged() }
+        // "Stop following" on a Live Activity, which runs here in the app
+        StopFollowing.handler = { [push] mmsi in await push.stopFollowing(mmsi: mmsi) }
     }
 
     func application(

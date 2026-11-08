@@ -71,11 +71,22 @@ object ShipNotifications {
         else -> false
     }
 
-    private fun openShip(context: Context, mmsi: Int): PendingIntent {
-        val intent = Intent(Intent.ACTION_VIEW, DeepLink.ship(mmsi).toUri(), context, MainActivity::class.java)
+    private fun openShip(context: Context, mmsi: Int): PendingIntent = openLink(context, DeepLink.ship(mmsi), mmsi)
+
+    /** Opens a bridgeview:// link in the app; `requestCode` keeps each ship's links apart */
+    private fun openLink(context: Context, link: String, requestCode: Int): PendingIntent {
+        val intent = Intent(Intent.ACTION_VIEW, link.toUri(), context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        return PendingIntent.getActivity(context, mmsi, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        return PendingIntent.getActivity(context, requestCode, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
     }
+
+    private fun stopFollowing(context: Context, mmsi: Int): PendingIntent {
+        val intent = Intent(context, StopFollowingReceiver::class.java)
+            .putExtra(StopFollowingReceiver.EXTRA_MMSI, mmsi)
+        return PendingIntent.getBroadcast(context, mmsi, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    private fun instant(value: String?): Instant? = value?.let { runCatching { InstantSerializer.parse(it) }.getOrNull() }
 
     private fun base(context: Context, channel: String, mmsi: Int) =
         NotificationCompat.Builder(context, channel)
@@ -110,8 +121,9 @@ object ShipNotifications {
         val direction = Direction.fromRaw(data["direction"])
         val phase = data["phase"] ?: "approaching"
         val event = data["event"] ?: "update"
-        val eta = data["eta"]?.let { runCatching { InstantSerializer.parse(it) }.getOrNull() }
+        val eta = instant(data["eta"])
         val now = Instant.now()
+        var footer: String? = null
 
         val details = listOfNotNull(
             data["shipTypeName"],
@@ -132,7 +144,8 @@ object ShipNotifications {
                 critical = if (eta != null && eta.isAfter(now)) {
                     Format.minutes(Duration.between(now, eta).toMillis() / 60_000.0)
                 } else {
-                    "Now"
+                    // Past the ETA and not yet logged as through: it's at the bridge
+                    "Any moment"
                 }
                 builder.setOngoing(true)
                     .setAutoCancel(false)
@@ -143,17 +156,35 @@ object ShipNotifications {
                         .setUsesChronometer(true)
                         .setChronometerCountDown(true)
                 }
-                val stale = data["staleAt"]?.let { runCatching { InstantSerializer.parse(it) }.getOrNull() }
-                    ?: eta?.plus(Duration.ofMinutes(5))
+                // How far along the countdown is, as of this message
+                val startedAt = instant(data["startedAt"])
+                if (startedAt != null && eta != null && startedAt.isBefore(eta)) {
+                    val total = Duration.between(startedAt, eta).toMillis()
+                    val done = Duration.between(startedAt, now).toMillis().coerceIn(0, total)
+                    builder.setProgress(PROGRESS_MAX, (done * PROGRESS_MAX / total).toInt(), false)
+                }
+                builder.addAction(0, "Map", openLink(context, DeepLink.map(mmsi), mmsi + MAP_REQUEST_OFFSET))
+                    .addAction(0, "Ship cam", openLink(context, DeepLink.CAM, CAM_REQUEST_CODE))
+                    .addAction(0, "Stop following", stopFollowing(context, mmsi))
+                val stale = instant(data["staleAt"]) ?: eta?.plus(Duration.ofMinutes(5))
                 stale?.let { builder.setTimeoutAfter(Duration.between(now, it.plus(EXPIRE_AFTER_STALE)).toMillis().coerceAtLeast(60_000)) }
             }
             else -> {
-                headline = if (phase == "passed") "Went under the bridge" else "No longer heading for the bridge"
+                val passedAt = instant(data["passedAt"])
+                headline = when {
+                    phase != "passed" -> "No longer heading for the bridge"
+                    passedAt != null -> "Went under the bridge at ${Format.time(passedAt)}"
+                    else -> "Went under the bridge"
+                }
                 // Words, not a dash: the status bar chip is read out by screen readers
                 critical = if (phase == "passed") "Passed" else "Ended"
                 data["destination"]?.let { details += "to ${Format.place(it)}" }
-                val dismiss = data["dismissAt"]?.let { runCatching { InstantSerializer.parse(it) }.getOrNull() }
-                    ?: now.plus(Duration.ofMinutes(15))
+                val nextName = data["nextName"]
+                val nextEta = instant(data["nextEta"])
+                if (phase == "passed" && nextName != null && nextEta != null) {
+                    footer = "Next: $nextName at ${Format.time(nextEta)}"
+                }
+                val dismiss = instant(data["dismissAt"]) ?: now.plus(Duration.ofMinutes(15))
                 builder.setOngoing(false)
                     .setShowWhen(false)
                     .setTimeoutAfter(Duration.between(now, dismiss).toMillis().coerceAtLeast(1_000))
@@ -167,6 +198,7 @@ object ShipNotifications {
         val bigText = buildList {
             add(headline)
             if (detailLine.isNotEmpty()) add(detailLine)
+            footer?.let(::add)
             if (event == "start") data["body"]?.let(::add)
         }.joinToString("\n")
         builder.setStyle(NotificationCompat.BigTextStyle().bigText(bigText))
@@ -175,8 +207,13 @@ object ShipNotifications {
         post(context, TAG_LIVE, mmsi, builder.build())
     }
 
-    private const val TAG_LIVE = "live"
+    const val TAG_LIVE = "live"
     private const val TAG_ALERT = "alert"
+    private const val PROGRESS_MAX = 1000
+    // PendingIntent request codes: the ship page uses the MMSI (9 digits), so the
+    // map link adds this to stay apart from it, and the cam has one of its own
+    private const val MAP_REQUEST_OFFSET = 1_000_000_000
+    private const val CAM_REQUEST_CODE = -1
 
     @SuppressLint("MissingPermission")
     private fun post(context: Context, tag: String, id: Int, notification: android.app.Notification) {

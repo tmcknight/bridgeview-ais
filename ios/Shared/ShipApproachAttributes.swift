@@ -15,6 +15,13 @@ struct ShipApproachAttributes: ActivityAttributes {
         var distanceNM: Double
         var sog: Double
         var phase: Phase
+        /// When the server sent this; shown once the countdown is out of date
+        var updatedAt: Date?
+        /// When the ship went under the bridge (on a `passed` end)
+        var passedAt: Date?
+        /// The ship coming up after it, and when (on a `passed` end)
+        var nextName: String?
+        var nextEta: Date?
     }
 
     enum Phase: String, Codable, Hashable {
@@ -32,6 +39,8 @@ struct ShipApproachAttributes: ActivityAttributes {
     var shipTypeName: String?
     var length: Int?
     var destination: String?
+    /// When the countdown began, for its progress bar (older servers leave it out)
+    var startedAt: Date?
 }
 
 /// Upbound = northbound into Lake Huron; downbound = southbound
@@ -57,13 +66,38 @@ enum Direction: String, Codable, Hashable, CaseIterable, Sendable {
 enum DeepLink {
     static let scheme = "bridgeview"
 
+    /// Where a link goes in the app
+    enum Target: Equatable {
+        /// The ship's page
+        case ship(Int)
+        /// The map, on the ship
+        case map(Int)
+        /// The Port Huron ship cam
+        case cam
+    }
+
     static func ship(_ mmsi: Int) -> URL {
         URL(string: "\(scheme)://ship/\(mmsi)")!
     }
 
+    static func map(_ mmsi: Int) -> URL {
+        URL(string: "\(scheme)://map/\(mmsi)")!
+    }
+
+    static let cam = URL(string: "\(scheme)://cam")!
+
     /// The MMSI in a `bridgeview://ship/<mmsi>` link
     static func mmsi(from url: URL) -> Int? {
-        guard url.scheme == scheme, url.host() == "ship" else { return nil }
-        return Int(url.lastPathComponent)
+        if case .ship(let mmsi) = target(from: url) { mmsi } else { nil }
+    }
+
+    static func target(from url: URL) -> Target? {
+        guard url.scheme == scheme else { return nil }
+        switch url.host() {
+        case "ship": return Int(url.lastPathComponent).map(Target.ship)
+        case "map": return Int(url.lastPathComponent).map(Target.map)
+        case "cam": return .cam
+        default: return nil
+        }
     }
 }

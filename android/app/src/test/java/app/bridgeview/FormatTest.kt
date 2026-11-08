@@ -50,6 +50,21 @@ class FormatTest {
         assertNull(DeepLink.mmsi("https", "ship", "316001234"))
         assertNull(DeepLink.mmsi("bridgeview", "other", "316001234"))
         assertNull(DeepLink.mmsi("bridgeview", "ship", "abc"))
+        assertEquals("bridgeview://map/316001234", DeepLink.map(316001234))
+        assertEquals(DeepLink.Target.Map(316001234), DeepLink.target("bridgeview", "map", "316001234"))
+        assertEquals(DeepLink.Target.Cam, DeepLink.target("bridgeview", "cam", null))
+        assertNull(DeepLink.mmsi("bridgeview", "map", "316001234"))
+    }
+
+    @Test fun mapLinkOpensTheMapOnTheShip() {
+        val router = app.bridgeview.data.Router()
+        router.open(1)
+        router.open(DeepLink.Target.Map(316001234))
+        assertEquals(app.bridgeview.data.Router.Tab.Map, router.tab.value)
+        assertEquals(316001234, router.mapShip.value)
+        assertNull(router.openedShip.value)
+        router.open(DeepLink.Target.Cam)
+        assertTrue(router.camRequested.value)
     }
 
     @Test fun sizesSharedPhotos() {

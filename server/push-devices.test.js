@@ -195,4 +195,24 @@ describe("createPushDevices", () => {
     devices.removeChannel({ channelId: "abc=", environment: "sandbox" });
     expect(devices.channels()).toEqual([]);
   });
+
+  it("finds the devices following one ship, whatever their other settings", () => {
+    devices = createPushDevices();
+    devices.register(register({ categories: ["tanker"], liveActivityShips: { 316001234: true, 316009999: false } }).device);
+    devices.register(registerAndroid({ liveActivityShips: { 316001234: true } }).device);
+    expect(devices.followers(316001234).map((d) => d.token)).toEqual([TOKEN, FCM_TOKEN]);
+    expect(devices.followers(316009999)).toEqual([]);
+    expect(devices.followers(316000000)).toEqual([]);
+    devices.register(register({ enabled: false, liveActivityShips: { 316001234: true } }).device);
+    expect(devices.followers(316001234).map((d) => d.token)).toEqual([FCM_TOKEN]);
+  });
+
+  it("keeps Live Activities under way", () => {
+    devices = createPushDevices();
+    devices.saveActivity(316001234, { startedAt: 1, started: ["a"] });
+    devices.saveActivity(316001234, { startedAt: 2, started: ["a", "b"] });
+    expect(devices.activities()).toEqual([{ mmsi: 316001234, state: { startedAt: 2, started: ["a", "b"] } }]);
+    devices.removeActivity(316001234);
+    expect(devices.activities()).toEqual([]);
+  });
 });

@@ -24,7 +24,7 @@ struct BridgeViewApp: App {
                 .preferredColorScheme(appearance.colorScheme)
                 .task { await appDelegate.push.start() }
                 .onOpenURL { url in
-                    if let mmsi = DeepLink.mmsi(from: url) { appDelegate.router.open(mmsi: mmsi) }
+                    if let target = DeepLink.target(from: url) { appDelegate.router.open(target) }
                 }
         }
     }
