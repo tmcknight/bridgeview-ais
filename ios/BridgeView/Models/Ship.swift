@@ -23,6 +23,10 @@ struct Ship: Codable, Identifiable, Hashable, Sendable {
     /// Only on GET /api/ships/:mmsi, newest first
     var passages: [Passage]?
     var info: VesselInfo?
+    /// Only on GET /api/ships (search and favourites): heard in the last 10 minutes
+    var heard: Bool?
+    /// Only on GET /api/ships: the first photo, for a thumbnail
+    var photoUrl: URL?
 
     var id: Int { mmsi }
 
@@ -179,8 +183,43 @@ struct MapSnapshot: Codable, Sendable {
     var ships: [Ship]
 }
 
+/// GET /api/ships?q= (search) and ?mmsi= (favourites): ship summaries, without positions
+struct ShipList: Codable, Sendable {
+    var ships: [Ship]
+    /// Search only: there were more matches than were sent
+    var more: Bool?
+}
+
 /// A data credit: `text` linking to `url`. AISHub's terms require its credit near the data.
 struct Attribution: Codable, Hashable, Sendable {
     var text: String
     var url: URL
+}
+
+extension Ship {
+    /// "Cargo · 225 m · To Thunder Bay", for search results and Favourites
+    var searchDetails: String {
+        [summary.isEmpty ? nil : summary, destination.map { "To \(Format.place($0))" }]
+            .compactMap { $0 }
+            .joined(separator: " · ")
+    }
+
+    /// Where the ship is at, from a summary (GET /api/ships): "Upbound · at the bridge
+    /// in 12 min", "Heard now", "Passed downbound 3 days ago", or "Not heard lately".
+    /// `spoken` gives minutes in words for VoiceOver.
+    func status(now: Date = .now, spoken: Bool = false) -> String {
+        if let approach {
+            if approach.etaMinutes < 0.5 { return "\(approach.direction.label) · at the bridge now" }
+            let minutes = spoken ? Format.spokenMinutes(approach.etaMinutes) : Format.minutes(approach.etaMinutes)
+            return "\(approach.direction.label) · at the bridge in \(minutes)"
+        }
+        if heard == true { return "Heard now" }
+        if let passage = lastPassage {
+            let formatter = RelativeDateTimeFormatter()
+            formatter.dateTimeStyle = .named
+            let when = formatter.localizedString(for: min(passage.time, now), relativeTo: now)
+            return "Passed \(passage.direction.label.lowercased()) \(when)"
+        }
+        return "Not heard lately"
+    }
 }

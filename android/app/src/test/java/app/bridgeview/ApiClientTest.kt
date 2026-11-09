@@ -35,6 +35,33 @@ class ApiClientTest {
         assertEquals("/api/bridge?v=2", server.takeRequest().target)
     }
 
+    @Test fun searchesShipsAndDecodesSummaries() = runTest {
+        server.enqueue(
+            MockResponse.Builder().body(
+                """{"ships":[{"mmsi":316001234,"name":"ALGOMA EQUINOX","flag":"CA","heard":true,""" +
+                    """"approach":{"etaMinutes":8.4,"eta":"2026-10-30T14:10:35.000Z","distanceNM":1.6,"direction":"upbound"},""" +
+                    """"photoUrl":"https://x/a.jpg"},{"mmsi":2,"name":"OLD LAKER",""" +
+                    """"passage":{"time":"2026-10-30T12:44:00.000Z","direction":"downbound"}}],"more":true}""",
+            ).build(),
+        )
+        val result = api.searchShips("algoma eq")
+        assertEquals("/api/ships?q=algoma%20eq&v=2", server.takeRequest().target)
+        assertTrue(result.more)
+        assertEquals("🇨🇦", result.ships[0].flagEmoji)
+        assertTrue(result.ships[0].heard)
+        assertEquals(8.4, result.ships[0].approach!!.etaMinutes, 0.0)
+        assertEquals(false, result.ships[1].heard)
+        assertEquals(app.bridgeview.model.Direction.Downbound, result.ships[1].passage!!.direction)
+    }
+
+    @Test fun looksFavouritesUpByMmsi() = runTest {
+        server.enqueue(MockResponse.Builder().body("""{"ships":[]}""").build())
+        api.shipsByMmsi(listOf(316001234, 2))
+        assertEquals("/api/ships?mmsi=316001234%2C2&v=2", server.takeRequest().target)
+        // Nothing to ask for: no request
+        assertTrue(api.shipsByMmsi(emptyList()).ships.isEmpty())
+    }
+
     @Test fun registersWithTheTokenInThePath() = runTest {
         server.enqueue(MockResponse.Builder().code(204).build())
         val token = "cX1:APA91b-abc_DEF"

@@ -24,6 +24,8 @@ import { XMarkIcon } from "@heroicons/react/20/solid"
 import VesselInfoCard from "./VesselInfoCard"
 import SourceBadge from "./SourceBadge"
 import ShipShape from "./ShipShape"
+import FavouriteButton from "./FavouriteButton"
+import type { Favourites } from "../utils/favourites"
 
 interface ShipListProps {
   ships: Map<number, TrackedShip>
@@ -31,6 +33,8 @@ interface ShipListProps {
   log?: ShipLog
   selectedShip?: TrackedShip | null
   onSelectShip?: (ship: TrackedShip) => void
+  favourites?: Favourites
+  onToggleFavourite?: (mmsi: number, name: string) => void
   hidden?: boolean
   onClose?: () => void
 }
@@ -40,6 +44,8 @@ export default function ShipList({
   log,
   selectedShip,
   onSelectShip,
+  favourites,
+  onToggleFavourite,
   hidden = false,
   onClose,
 }: ShipListProps) {
@@ -108,6 +114,8 @@ export default function ShipList({
             isSelected={selectedShip?.mmsi === ship.mmsi}
             lastPassage={log?.get(ship.mmsi)?.passages[0]}
             onSelectShip={onSelectShip}
+            isFavourite={favourites?.has(ship.mmsi) ?? false}
+            onToggleFavourite={onToggleFavourite}
             hidden={hidden}
             tick={tick}
           />
@@ -123,6 +131,8 @@ interface ShipRowProps {
   /** The ship's latest bridge passage from the ship log */
   lastPassage?: BridgePassage
   onSelectShip?: (ship: TrackedShip) => void
+  isFavourite: boolean
+  onToggleFavourite?: (mmsi: number, name: string) => void
   hidden: boolean
   /** Changes every 30s, so the relative times are redrawn */
   tick: number
@@ -135,6 +145,8 @@ const ShipRow = memo(function ShipRow({
   isSelected,
   lastPassage,
   onSelectShip,
+  isFavourite,
+  onToggleFavourite,
   hidden,
 }: ShipRowProps) {
   const eta = estimatedTimeToBridge(ship.distanceToBridge, ship.sog)
@@ -250,6 +262,14 @@ const ShipRow = memo(function ShipRow({
           <span className="font-semibold text-base text-slate-800 dark:text-slate-100 truncate">
             {ship.name}
           </span>
+          {onToggleFavourite && (
+            <FavouriteButton
+              name={ship.name}
+              isFavourite={isFavourite}
+              onToggle={() => onToggleFavourite(ship.mmsi, ship.name)}
+              hidden={hidden}
+            />
+          )}
         </div>
         {ship.approaching && (
           <span className="shrink-0 text-[0.6rem] font-bold text-red-600 dark:text-red-400 bg-red-500/15 px-2 py-0.5 rounded tracking-wide">

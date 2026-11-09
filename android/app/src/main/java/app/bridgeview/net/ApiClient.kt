@@ -6,6 +6,7 @@ import app.bridgeview.model.DeviceRegistration
 import app.bridgeview.model.MapSnapshot
 import app.bridgeview.model.PhotoReport
 import app.bridgeview.model.Ship
+import app.bridgeview.model.ShipSummaries
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -52,6 +53,13 @@ class ApiClient(
 
     suspend fun ship(mmsi: Int): Ship = get("api/ships/$mmsi")
 
+    /** Ships matching the search box, best match first (up to 25) */
+    suspend fun searchShips(query: String): ShipSummaries = get("api/ships", mapOf("q" to query))
+
+    /** The favourites, in the order given; ships the server doesn't know are left out */
+    suspend fun shipsByMmsi(mmsis: List<Int>): ShipSummaries =
+        if (mmsis.isEmpty()) ShipSummaries(emptyList()) else get("api/ships", mapOf("mmsi" to mmsis.joinToString(",")))
+
     suspend fun register(deviceToken: String, registration: DeviceRegistration) {
         val request = Request.Builder()
             .url(url("api/devices/${encode(deviceToken)}"))
@@ -93,10 +101,14 @@ class ApiClient(
 
     private fun url(path: String): HttpUrl = baseUrl.newBuilder().addEncodedPathSegments(path).build()
 
-    private suspend inline fun <reified T> get(path: String): T {
+    private suspend inline fun <reified T> get(path: String, query: Map<String, String> = emptyMap()): T {
         // API v2: ship details may come from the vessel registers alone, without Wikidata
+        val target = url(path).newBuilder().apply {
+            query.forEach { (name, value) -> addQueryParameter(name, value) }
+            addQueryParameter("v", "2")
+        }.build()
         val request = Request.Builder()
-            .url(url(path).newBuilder().addQueryParameter("v", "2").build())
+            .url(target)
             .header("Accept", "application/json")
             .build()
         val text = execute(request) { response ->

@@ -11,9 +11,11 @@ buttons, and shows the passage time and the next ship once it's through. A ship
 you follow gets its countdown from about an hour out.
 
 It lists the ships heading for the bridge ("Coming up") and those that went under it
-in the last day ("Recent"), shows every ship nearby on a live map (hulls drawn to
-scale, dead-reckoned between polls and eased onto each new report, as on the web and
-iOS maps), and has a page for each ship with its photos (swiped round from the last
+in the last day ("Recent", under the starred ships kept as favourites, on the phone
+only, with their ETA or last passage; its search field finds any ship BridgeView has
+heard of by name, MMSI or IMO number), shows every ship nearby on a live map (hulls
+drawn to scale, dead-reckoned between polls and eased onto each new report, as on the
+web and iOS maps), and has a page for each ship with its photos (swiped round from the last
 back to the first; tap for full screen with pinch and double-tap to zoom), details from
 Wikidata and the vessel registers, a map, past passages and links. "Add photo" takes or
 picks a photo and sends it for approval; "Report this photo" flags one. "Coming up"
@@ -91,7 +93,7 @@ android/
 │   ├── push/                # FCM, notifications and live countdowns, registration worker, geofence
 │   ├── photo/               # Getting a photo ready to share
 │   ├── sensors/             # Compass for direction arrows
-│   └── ui/                  # Compose screens: Coming up, Map, Recent, Settings, ship page, photos
+│   └── ui/                  # Compose screens: Coming up, Map, Recent (with favourites and search), Settings, ship page, photos
 ├── app/src/test/            # JVM unit tests (ports of the iOS tests, plus API client tests)
 └── store/                   # Play Store icon
 ```

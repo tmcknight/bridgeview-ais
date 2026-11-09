@@ -35,6 +35,14 @@ struct ShipDetailView: View {
         .background { RiverBackground() }
         .navigationTitle(ship?.name ?? cachedShip?.name ?? "Ship")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let name = ship?.name ?? cachedShip?.name {
+                // On the left, away from the sheet's Done button
+                ToolbarItem(placement: .topBarLeading) {
+                    FavouriteButton(mmsi: mmsi, name: name)
+                }
+            }
+        }
         .task(id: mmsi) {
             // A failed refresh keeps what's shown; the error shows only before the first load
             while !Task.isCancelled {

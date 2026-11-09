@@ -10,7 +10,10 @@ Smart Stack and CarPlay. A ship you follow ("Follow" on its page) gets its Live
 Activity from about an hour out instead of 10 minutes.
 
 It also lists the ships heading for the bridge ("Coming up") and those that went
-under it in the last day ("Recent"). Each ship has a page with its photos (swiped round from the
+under it in the last day ("Recent", `Views/RecentView.swift`). Recent also lists
+the ships starred as favourites above them (kept on the phone,
+`Models/Favourites.swift`; star on a ship's page or press and hold it in a list), and
+its search field finds any ship the server has heard of by name, MMSI or IMO number. Each ship has a page with its photos (swiped round from the
 last back to the first, and tapped to see them full screen with pinch to zoom;
 `Views/PhotoPager.swift`) and details from Wikidata, a map, and links to Wikipedia. "Add
 photo" on a ship's page takes or picks a photo of it and sends it to the server
@@ -91,10 +94,10 @@ ios/
 ├── Config/                # xcconfigs: bundle ID, team, server URL, APNs environment
 ├── Shared/                # ShipApproachAttributes (Live Activity), deep links and the Stop following intent, in both targets
 ├── BridgeView/            # The app
-│   ├── Models/            # Ship, alert preferences, device registration, ship links
+│   ├── Models/            # Ship, favourites, alert preferences, device registration, ship links
 │   ├── Networking/        # API client, config from Info.plist, date decoding
 │   ├── Push/              # App delegate, push registration, deep-link router
-│   └── Views/             # Coming up, Passed, ship page, settings
+│   └── Views/             # Coming up, Passed, Ships (search, favourites), ship page, settings
 ├── BridgeViewWidgets/     # Live Activity (Lock Screen and Dynamic Island)
 ├── AppStore/              # Store listing text, privacy answers, review notes, screenshots
 ├── Brand/                 # Source artwork: icon (default, dark, tinted) and transparent logos

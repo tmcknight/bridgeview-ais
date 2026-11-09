@@ -80,9 +80,10 @@ struct LiveActivityToggle: View {
     }
 }
 
-/// The same choice as a ticked menu item, for pressing and holding a ship in
-/// Coming up. No menu while alerts or Live Activities are off.
-struct LiveActivityMenu: ViewModifier {
+/// Press and hold a ship in a list: Favourite, and in Coming up the Live
+/// Activity choice as a ticked menu item (left out while alerts or Live
+/// Activities are off)
+struct ShipMenu: ViewModifier {
     typealias Key = AlertPreferences.Key
 
     @Environment(PushManager.self) private var push
@@ -91,24 +92,24 @@ struct LiveActivityMenu: ViewModifier {
     @AppStorage(Key.liveActivityShips) private var choices = ""
 
     var mmsi: Int
-    var enabled: Bool
+    var name: String
+    var liveActivity: Bool
 
     func body(content: Content) -> some View {
-        if enabled && alertsEnabled && push.liveActivitiesEnabled {
-            content.contextMenu {
+        content.contextMenu {
+            FavouriteToggle(mmsi: mmsi, name: name)
+            if liveActivity && alertsEnabled && push.liveActivitiesEnabled {
                 Toggle(isOn: LiveActivityToggle.isOn(mmsi: mmsi, choices: $choices, byDefault: byDefault, push: push)) {
                     Label("Live Activity", systemImage: "clock.badge")
                 }
             }
-        } else {
-            content
         }
     }
 }
 
 extension View {
-    /// Press and hold to follow the ship on the Lock Screen without opening it
-    func liveActivityMenu(mmsi: Int, if enabled: Bool = true) -> some View {
-        modifier(LiveActivityMenu(mmsi: mmsi, enabled: enabled))
+    /// Press and hold to star the ship, or follow it on the Lock Screen, without opening it
+    func shipMenu(_ ship: Ship, liveActivity: Bool = true) -> some View {
+        modifier(ShipMenu(mmsi: ship.mmsi, name: ship.name, liveActivity: liveActivity))
     }
 }

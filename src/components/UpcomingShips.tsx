@@ -5,11 +5,14 @@ import type { TrackedShip } from "../types/ais"
 import { formatDistance, formatETA, formatSpeed } from "../utils/geo"
 import { describeCargo } from "../utils/cargo"
 import { getUpcomingPassages } from "../utils/upcoming"
+import FavouriteButton from "./FavouriteButton"
 
 interface UpcomingShipsProps {
   ships: Map<number, TrackedShip>
   selectedShip?: TrackedShip | null
   onSelectShip?: (ship: TrackedShip) => void
+  isFavourite?: (mmsi: number) => boolean
+  onToggleFavourite?: (mmsi: number, name: string) => void
   hidden?: boolean
 }
 
@@ -24,6 +27,8 @@ export default function UpcomingShips({
   ships,
   selectedShip,
   onSelectShip,
+  isFavourite,
+  onToggleFavourite,
   hidden = false,
 }: UpcomingShipsProps) {
   const passages = useMemo(() => getUpcomingPassages(ships.values()), [ships])
@@ -76,6 +81,14 @@ export default function UpcomingShips({
                       className="shrink-0 w-4 h-4 text-slate-500 dark:text-slate-400"
                       aria-label={direction}
                     />
+                    {onToggleFavourite && (
+                      <FavouriteButton
+                        name={ship.name}
+                        isFavourite={isFavourite?.(ship.mmsi) ?? false}
+                        onToggle={() => onToggleFavourite(ship.mmsi, ship.name)}
+                        hidden={hidden}
+                      />
+                    )}
                     <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">
                       {ship.name}
                     </span>
