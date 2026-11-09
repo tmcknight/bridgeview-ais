@@ -69,12 +69,23 @@ final class NearBridgeMonitor: NSObject, CLLocationManagerDelegate {
             // Shows a prompt only the first time; later the system offers the upgrade
             manager.requestAlwaysAuthorization()
         }
-        let condition = CLMonitor.CircularGeographicCondition(
-            center: Bridge.center,
-            radius: CLLocationDistance(preferences.nearBridgeRadius * 1000)
-        )
+        let radius = CLLocationDistance(preferences.nearBridgeRadius * 1000)
+        let monitor = await openMonitor()
+        // This runs at every launch, background launches for a crossing too. Adding
+        // the circle again resets it to unknown until iOS works out where the phone
+        // is (in the background, maybe not until the next crossing), so keep the
+        // circle iOS already has and go by its last answer
+        if let record = await monitor.record(for: Self.conditionID),
+           let existing = record.condition as? CLMonitor.CircularGeographicCondition,
+           existing.radius == radius,
+           existing.center.latitude == Bridge.center.latitude,
+           existing.center.longitude == Bridge.center.longitude {
+            handle(record.lastEvent.state)
+            return
+        }
+        let condition = CLMonitor.CircularGeographicCondition(center: Bridge.center, radius: radius)
         // Adding under the same identifier replaces the old circle
-        await openMonitor().add(condition, identifier: Self.conditionID)
+        await monitor.add(condition, identifier: Self.conditionID)
     }
 
     private func openMonitor() async -> CLMonitor {
@@ -99,6 +110,9 @@ final class NearBridgeMonitor: NSObject, CLLocationManagerDelegate {
         switch state {
         case .satisfied: setNear(true)
         case .unsatisfied: setNear(false)
+        // Not worked out yet (a circle just added or resized): keep the last
+        // answer, or alerts would resume everywhere until iOS gets a fix
+        case .unknown: break
         default: setNear(nil)
         }
     }
