@@ -7,6 +7,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import app.bridgeview.graph
 import app.bridgeview.model.Approach
 import app.bridgeview.model.Bridge
+import app.bridgeview.model.Favourites
 import app.bridgeview.model.Ship
 import app.bridgeview.model.ShipLinks
 import kotlinx.coroutines.launch
@@ -74,6 +78,14 @@ fun ShipListScreen(
     mode: ListMode,
     onOpenShip: (Int) -> Unit,
     shipCam: String? = null,
+    /** Under the title, above the list (Recent's search field) */
+    header: (@Composable ColumnScope.() -> Unit)? = null,
+    /** Shown instead of the list and its states when set (search results) */
+    replacement: (@Composable () -> Unit)? = null,
+    /** Items above the ships (Recent's favourites), shown with the list or its empty state */
+    leading: (LazyListScope.() -> Unit)? = null,
+    /** Section label above the ships, when something comes before them */
+    listLabel: String? = null,
     empty: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -101,7 +113,10 @@ fun ShipListScreen(
                     }
                 }
             }
-            PullToRefreshBox(isRefreshing = refreshing, onRefresh = refresh, modifier = Modifier.fillMaxSize()) {
+            header?.invoke(this)
+            if (replacement != null) {
+                replacement()
+            } else PullToRefreshBox(isRefreshing = refreshing, onRefresh = refresh, modifier = Modifier.fillMaxSize()) {
                 when {
                     !ships.isNullOrEmpty() -> LazyColumn(
                         Modifier.fillMaxSize(),
@@ -109,6 +124,10 @@ fun ShipListScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        leading?.invoke(this)
+                        listLabel?.let { label ->
+                            item(key = "list-label") { SectionLabel(label, Modifier.readableWidth().padding(top = 8.dp)) }
+                        }
                         val first = ships.first()
                         val rest = if (mode == ListMode.Upcoming && first.approach != null) ships.drop(1) else ships
                         if (mode == ListMode.Upcoming && first.approach != null) {
@@ -140,6 +159,16 @@ fun ShipListScreen(
                     }
                     ships == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         if (loading || error == null) CircularProgressIndicator(Modifier.semantics { contentDescription = "Loading ships" })
+                    }
+                    // The favourites still show above the empty state
+                    leading != null -> LazyColumn(
+                        Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 72.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        leading()
+                        item(key = "empty") { Box(Modifier.padding(top = 40.dp)) { empty() } }
                     }
                     // A little down from the title, not jammed against it
                     else -> CenteredScroll { empty() }
@@ -325,10 +354,38 @@ fun UpcomingScreen(onOpenShip: (Int) -> Unit) {
     }
 }
 
+/**
+ * Ships that went under the bridge in the last day, below the user's favourites;
+ * searching every ship BridgeView has heard of replaces both
+ */
 @Composable
 fun RecentScreen(onOpenShip: (Int) -> Unit) {
-    val snapshot by LocalContext.current.graph.store.snapshot.collectAsState()
-    ShipListScreen(title = "Recently passed", ships = snapshot?.recent, mode = ListMode.Recent, onOpenShip = onOpenShip) {
+    val graph = LocalContext.current.graph
+    val snapshot by graph.store.snapshot.collectAsState()
+    val favouritesText by graph.prefs.favourites.flow.collectAsState()
+    val favourites = remember(favouritesText) { Favourites.decode(favouritesText) }
+    val starred = remember(favourites) { favourites.map { it.mmsi }.toSet() }
+    val toggle: (Int, String) -> Unit = { mmsi, name -> graph.prefs.toggleFavourite(mmsi, name) }
+    val summaries = rememberFavouriteSummaries(favourites)
+    var query by rememberSaveable { mutableStateOf("") }
+    val trimmed = query.trim()
+
+    ShipListScreen(
+        title = "Recent",
+        ships = snapshot?.recent,
+        mode = ListMode.Recent,
+        onOpenShip = onOpenShip,
+        header = {
+            ShipSearchField(
+                query,
+                onChange = { query = it },
+                Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp).readableWidth().align(Alignment.CenterHorizontally),
+            )
+        },
+        replacement = if (trimmed.isEmpty()) null else ({ ShipSearchResults(trimmed, starred, toggle, onOpenShip) }),
+        leading = if (favourites.isEmpty()) null else ({ favouriteItems(summaries, starred, toggle, onOpenShip) }),
+        listLabel = if (favourites.isEmpty()) null else "Passed in the last day",
+    ) {
         EmptyState(
             Icons.Filled.History,
             "No ships in the last day",

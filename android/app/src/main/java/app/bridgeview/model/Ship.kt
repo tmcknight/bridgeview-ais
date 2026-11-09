@@ -38,12 +38,7 @@ data class Ship(
     val summary: String
         get() = listOfNotNull(shipTypeName, length?.let { "$it m" }).joinToString(" · ")
 
-    val flagEmoji: String?
-        get() {
-            val code = flag?.uppercase() ?: return null
-            if (code.length != 2 || !code.all { it in 'A'..'Z' }) return null
-            return code.map { String(Character.toChars(127_397 + it.code)) }.joinToString("")
-        }
+    val flagEmoji: String? get() = flagEmoji(flag)
 
     /** "🇨🇦 Canada": the flag and its country's name in the device's language */
     val flagDescription: String?
@@ -54,6 +49,52 @@ data class Ship(
             return "$emoji $country"
         }
 }
+
+/** "🇨🇦" from an ISO 3166 alpha-2 code */
+fun flagEmoji(flag: String?): String? {
+    val code = flag?.uppercase() ?: return null
+    if (code.length != 2 || !code.all { it in 'A'..'Z' }) return null
+    return code.map { String(Character.toChars(127_397 + it.code)) }.joinToString("")
+}
+
+/**
+ * A ship in search results and the favourites list (ios/API.md, GET /api/ships):
+ * enough for a row, never a position
+ */
+@Serializable
+data class ShipSummary(
+    val mmsi: Int,
+    val name: String,
+    val imo: Int? = null,
+    val callSign: String? = null,
+    val shipTypeName: String? = null,
+    val category: ShipCategory? = null,
+    val length: Int? = null,
+    val flag: String? = null,
+    val destination: String? = null,
+    val classB: Boolean? = null,
+    /** Heard in the last 10 minutes */
+    val heard: Boolean = false,
+    val approach: Approach? = null,
+    /** The latest passage under the bridge */
+    val passage: Passage? = null,
+    /** The ship's first photo, for a thumbnail */
+    val photoUrl: String? = null,
+) {
+    val flagEmoji: String? get() = flagEmoji(flag)
+
+    /** "Cargo · 225 m" */
+    val summary: String
+        get() = listOfNotNull(shipTypeName, length?.let { "$it m" }).joinToString(" · ")
+}
+
+/** GET /api/ships?q= and ?mmsi= */
+@Serializable
+data class ShipSummaries(
+    val ships: List<ShipSummary>,
+    /** More ships matched than were sent */
+    val more: Boolean = false,
+)
 
 @Serializable
 data class Position(

@@ -341,6 +341,24 @@ export function createVesselDetails({
       return { ships, total };
     },
 
+    // Candidates for the app's ship search: ships whose name or call sign has the
+    // text in it, or whose MMSI or IMO number starts with it, most recently heard
+    // first. The API ranks them; this only narrows the table down.
+    matchingNames(query, limit = 200) {
+      const q = query.trim();
+      if (!q) return [];
+      const escaped = q.replace(/[\\%_]/g, (c) => `\\${c}`);
+      return db
+        .prepare(`
+          SELECT mmsi, name FROM vessels
+          WHERE name LIKE :like ESCAPE '\\' OR call_sign LIKE :like ESCAPE '\\'
+            OR CAST(mmsi AS TEXT) LIKE :prefix ESCAPE '\\' OR CAST(imo AS TEXT) LIKE :prefix ESCAPE '\\'
+          ORDER BY updated_at DESC LIMIT :limit
+        `)
+        .all({ like: `%${escaped}%`, prefix: `${escaped}%`, limit })
+        .map((row) => ({ mmsi: row.mmsi, name: row.name ?? undefined }));
+    },
+
     // For the admin page: what the lookups found (with the registers), the
     // corrections, and the result, or undefined for a ship never heard of
     adminView(mmsi) {

@@ -157,6 +157,50 @@ every 30 s while open and on pull-to-refresh.
 One ship, as above, with `passages` (newest first, up to 50) in place of `passage`,
 and `approach` when it's heading for the bridge. 404 for an unknown ship.
 
+## `GET /api/ships?q=<text>` and `GET /api/ships?mmsi=<list>`
+
+Ship search, and the app's favourites. Both return ship summaries:
+
+```json
+{
+  "ships": [
+    {
+      "mmsi": 316001234,
+      "name": "ALGOMA EQUINOX",
+      "imo": 9613927,
+      "callSign": "CFK9876",
+      "shipTypeName": "Cargo",
+      "category": "cargo",
+      "length": 225,
+      "flag": "CA",
+      "destination": "THUNDER BAY",
+      "heard": true,
+      "approach": { /* as in Ship, when heading for the bridge */ },
+      "passage": { /* latest passage under the bridge, when there's been one */ },
+      "photoUrl": "https://upload.wikimedia.org/..."
+    }
+  ],
+  "more": false
+}
+```
+
+- `?q=`: every ship the server has heard of (its stored details, the ship log, and
+  ships heard now), matched on name (punctuation and case ignored), MMSI or IMO
+  prefix (`IMO 9613927` works too), or whole call sign. Best match first (whole
+  name, start of the name, start of a word, anywhere, then numbers), ships heard now
+  first among equals. Up to 25; `more` is true when there were others. Under 2
+  characters finds nothing. The app waits for typing to pause (about 0.3 s) before
+  asking, since reads are rate-limited.
+- `?mmsi=`: comma-separated MMSIs (up to 100), in that order; unknown ones are left
+  out. No `more`.
+- `heard`: heard in the last 10 minutes. Summaries never carry `position`: open
+  `GET /api/ships/:mmsi` for it.
+- `photoUrl`: the ship's first photo, for a thumbnail; credit is on the ship's page.
+- `classB`: `true` for Class B transponders, as in `GET /api/map`.
+
+Favourites are kept on the phone (MMSI and the name when added); the server doesn't
+know them.
+
 ## `GET /api/map`
 
 Every ship heard in the last 10 minutes, for the app's map. The app polls it every

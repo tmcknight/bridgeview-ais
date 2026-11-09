@@ -10,6 +10,8 @@ import ShipMap from "./components/ShipMap"
 import ShipList from "./components/ShipList"
 import UpcomingShips from "./components/UpcomingShips"
 import ShipLog from "./components/ShipLog"
+import ShipSearch from "./components/ShipSearch"
+import FavouriteShips from "./components/FavouriteShips"
 import NotificationPanel from "./components/NotificationPanel"
 import type { ShipCamSize } from "./components/ShipCam"
 import StatusBar from "./components/StatusBar"
@@ -18,6 +20,7 @@ import { useAISStream } from "./hooks/useAISStream"
 import { useTheme } from "./hooks/useTheme"
 import { useIdle } from "./hooks/useIdle"
 import { useTvShips } from "./hooks/useTvShips"
+import { useFavourites } from "./hooks/useFavourites"
 import { isInTrackingBounds } from "./utils/geo"
 import { hasFeed, isAdsbFiFeed } from "./utils/feedStatus"
 import type { TrackedShip } from "./types/ais"
@@ -64,6 +67,9 @@ function App() {
   )
 
   const { theme, toggleTheme } = useTheme()
+  const { favourites, isFavourite, toggleFavourite } = useFavourites()
+  const [searchQuery, setSearchQuery] = useState("")
+  const searching = searchQuery.trim() !== ""
   const [selectedShip, setSelectedShip] = useState<TrackedShip | null>(null)
   const [showShipList, setShowShipList] = useState(true)
   const [showShipCam, setShowShipCam] = useState(false)
@@ -261,33 +267,68 @@ function App() {
           <aside
             className={`ship-list-panel absolute top-0 right-0 bottom-0 w-95 md:w-115 overflow-y-auto bg-slate-200/30 dark:bg-slate-800/30 backdrop-blur-sm z-10 max-md:w-full max-md:top-auto max-md:h-[50vh] max-md:border-t max-md:border-slate-300/50 dark:max-md:border-slate-600/50 transition-transform duration-300 ease-in-out ${showShipList ? "translate-x-0" : "translate-x-full"}`}
           >
-            <ComponentErrorBoundary componentName="Coming Up">
-              <UpcomingShips
+            <ComponentErrorBoundary componentName="Search">
+              <ShipSearch
+                query={searchQuery}
+                onQueryChange={setSearchQuery}
                 ships={ships}
-                selectedShip={selectedShip}
-                onSelectShip={handleSelectShip}
-                hidden={!showShipList}
-              />
-            </ComponentErrorBoundary>
-            <ComponentErrorBoundary componentName="Ship Log">
-              <ShipLog
-                log={shipLog}
-                ships={ships}
-                selectedShip={selectedShip}
-                onSelectShip={handleSelectShip}
-                hidden={!showShipList}
-              />
-            </ComponentErrorBoundary>
-            <ComponentErrorBoundary componentName="Vessel List">
-              <ShipList
-                ships={nearbyShips}
                 log={shipLog}
                 selectedShip={selectedShip}
                 onSelectShip={handleSelectShip}
+                isFavourite={isFavourite}
+                onToggleFavourite={toggleFavourite}
                 hidden={!showShipList}
-                onClose={() => setShowShipList(false)}
               />
             </ComponentErrorBoundary>
+            {/* Search results take the panel's place while there's a query */}
+            {!searching && (
+              <>
+                <ComponentErrorBoundary componentName="Favourites">
+                  <FavouriteShips
+                    favourites={favourites}
+                    ships={ships}
+                    log={shipLog}
+                    selectedShip={selectedShip}
+                    onSelectShip={handleSelectShip}
+                    onToggleFavourite={toggleFavourite}
+                    hidden={!showShipList}
+                  />
+                </ComponentErrorBoundary>
+                <ComponentErrorBoundary componentName="Coming Up">
+                  <UpcomingShips
+                    ships={ships}
+                    selectedShip={selectedShip}
+                    onSelectShip={handleSelectShip}
+                    isFavourite={isFavourite}
+                    onToggleFavourite={toggleFavourite}
+                    hidden={!showShipList}
+                  />
+                </ComponentErrorBoundary>
+                <ComponentErrorBoundary componentName="Ship Log">
+                  <ShipLog
+                    log={shipLog}
+                    ships={ships}
+                    selectedShip={selectedShip}
+                    onSelectShip={handleSelectShip}
+                    isFavourite={isFavourite}
+                    onToggleFavourite={toggleFavourite}
+                    hidden={!showShipList}
+                  />
+                </ComponentErrorBoundary>
+                <ComponentErrorBoundary componentName="Vessel List">
+                  <ShipList
+                    ships={nearbyShips}
+                    log={shipLog}
+                    selectedShip={selectedShip}
+                    onSelectShip={handleSelectShip}
+                    favourites={favourites}
+                    onToggleFavourite={toggleFavourite}
+                    hidden={!showShipList}
+                    onClose={() => setShowShipList(false)}
+                  />
+                </ComponentErrorBoundary>
+              </>
+            )}
           </aside>
         )}
       </main>

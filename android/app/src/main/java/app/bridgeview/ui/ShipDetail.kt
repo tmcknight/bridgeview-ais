@@ -147,7 +147,8 @@ fun ShipDetailScreen(mmsi: Int, onBack: () -> Unit, closeIcon: Boolean = false) 
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Box(Modifier.size(48.dp))
+                // Balances the back button; the star once the ship's name is known
+                if (shown != null) FavouriteToggle(mmsi, shown.name) else Box(Modifier.size(48.dp))
             }
             PullToRefreshBox(
                 isRefreshing = refreshing,

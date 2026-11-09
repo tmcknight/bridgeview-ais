@@ -86,7 +86,7 @@ struct ShipListContainer<Empty: View>: View {
                 NextShipCard(ship: next, approach: approach)
             }
             .buttonStyle(.plain)
-            .liveActivityMenu(mmsi: next.mmsi)
+            .shipMenu(next)
             if let shipCam {
                 ShipCamCard(url: shipCam)
             }
@@ -107,7 +107,7 @@ struct ShipListContainer<Empty: View>: View {
                     .card(padding: 12)
             }
             .buttonStyle(.plain)
-            .liveActivityMenu(mmsi: ship.mmsi, if: mode == .upcoming)
+            .shipMenu(ship, liveActivity: mode == .upcoming)
         }
     }
 }
@@ -274,20 +274,6 @@ struct UpcomingView: View {
                 "No ships heading for the bridge",
                 systemImage: "water.waves",
                 description: Text("When a ship is within three hours of the \(Bridge.name), it'll show up here with a countdown.")
-            )
-        }
-    }
-}
-
-struct RecentView: View {
-    @Environment(BridgeStore.self) private var store
-
-    var body: some View {
-        ShipListContainer(title: "Recently passed", ships: store.snapshot?.recent, mode: .recent) {
-            ContentUnavailableView(
-                "No ships in the last day",
-                systemImage: "clock",
-                description: Text("Ships stay here for a day after they go under the \(Bridge.name).")
             )
         }
     }

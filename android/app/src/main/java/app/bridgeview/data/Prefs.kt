@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.Appearance
+import app.bridgeview.model.Favourites
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +26,7 @@ class Prefs(context: Context) {
         const val LIVE_ACTIVITY_SHIPS = "alerts.liveActivityShips"
         const val APPEARANCE = "appearance"
         const val PHOTO_CREDIT = "photoCreditName"
+        const val FAVOURITES = "favourites"
     }
 
     private val store: SharedPreferences = context.getSharedPreferences("bridgeview", Context.MODE_PRIVATE)
@@ -64,6 +66,12 @@ class Prefs(context: Context) {
     val liveActivityShips = string(Key.LIVE_ACTIVITY_SHIPS, "")
     val appearance = string(Key.APPEARANCE, Appearance.System.raw)
     val photoCredit = string(Key.PHOTO_CREDIT, "")
+    /** Starred ships as JSON (Favourites.encode); the server doesn't know them */
+    val favourites = string(Key.FAVOURITES, "")
+
+    fun toggleFavourite(mmsi: Int, name: String) {
+        favourites.value = Favourites.encode(Favourites.toggle(Favourites.decode(favourites.value), mmsi, name))
+    }
 
     fun alertPreferences(): AlertPreferences = AlertPreferences(
         enabled = enabled.value,

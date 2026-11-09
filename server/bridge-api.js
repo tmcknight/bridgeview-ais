@@ -38,6 +38,10 @@ const SNAPSHOT_CACHE_MS = 5000;
 // The map's ships likewise; the app polls them more often, to keep ships moving
 const MAP_CACHE_MS = 2000;
 const MAX_BODY_BYTES = 4096;
+// Ship search results sent at most
+export const SEARCH_LIMIT = 25;
+// Ships asked for at once by MMSI (the app's favourites)
+export const MAX_SHIPS_BY_MMSI = 100;
 
 export const RATE_LIMITS = {
   WINDOW_MS: 60_000,
@@ -103,6 +107,29 @@ function readBody(req) {
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
     req.on("error", reject);
   });
+}
+
+// Upper case, with runs of spaces and punctuation as one space ("St. Clair" -> "ST CLAIR")
+export function normaliseSearch(text) {
+  return String(text ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+}
+
+// How well a ship matches a normalised query: lower is better, null for none.
+// Mirrors src/utils/shipSearch.ts: whole name, start, start of a word, anywhere,
+// then MMSI, IMO or call sign.
+export function searchScore(query, { name, mmsi, imo, callSign }) {
+  const normalName = normaliseSearch(name);
+  if (normalName === query) return 0;
+  if (normalName.startsWith(query)) return 1;
+  if (` ${normalName}`.includes(` ${query}`)) return 2;
+  if (normalName.includes(query)) return 3;
+  const digits = query.replace(/^(IMO|MMSI) ?/, "");
+  if (/^\d{3,}$/.test(digits) && (String(mmsi).startsWith(digits) || (imo && String(imo).startsWith(digits)))) return 4;
+  if (callSign && normaliseSearch(callSign) === query) return 4;
+  return null;
 }
 
 // Requests per IP in fixed one-minute windows, reads and writes counted apart
@@ -309,6 +336,81 @@ export function createBridgeApi({
     return { ...forClients(s), passages: logged?.passages ?? [] };
   }
 
+  // A ship for search results and the app's favourites: what's needed for a row
+  // (no position, so nothing here is AISHub's raw data), whether it's being heard
+  // now, its ETA if it's heading for the bridge, and its latest passage
+  function shipSummary(mmsi, origin) {
+    const s = ship(mmsi);
+    if (!s) return undefined;
+    const logged = shipLog.entries().find((entry) => entry.mmsi === mmsi);
+    const photo = s.info?.photos?.[0]?.url ?? s.info?.imageUrl;
+    return {
+      mmsi: s.mmsi,
+      name: s.name,
+      imo: s.imo,
+      callSign: s.callSign,
+      shipTypeName: s.shipTypeName,
+      category: s.category,
+      length: s.length,
+      flag: s.flag,
+      destination: s.destination,
+      classB: s.classB,
+      heard: s.positionSource !== undefined,
+      approach: s.approach ?? undefined,
+      passage: logged?.passages[0],
+      photoUrl: photo && photoUrl(photo, origin),
+    };
+  }
+
+  // Ships matching the app's search box, best match first: the stored details of
+  // every ship ever heard, ship log names, and ships heard now without details yet
+  function search(rawQuery, origin) {
+    const query = normaliseSearch(rawQuery).slice(0, 64);
+    if (query.length < 2) return { ships: [] };
+    // The database narrows by the longest word; the score checks the whole query
+    const word = query.split(" ").reduce((a, b) => (b.length > a.length ? b : a), "");
+    const candidates = new Map();
+    for (const c of vesselDetails.matchingNames(word)) candidates.set(c.mmsi, c);
+    for (const entry of shipLog.entries()) {
+      if (!candidates.has(entry.mmsi)) candidates.set(entry.mmsi, { mmsi: entry.mmsi, name: entry.name });
+    }
+    for (const message of latestPositions.messages()) {
+      const mmsi = message.MetaData.MMSI;
+      if (!candidates.has(mmsi)) candidates.set(mmsi, { mmsi, name: message.MetaData.ShipName?.trim() });
+    }
+
+    const scored = [];
+    for (const { mmsi } of candidates.values()) {
+      const record = vesselDetails.record(mmsi);
+      const name = record?.name ?? candidates.get(mmsi).name ?? "";
+      const score = searchScore(query, { name, mmsi, imo: record?.imo, callSign: record?.callSign });
+      if (score !== null) scored.push({ mmsi, name, score });
+    }
+    const summaries = scored
+      .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
+      // Room to put ships heard now first among equal matches
+      .slice(0, SEARCH_LIMIT * 4)
+      .map((c) => ({ score: c.score, summary: shipSummary(c.mmsi, origin) }))
+      .filter((c) => c.summary)
+      .sort(
+        (a, b) =>
+          a.score - b.score ||
+          Number(b.summary.heard) - Number(a.summary.heard) ||
+          (a.summary.approach?.etaMinutes ?? Infinity) - (b.summary.approach?.etaMinutes ?? Infinity) ||
+          a.summary.name.localeCompare(b.summary.name)
+      );
+    return {
+      ships: summaries.slice(0, SEARCH_LIMIT).map((c) => c.summary),
+      more: scored.length > SEARCH_LIMIT,
+    };
+  }
+
+  // The app's favourites, in the order asked; unknown ships are left out
+  function shipsByMmsi(list, origin) {
+    const mmsis = [...new Set(list.split(",").filter((x) => /^\d{1,9}$/.test(x)).map(Number))];
+    return { ships: mmsis.slice(0, MAX_SHIPS_BY_MMSI).map((m) => shipSummary(m, origin)).filter(Boolean) };
+  }
+
   async function handleDevice(req, res, token) {
     if (!pushDevices) return sendJson(res, 503, { error: "Bridge alerts aren't set up on this server" });
     if (req.method === "DELETE") {
@@ -355,6 +457,12 @@ export function createBridgeApi({
         );
       } else if (url.pathname === "/api/map" && req.method === "GET") {
         sendJson(res, 200, map(), { "cache-control": "public, max-age=2" });
+      } else if (url.pathname === "/api/ships" && req.method === "GET") {
+        const q = url.searchParams.get("q");
+        const mmsi = url.searchParams.get("mmsi");
+        if (q !== null) sendJson(res, 200, search(q, origin), { "cache-control": "public, max-age=10" });
+        else if (mmsi !== null) sendJson(res, 200, shipsByMmsi(mmsi, origin), { "cache-control": "public, max-age=5" });
+        else sendJson(res, 400, { error: "Give q (search) or mmsi (comma-separated)" });
       } else if (shipMatch && req.method === "GET") {
         const s = shipWithPassages(Number(shipMatch[1]));
         if (s) sendJson(res, 200, withAbsolutePhotoUrls(forApiVersion(s, v2), origin), { "cache-control": "public, max-age=5" });
@@ -374,5 +482,5 @@ export function createBridgeApi({
     return true;
   }
 
-  return { ship, snapshot, map, handleRequest };
+  return { ship, snapshot, map, search, shipsByMmsi, handleRequest };
 }

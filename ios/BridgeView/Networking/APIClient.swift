@@ -57,6 +57,17 @@ struct APIClient: Sendable {
         try await get("api/ships/\(mmsi)")
     }
 
+    /// Ships matching what's typed in the search box, best match first
+    func searchShips(_ query: String) async throws -> ShipList {
+        try await get("api/ships", query: [URLQueryItem(name: "q", value: query)])
+    }
+
+    /// The favourites, as they are now; ships the server doesn't know are left out
+    func ships(mmsis: [Int]) async throws -> ShipList {
+        guard !mmsis.isEmpty else { return ShipList(ships: []) }
+        return try await get("api/ships", query: [URLQueryItem(name: "mmsi", value: mmsis.map(String.init).joined(separator: ","))])
+    }
+
     func register(deviceToken: String, _ registration: DeviceRegistration) async throws {
         var request = URLRequest(url: baseURL.appending(path: "api/devices/\(deviceToken)"))
         request.httpMethod = "PUT"
@@ -106,8 +117,8 @@ struct APIClient: Sendable {
     /// API v2: ship details may come from the vessel registers alone, without Wikidata
     private static let version = URLQueryItem(name: "v", value: "2")
 
-    private func get<T: Decodable>(_ path: String) async throws -> T {
-        var request = URLRequest(url: baseURL.appending(path: path).appending(queryItems: [Self.version]))
+    private func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
+        var request = URLRequest(url: baseURL.appending(path: path).appending(queryItems: query + [Self.version]))
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await session.data(for: request)
         try check(response)

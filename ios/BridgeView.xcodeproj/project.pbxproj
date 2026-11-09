@@ -19,6 +19,7 @@
 		32AF51BA6D65A28F0AB5A065 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6563CDA9382F3FACCECC11D5 /* AppConfig.swift */; };
 		3C31749ADF04072FC75D3618 /* LiveActivityToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E25B1C6E0986F638CC62B92 /* LiveActivityToggle.swift */; };
 		3D0D1F5AE7BDB35A64AE13F4 /* ShipApproachLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AADB196A6C9A56B92D2E4085 /* ShipApproachLiveActivity.swift */; };
+		3E62FF7115CAD849EE40E279 /* Favourites.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C9892527991475944BACBC /* Favourites.swift */; };
 		4244503079BCDD4B98C4D57A /* PhotoPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E821FF87C6BBE60A88309D18 /* PhotoPager.swift */; };
 		470933C76D5CD09563E7FAA1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60E5519C186118EB3A8F4D5 /* ContentView.swift */; };
 		50C3045A39683ED4E8557B20 /* DeadReckoningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D815DE39403395711BEB2A1F /* DeadReckoningTests.swift */; };
@@ -48,15 +49,18 @@
 		BEF1DAFCDB0B08D08F07304F /* ShipApproachAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */; };
 		C0A6E5773DC2F1A92071A17B /* FormatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1FEA3AA982F658FA7D5BBB /* FormatTests.swift */; };
 		C405753687C588EADE470F58 /* NearBridgeMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38534D0D76DCC506DF9390E8 /* NearBridgeMonitor.swift */; };
+		C84C04297D8A6D75A00C4733 /* FavouriteButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 763CBA9BCAFAEEE8C9636B9B /* FavouriteButton.swift */; };
 		C9BED5BAC70378773863558B /* RegistrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B633CB45C2138852905A82 /* RegistrationTests.swift */; };
 		CC59EA6B6605875C121FF8B7 /* APIErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0158ED2F6564EF26A2D0294 /* APIErrorTests.swift */; };
 		CE03B618CB58228E63D67311 /* SharedPhoto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */; };
+		D2A90DE5E7A986FA2C22A645 /* FavouritesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FCD522E8262179D571A5B1 /* FavouritesTests.swift */; };
 		D682A2DB996586269E00400B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1803C12C123A310A829E6F4 /* SettingsView.swift */; };
 		D8293F1EA9F2FC1AD1F6DDFC /* StopFollowingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */; };
 		DCA9CF7E5C17F8EE5EA6469F /* ShipMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316DDD42EC695E3459F90B80 /* ShipMotionTests.swift */; };
 		E0DCE9B44D842C48099F7830 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC39982F5302200CF991BF1 /* Router.swift */; };
 		E6C9DDC2F748232DD0CD506E /* BridgeViewApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B717E8DB26102D4BB6B8A5B /* BridgeViewApp.swift */; };
 		EC31C1C497CFECD2E87C537B /* DeviceID.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DEA7D10F7A8330E76BD6CD0 /* DeviceID.swift */; };
+		F3E9B84651E9BD0FEF0A8189 /* RecentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C965E57E0B8777B06055543 /* RecentView.swift */; };
 		F69F276B8A2D587A94ED3C0B /* JSONCoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1469E1995D33123C5CCC3CC5 /* JSONCoding.swift */; };
 		FD321BECBC886F88744A7C9A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9377380908DBA6722E691DB0 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -93,11 +97,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0C965E57E0B8777B06055543 /* RecentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentView.swift; sourceTree = "<group>"; };
 		0CC39982F5302200CF991BF1 /* Router.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Router.swift; sourceTree = "<group>"; };
 		1469E1995D33123C5CCC3CC5 /* JSONCoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONCoding.swift; sourceTree = "<group>"; };
 		1C2A84AB1FC5EC6E812B4AE4 /* ShipListContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipListContainer.swift; sourceTree = "<group>"; };
 		1CAF57BCEEE451F02C0DFEEB /* PhotoReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoReport.swift; sourceTree = "<group>"; };
 		24430F125C406E2C675F0B2E /* DataCredits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCredits.swift; sourceTree = "<group>"; };
+		28C9892527991475944BACBC /* Favourites.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Favourites.swift; sourceTree = "<group>"; };
 		2AB1FC9FB6391BFE12994668 /* LiveMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMapView.swift; sourceTree = "<group>"; };
 		2DEA7D10F7A8330E76BD6CD0 /* DeviceID.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceID.swift; sourceTree = "<group>"; };
 		316DDD42EC695E3459F90B80 /* ShipMotionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipMotionTests.swift; sourceTree = "<group>"; };
@@ -108,6 +114,7 @@
 		503DCAD5B5AB5C38E0A4D226 /* Bridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bridge.swift; sourceTree = "<group>"; };
 		5111A81BAD38EA80B9DEC594 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		539D87963D317C7BB73071FF /* PushManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushManager.swift; sourceTree = "<group>"; };
+		53FCD522E8262179D571A5B1 /* FavouritesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavouritesTests.swift; sourceTree = "<group>"; };
 		58249D7D6116316BEE01D28C /* ShipLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShipLinks.swift; sourceTree = "<group>"; };
 		58E2DF277183D86DDCD690A1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		5E1FEA3AA982F658FA7D5BBB /* FormatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatTests.swift; sourceTree = "<group>"; };
@@ -121,6 +128,7 @@
 		6F30DE6D55D2F51B3A6D977D /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StopFollowingIntent.swift; sourceTree = "<group>"; };
 		74B633CB45C2138852905A82 /* RegistrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegistrationTests.swift; sourceTree = "<group>"; };
+		763CBA9BCAFAEEE8C9636B9B /* FavouriteButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavouriteButton.swift; sourceTree = "<group>"; };
 		7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPhoto.swift; sourceTree = "<group>"; };
 		80C70708A663AF386FF9BE04 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		8B67AA18BDBF6895758D5247 /* BridgeView.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BridgeView.entitlements; sourceTree = "<group>"; };
@@ -208,6 +216,7 @@
 				B0158ED2F6564EF26A2D0294 /* APIErrorTests.swift */,
 				D815DE39403395711BEB2A1F /* DeadReckoningTests.swift */,
 				B53116F5EFC8F811D2E5DD28 /* DecodingTests.swift */,
+				53FCD522E8262179D571A5B1 /* FavouritesTests.swift */,
 				5E1FEA3AA982F658FA7D5BBB /* FormatTests.swift */,
 				6CB8A002850BB6795D236889 /* LiveActivityTests.swift */,
 				74B633CB45C2138852905A82 /* RegistrationTests.swift */,
@@ -246,6 +255,7 @@
 				503DCAD5B5AB5C38E0A4D226 /* Bridge.swift */,
 				40010C103764ABAE3F0B89E4 /* Compass.swift */,
 				E2CFC8D007EBBB7D8A97D838 /* DeadReckoning.swift */,
+				28C9892527991475944BACBC /* Favourites.swift */,
 				1CAF57BCEEE451F02C0DFEEB /* PhotoReport.swift */,
 				7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */,
 				FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */,
@@ -272,10 +282,12 @@
 				61BA6836038BA3192E5BFC11 /* BridgeStore.swift */,
 				D60E5519C186118EB3A8F4D5 /* ContentView.swift */,
 				24430F125C406E2C675F0B2E /* DataCredits.swift */,
+				763CBA9BCAFAEEE8C9636B9B /* FavouriteButton.swift */,
 				C821C394745D90E7253117E9 /* Formatting.swift */,
 				6E25B1C6E0986F638CC62B92 /* LiveActivityToggle.swift */,
 				2AB1FC9FB6391BFE12994668 /* LiveMapView.swift */,
 				E821FF87C6BBE60A88309D18 /* PhotoPager.swift */,
+				0C965E57E0B8777B06055543 /* RecentView.swift */,
 				A1803C12C123A310A829E6F4 /* SettingsView.swift */,
 				ED822C0C4EC72AEF9FF8F959 /* SharePhotoView.swift */,
 				68A22234AA77247990094DBD /* ShipDetailView.swift */,
@@ -445,6 +457,7 @@
 				CC59EA6B6605875C121FF8B7 /* APIErrorTests.swift in Sources */,
 				50C3045A39683ED4E8557B20 /* DeadReckoningTests.swift in Sources */,
 				1F6F0FF9B5FF8AEC3457F54C /* DecodingTests.swift in Sources */,
+				D2A90DE5E7A986FA2C22A645 /* FavouritesTests.swift in Sources */,
 				C0A6E5773DC2F1A92071A17B /* FormatTests.swift in Sources */,
 				71F05A35E71239CC40ED97E0 /* LiveActivityTests.swift in Sources */,
 				C9BED5BAC70378773863558B /* RegistrationTests.swift in Sources */,
@@ -470,6 +483,8 @@
 				5FF62D0418FE53BB655F4414 /* DataCredits.swift in Sources */,
 				A2F8D98A96DF21E08F95F38F /* DeadReckoning.swift in Sources */,
 				EC31C1C497CFECD2E87C537B /* DeviceID.swift in Sources */,
+				C84C04297D8A6D75A00C4733 /* FavouriteButton.swift in Sources */,
+				3E62FF7115CAD849EE40E279 /* Favourites.swift in Sources */,
 				9A95F303D34A90963F980A4F /* Formatting.swift in Sources */,
 				F69F276B8A2D587A94ED3C0B /* JSONCoding.swift in Sources */,
 				3C31749ADF04072FC75D3618 /* LiveActivityToggle.swift in Sources */,
@@ -478,6 +493,7 @@
 				4244503079BCDD4B98C4D57A /* PhotoPager.swift in Sources */,
 				1DD5F1A38770A83201CC5A75 /* PhotoReport.swift in Sources */,
 				608B08BC6D5829E6F4654BED /* PushManager.swift in Sources */,
+				F3E9B84651E9BD0FEF0A8189 /* RecentView.swift in Sources */,
 				E0DCE9B44D842C48099F7830 /* Router.swift in Sources */,
 				D682A2DB996586269E00400B /* SettingsView.swift in Sources */,
 				5AD93B85EC737D40955D91A7 /* SharePhotoView.swift in Sources */,

@@ -301,6 +301,75 @@ describe("createBridgeApi", () => {
     expect((await call(api, "DELETE", `/api/devices/${TOKEN}`, undefined, "5.6.7.8")).status).toBe(204);
     expect((await call(api, "GET", "/api/bridge")).status).toBe(200);
   });
+
+  describe("GET /api/ships", () => {
+    const passage = { time: new Date(NOW - 7200_000).toISOString(), direction: "upbound" };
+
+    function searchSetup() {
+      const ctx = setup({ log: [{ mmsi: 366000009, name: "EDWIN H. GOTT", passages: [passage], lastSeen: "" }] });
+      ctx.hear(staticData(316001234, "ALGOMA EQUINOX", "THUNDER BAY"));
+      ctx.hear(staticData(316000002, "EQUINOX", "SARNIA"));
+      ctx.hear(position(316000002, 3, { name: "EQUINOX" }));
+      ctx.hear(position(367000005, 6, { name: "JUST HEARD" }));
+      return ctx;
+    }
+
+    it("finds ships by name, best match first, with whether they're heard", async () => {
+      const { api } = searchSetup();
+      const { status, body } = await call(api, "GET", "/api/ships?q=equinox");
+      expect(status).toBe(200);
+      expect(body.ships.map((s) => s.name)).toEqual(["EQUINOX", "ALGOMA EQUINOX"]);
+      expect(body.ships[0]).toMatchObject({ mmsi: 316000002, heard: true, category: "cargo", flag: "CA" });
+      expect(body.ships[0].approach).toMatchObject({ direction: "downbound" });
+      expect(body.ships[0].position).toBeUndefined();
+      expect(body.ships[1]).toMatchObject({ heard: false, destination: "THUNDER BAY" });
+      expect(body.more).toBe(false);
+    });
+
+    it("ignores punctuation, and finds ship log and newly heard ships", async () => {
+      const { api } = searchSetup();
+      const gott = await call(api, "GET", "/api/ships?q=edwin%20h%20gott");
+      expect(gott.body.ships).toEqual([
+        expect.objectContaining({ mmsi: 366000009, name: "EDWIN H. GOTT", heard: false, passage }),
+      ]);
+      expect((await call(api, "GET", "/api/ships?q=just")).body.ships[0]).toMatchObject({ mmsi: 367000005, heard: true });
+    });
+
+    it("finds ships by MMSI or IMO number", async () => {
+      const { api } = searchSetup();
+      expect((await call(api, "GET", "/api/ships?q=3160000")).body.ships.map((s) => s.mmsi)).toEqual([316000002]);
+      const byImo = (await call(api, "GET", "/api/ships?q=IMO%209613927")).body.ships.map((s) => s.mmsi);
+      expect(byImo.sort()).toEqual([316000002, 316001234]);
+    });
+
+    it("needs 2 characters, and treats LIKE wildcards as text", async () => {
+      const { api } = searchSetup();
+      expect((await call(api, "GET", "/api/ships?q=e")).body.ships).toEqual([]);
+      expect((await call(api, "GET", "/api/ships?q=%25%25")).body.ships).toEqual([]);
+    });
+
+    it("looks favourites up by MMSI, in order, skipping unknown ones", async () => {
+      const { api } = searchSetup();
+      const { body } = await call(api, "GET", "/api/ships?mmsi=366000009,123,316000002,x");
+      expect(body.ships.map((s) => [s.mmsi, s.heard])).toEqual([
+        [366000009, false],
+        [316000002, true],
+      ]);
+    });
+
+    it("leaves out AISHub positions but says the ship is heard", async () => {
+      const { api, hear } = searchSetup();
+      hear(position(316001234, 2, { name: "ALGOMA EQUINOX", source: "aishub" }));
+      const { body } = await call(api, "GET", "/api/ships?mmsi=316001234");
+      expect(body.ships[0]).toMatchObject({ heard: true, approach: { etaMinutes: 10 } });
+      expect(body.ships[0].position).toBeUndefined();
+    });
+
+    it("needs q or mmsi", async () => {
+      const { api } = searchSetup();
+      expect((await call(api, "GET", "/api/ships")).status).toBe(400);
+    });
+  });
 });
 
 describe("createRateLimiter", () => {

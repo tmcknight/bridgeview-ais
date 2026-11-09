@@ -4,12 +4,15 @@ import { ArrowUpIcon, ArrowDownIcon, ChevronDownIcon, EyeIcon } from "@heroicons
 import type { TrackedShip } from "../types/ais"
 import { formatRelativeTime } from "../utils/geo"
 import { sortShipLog, type ShipLog as ShipLogData } from "../utils/shipLog"
+import FavouriteButton from "./FavouriteButton"
 
 interface ShipLogProps {
   log: ShipLogData
   ships: Map<number, TrackedShip>
   selectedShip?: TrackedShip | null
   onSelectShip?: (ship: TrackedShip) => void
+  isFavourite?: (mmsi: number) => boolean
+  onToggleFavourite?: (mmsi: number, name: string) => void
   hidden?: boolean
 }
 
@@ -27,6 +30,8 @@ export default function ShipLog({
   ships,
   selectedShip,
   onSelectShip,
+  isFavourite,
+  onToggleFavourite,
   hidden = false,
 }: ShipLogProps) {
   // Re-render every 30s to keep relative timestamps current
@@ -90,6 +95,14 @@ export default function ShipLog({
                       className="shrink-0 w-4 h-4 text-slate-500 dark:text-slate-400"
                       aria-label={latest.direction}
                     />
+                    {onToggleFavourite && (
+                      <FavouriteButton
+                        name={entry.name}
+                        isFavourite={isFavourite?.(entry.mmsi) ?? false}
+                        onToggle={() => onToggleFavourite(entry.mmsi, entry.name)}
+                        hidden={hidden}
+                      />
+                    )}
                     <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">
                       {entry.name}
                     </span>
