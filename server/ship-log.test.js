@@ -8,6 +8,7 @@ import {
   detectBridgePassage,
   loadShipLogFile,
   MAX_SHIP_LOG_ENTRIES,
+  reportTime,
 } from "./ship-log.js";
 
 const north = (nm) => BRIDGE_CENTER.lat + nm / 60;
@@ -66,9 +67,54 @@ describe("createShipLog", () => {
     t += 60_000;
     log.handleMessage(position(1, north(0.1)));
 
-    const entry = { mmsi: 1, name: "LAKER", passages: [{ time: new Date(t).toISOString(), direction: "upbound" }], lastSeen: new Date(t).toISOString() };
+    // Crossed two thirds of the way between the reports
+    const crossed = new Date(t - 20_000).toISOString();
+    const entry = { mmsi: 1, name: "LAKER", passages: [{ time: crossed, direction: "upbound" }], lastSeen: new Date(t).toISOString() };
     expect(log.entries()).toEqual([entry]);
     expect(onEntry).toHaveBeenCalledWith(entry);
+  });
+
+  it("dates a passage by the reports' own times, not when they arrived", () => {
+    const reportedAt = (msg, time) => ({ ...msg, MetaData: { ...msg.MetaData, time_utc: new Date(time).toISOString() } });
+    const start = t;
+    // Ship 1 passes first, seen only by a feed that delivers its reports 5 minutes late
+    // Ship 2 passes a minute after, seen live
+    t = start + 6 * 60_000;
+    log.handleMessage(reportedAt(position(1, north(-0.1)), start));
+    log.handleMessage(reportedAt(position(2, north(-0.1)), start + 60_000));
+    t = start + 7 * 60_000;
+    log.handleMessage(reportedAt(position(1, north(0.1)), start + 2 * 60_000));
+    log.handleMessage(reportedAt(position(2, north(0.1)), start + 3 * 60_000));
+
+    const passed = (mmsi) => log.entries().find((e) => e.mmsi === mmsi).passages[0].time;
+    expect(passed(1)).toBe(new Date(start + 60_000).toISOString());
+    expect(passed(2)).toBe(new Date(start + 2 * 60_000).toISOString());
+    expect(log.entries().find((e) => e.mmsi === 1).lastSeen).toBe(new Date(start + 2 * 60_000).toISOString());
+  });
+
+  it("reads AISStream's time format", () => {
+    expect(reportTime("2026-10-26 12:00:30.123456789 +0000 UTC")).toBe(Date.UTC(2026, 9, 26, 12, 0, 30, 123));
+    expect(reportTime("2026-10-26T12:00:30.000Z")).toBe(Date.UTC(2026, 9, 26, 12, 0, 30));
+    expect(reportTime("nonsense")).toBeUndefined();
+    expect(reportTime(undefined)).toBeUndefined();
+  });
+
+  it("ignores a report older than one already handled", () => {
+    const reportedAt = (msg, time) => ({ ...msg, MetaData: { ...msg.MetaData, time_utc: new Date(time).toISOString() } });
+    const start = t;
+    t += 2 * 60_000;
+    log.handleMessage(reportedAt(position(1, north(0.1)), start + 60_000));
+    // A slower feed's older report from before the ship got here
+    log.handleMessage(reportedAt(position(1, north(-0.1)), start));
+    log.handleMessage(reportedAt(position(1, north(0.2)), start + 2 * 60_000));
+    expect(log.entries()).toEqual([]);
+  });
+
+  it("never dates a report later than now", () => {
+    log.handleMessage({ ...position(1, north(-0.1)), MetaData: { ...position(1, north(-0.1)).MetaData, time_utc: "2099-01-01T00:00:00Z" } });
+    t += 60_000;
+    log.handleMessage(position(1, north(0.1)));
+    expect(log.entries()[0].passages[0].time).toBe(new Date(t - 30_000).toISOString());
   });
 
   it("leaves Class B craft out of the log", () => {

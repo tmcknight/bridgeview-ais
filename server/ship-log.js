@@ -65,6 +65,26 @@ export function detectBridgePassage(prev, next) {
   return isNorth ? "upbound" : "downbound";
 }
 
+// When a report was made, from MetaData.time_utc: ISO 8601 (the antenna, AISHub)
+// or AISStream's "2026-11-09 12:34:56.123456789 +0000 UTC". Undefined if unreadable.
+export function reportTime(timeUtc) {
+  if (typeof timeUtc !== "string") return undefined;
+  const iso = Date.parse(timeUtc);
+  if (!Number.isNaN(iso)) return iso;
+  const m = timeUtc.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?\s*\+0000/);
+  if (!m) return undefined;
+  const [, y, mo, d, h, mi, sec, frac = "0"] = m;
+  return Date.UTC(+y, +mo - 1, +d, +h, +mi, +sec, Math.floor(Number(`0.${frac}`) * 1000));
+}
+
+// When the ship crossed the bridge line between two reports, assuming steady
+// progress between them
+function crossingTime(prev, next) {
+  const span = next.latitude - prev.latitude;
+  const fraction = span === 0 ? 1 : (BRIDGE_CENTER.lat - prev.latitude) / span;
+  return Math.round(prev.time + (next.time - prev.time) * Math.min(1, Math.max(0, fraction)));
+}
+
 function isPlaceholderName(name, mmsi) {
   return !name || name === `MMSI ${mmsi}`;
 }
@@ -135,11 +155,12 @@ export function createShipLog({ file, logger, now = Date.now, saveDelayMs = SAVE
     emitter.emit("entry", entry);
   }
 
-  function recordPassage(mmsi, name, direction, time) {
+  // `time` is when the ship crossed, `seen` the report that showed it had
+  function recordPassage(mmsi, name, direction, time, seen) {
     const existing = log.get(mmsi);
     const last = existing?.passages[0];
     if (last && new Date(time).getTime() - new Date(last.time).getTime() < DUPLICATE_PASSAGE_WINDOW_MS) {
-      recordSighting(mmsi, name, time);
+      recordSighting(mmsi, name, seen);
       return;
     }
     logger?.log(`[ship-log] ${name} passed under the bridge ${direction}`);
@@ -147,7 +168,7 @@ export function createShipLog({ file, logger, now = Date.now, saveDelayMs = SAVE
       mmsi,
       name,
       passages: [{ time, direction }, ...(existing?.passages ?? [])].slice(0, MAX_PASSAGES_PER_SHIP),
-      lastSeen: time,
+      lastSeen: seen,
     });
   }
 
@@ -178,7 +199,11 @@ export function createShipLog({ file, logger, now = Date.now, saveDelayMs = SAVE
     if (MetaData.AisClass === "B") return;
     const mmsi = MetaData.MMSI;
     const t = now();
-    const time = new Date(t).toISOString();
+    // Reports can arrive late (AISHub is polled once a minute and its reports can be
+    // minutes old), so go by when the report was made, never later than now
+    const reported = reportTime(MetaData.time_utc);
+    const r = reported === undefined ? t : Math.min(reported, t);
+    const time = new Date(r).toISOString();
     const known = vessels.get(mmsi);
 
     if (MessageType === "ShipStaticData" && Message?.ShipStaticData) {
@@ -194,14 +219,19 @@ export function createShipLog({ file, logger, now = Date.now, saveDelayMs = SAVE
     const { latitude, longitude } = MetaData;
     if (typeof latitude !== "number" || typeof longitude !== "number") return;
 
+    // An older report than one already handled (a slower feed catching up) would
+    // put the ship back where it was and log a crossing it never made
+    if (known && r < known.time) return;
+
     const name = MetaData.ShipName?.trim() || known?.name || log.get(mmsi)?.name || `MMSI ${mmsi}`;
-    const prev = known && t - known.time <= POSITION_TTL_MS ? known : undefined;
-    vessels.set(mmsi, { latitude, longitude, time: t, name });
+    const prev = known && r - known.time <= POSITION_TTL_MS ? known : undefined;
+    const next = { latitude, longitude, time: r, name };
+    vessels.set(mmsi, next);
     pruneVessels(t);
 
-    const direction = detectBridgePassage(prev, { latitude, longitude });
+    const direction = detectBridgePassage(prev, next);
     if (direction) {
-      recordPassage(mmsi, name, direction, time);
+      recordPassage(mmsi, name, direction, new Date(crossingTime(prev, next)).toISOString(), time);
     } else {
       recordSighting(mmsi, name, time);
     }
