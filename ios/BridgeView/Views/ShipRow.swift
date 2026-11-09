@@ -12,6 +12,13 @@ struct ShipRow: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
+        // "Passed 5 minutes ago" is worked out when the row is drawn, and SwiftUI
+        // redraws a row only when its ship changes, so a ship that's left the area
+        // would keep saying "2 minutes ago" under ones that passed after it
+        TimelineView(.everyMinute) { _ in row }
+    }
+
+    @ViewBuilder private var row: some View {
         // At accessibility text sizes the figures go under the name, so neither is squeezed
         let layout = dynamicTypeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))

@@ -131,10 +131,13 @@ private struct ShipDetailContent: View {
                             // VoiceOver's two-finger scrub closes it, as it would a sheet
                             .accessibilityAction(.escape) { mapExpanded = false }
                         }
-                        Text("Last position \(position.time, format: .relative(presentation: .named))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 4)
+                        // Kept current: the view isn't redrawn while the position stays the same
+                        TimelineView(.everyMinute) { _ in
+                            Text("Last position \(position.time, format: .relative(presentation: .named))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+                        }
                     }
                 }
                 facts
