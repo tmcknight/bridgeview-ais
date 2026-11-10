@@ -69,7 +69,7 @@ final class NearBridgeMonitor: NSObject, CLLocationManagerDelegate {
             // Shows a prompt only the first time; later the system offers the upgrade
             manager.requestAlwaysAuthorization()
         }
-        let radius = CLLocationDistance(preferences.nearBridgeRadius * 1000)
+        let radius = CLLocationDistance(preferences.nearBridgeRadius)
         let monitor = await openMonitor()
         // This runs at every launch, background launches for a crossing too. Adding
         // the circle again resets it to unknown until iOS works out where the phone

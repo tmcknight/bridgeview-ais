@@ -22,6 +22,7 @@
 		3E62FF7115CAD849EE40E279 /* Favourites.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28C9892527991475944BACBC /* Favourites.swift */; };
 		4244503079BCDD4B98C4D57A /* PhotoPager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E821FF87C6BBE60A88309D18 /* PhotoPager.swift */; };
 		470933C76D5CD09563E7FAA1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D60E5519C186118EB3A8F4D5 /* ContentView.swift */; };
+		48A0C2629BD9698146CC314C /* Lengths.swift in Sources */ = {isa = PBXBuildFile; fileRef = C58EED5AB5AD885953244619 /* Lengths.swift */; };
 		50C3045A39683ED4E8557B20 /* DeadReckoningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D815DE39403395711BEB2A1F /* DeadReckoningTests.swift */; };
 		5AD93B85EC737D40955D91A7 /* SharePhotoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED822C0C4EC72AEF9FF8F959 /* SharePhotoView.swift */; };
 		5E1316ACDAD8F2D65E194EBA /* Ship.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA37CD46E2AF2385BCFBCC7 /* Ship.swift */; };
@@ -43,6 +44,7 @@
 		9B4A213005AE2962EA1467E0 /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3BB4F4BB8D96E723198DB15 /* Appearance.swift */; };
 		A2F8D98A96DF21E08F95F38F /* DeadReckoning.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2CFC8D007EBBB7D8A97D838 /* DeadReckoning.swift */; };
 		A4EDAB291529DB155B7B3CC6 /* ShipLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58249D7D6116316BEE01D28C /* ShipLinks.swift */; };
+		A79A2CEB9DBBBF9F5C0B07B9 /* Lengths.swift in Sources */ = {isa = PBXBuildFile; fileRef = C58EED5AB5AD885953244619 /* Lengths.swift */; };
 		B24D7A6875F863E62FF82CA2 /* Compass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40010C103764ABAE3F0B89E4 /* Compass.swift */; };
 		B77B06C4E56D45ACA50BCA7B /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD8396ACF185B879591B53E /* APIClient.swift */; };
 		B8B3E538A6ECBD9BCD21AD34 /* BridgeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61BA6836038BA3192E5BFC11 /* BridgeStore.swift */; };
@@ -53,8 +55,10 @@
 		C9BED5BAC70378773863558B /* RegistrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74B633CB45C2138852905A82 /* RegistrationTests.swift */; };
 		CC59EA6B6605875C121FF8B7 /* APIErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0158ED2F6564EF26A2D0294 /* APIErrorTests.swift */; };
 		CE03B618CB58228E63D67311 /* SharedPhoto.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9ABAD7818F4AF510739910 /* SharedPhoto.swift */; };
+		D03494E3B59C6DD8DBAAC23B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BE52F6C6B8B71A8E18B1CA7A /* Localizable.xcstrings */; };
 		D2A90DE5E7A986FA2C22A645 /* FavouritesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53FCD522E8262179D571A5B1 /* FavouritesTests.swift */; };
 		D682A2DB996586269E00400B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1803C12C123A310A829E6F4 /* SettingsView.swift */; };
+		D74E3E8E8AC92B3BB7A774A4 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = BE52F6C6B8B71A8E18B1CA7A /* Localizable.xcstrings */; };
 		D8293F1EA9F2FC1AD1F6DDFC /* StopFollowingIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */; };
 		DCA9CF7E5C17F8EE5EA6469F /* ShipMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316DDD42EC695E3459F90B80 /* ShipMotionTests.swift */; };
 		E0DCE9B44D842C48099F7830 /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC39982F5302200CF991BF1 /* Router.swift */; };
@@ -145,6 +149,8 @@
 		B0158ED2F6564EF26A2D0294 /* APIErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIErrorTests.swift; sourceTree = "<group>"; };
 		B53116F5EFC8F811D2E5DD28 /* DecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingTests.swift; sourceTree = "<group>"; };
 		BCD8396ACF185B879591B53E /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		BE52F6C6B8B71A8E18B1CA7A /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		C58EED5AB5AD885953244619 /* Lengths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lengths.swift; sourceTree = "<group>"; };
 		C81ACA3C9B0F8B2762D236D6 /* SharedPhotoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedPhotoTests.swift; sourceTree = "<group>"; };
 		C821C394745D90E7253117E9 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		CA0D81E969AF93E5B15C8860 /* BridgeViewWidgets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeViewWidgets.swift; sourceTree = "<group>"; };
@@ -163,6 +169,8 @@
 		166A1463D34BE45E23EAD960 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				C58EED5AB5AD885953244619 /* Lengths.swift */,
+				BE52F6C6B8B71A8E18B1CA7A /* Localizable.xcstrings */,
 				A294D5DBFE492F86F4FE8083 /* ShipApproachAttributes.swift */,
 				722FAE6B8EC76CE82531396B /* StopFollowingIntent.swift */,
 				6F30DE6D55D2F51B3A6D977D /* Theme.swift */,
@@ -402,6 +410,7 @@
 			knownRegions = (
 				Base,
 				en,
+				"en-US",
 			);
 			mainGroup = C91465BBFE72F9067524E9E6;
 			minimizedProjectReferenceProxies = 1;
@@ -423,6 +432,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				252135A11951D3501F0044D3 /* Assets.xcassets in Resources */,
+				D74E3E8E8AC92B3BB7A774A4 /* Localizable.xcstrings in Resources */,
 				7CE728B6DF2E726F3426603A /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -432,6 +442,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				FD321BECBC886F88744A7C9A /* Assets.xcassets in Resources */,
+				D03494E3B59C6DD8DBAAC23B /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -443,6 +454,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				69F81F664C50492502DB45E1 /* BridgeViewWidgets.swift in Sources */,
+				48A0C2629BD9698146CC314C /* Lengths.swift in Sources */,
 				13F46E249030CC75A40F3D99 /* ShipApproachAttributes.swift in Sources */,
 				3D0D1F5AE7BDB35A64AE13F4 /* ShipApproachLiveActivity.swift in Sources */,
 				0B0AE99DD8CB56983751C6B6 /* StopFollowingIntent.swift in Sources */,
@@ -487,6 +499,7 @@
 				3E62FF7115CAD849EE40E279 /* Favourites.swift in Sources */,
 				9A95F303D34A90963F980A4F /* Formatting.swift in Sources */,
 				F69F276B8A2D587A94ED3C0B /* JSONCoding.swift in Sources */,
+				A79A2CEB9DBBBF9F5C0B07B9 /* Lengths.swift in Sources */,
 				3C31749ADF04072FC75D3618 /* LiveActivityToggle.swift in Sources */,
 				748FBA9875CA1BD0A286F29D /* LiveMapView.swift in Sources */,
 				C405753687C588EADE470F58 /* NearBridgeMonitor.swift in Sources */,

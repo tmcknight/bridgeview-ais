@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.bridgeview.graph
+import app.bridgeview.model.Lengths
 import app.bridgeview.model.MapSnapshot
 import app.bridgeview.model.Ship
 import app.bridgeview.model.ShipMotion
@@ -130,9 +131,10 @@ fun LiveMapScreen(onOpenShip: (Int) -> Unit) {
 @Composable
 private fun SelectedShipCard(ship: Ship, open: () -> Unit, close: () -> Unit) {
     val colors = Theme.colors
+    val lengths = LocalLengths.current
     // "Cargo · 225 m · 11.2 kn", or "At anchor"/"Moored" when stopped
     val details = buildList {
-        if (ship.summary.isNotEmpty()) add(ship.summary)
+        lengths.summary(ship).takeIf { it.isNotEmpty() }?.let(::add)
         ship.position?.let { position ->
             when (position.navStatus) {
                 1 -> add("At anchor")
@@ -151,7 +153,7 @@ private fun SelectedShipCard(ship: Ship, open: () -> Unit, close: () -> Unit) {
                         contentDescription = listOfNotNull(
                             ship.name,
                             Format.flagCountry(ship),
-                            spokenDetails(ship).ifEmpty { null },
+                            spokenDetails(ship, lengths).ifEmpty { null },
                             ship.approach?.let { Format.spokenArrival(it.etaMinutes, it.eta) },
                         ).joinToString(", ")
                     },
@@ -181,8 +183,8 @@ private fun SelectedShipCard(ship: Ship, open: () -> Unit, close: () -> Unit) {
 }
 
 /** "Cargo, 225 metres, 11.2 knots", the card's details as a screen reader should say them */
-private fun spokenDetails(ship: Ship): String = listOfNotNull(
-    Format.spokenSummary(ship).ifEmpty { null },
+private fun spokenDetails(ship: Ship, lengths: Lengths): String = listOfNotNull(
+    lengths.spokenSummary(ship).ifEmpty { null },
     ship.position?.let { position ->
         when (position.navStatus) {
             1 -> "at anchor"

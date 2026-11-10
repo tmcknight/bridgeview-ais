@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -55,6 +56,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.bridgeview.R
 import app.bridgeview.graph
 import app.bridgeview.model.FavouriteShip
 import app.bridgeview.model.Favourites
@@ -106,7 +108,7 @@ fun LazyListScope.favouriteItems(
     onOpenShip: (Int) -> Unit,
 ) {
     if (favourites.rows.isEmpty()) return
-    item(key = "favourites-label") { SectionLabel("Favourites", Modifier.readableWidth().padding(top = 8.dp)) }
+    item(key = "favourites-label") { SectionLabel(stringResource(R.string.favourites_title), Modifier.readableWidth().padding(top = 8.dp)) }
     favourites.error?.let { message ->
         item(key = "favourites-error") {
             Text(
@@ -258,8 +260,9 @@ private fun SummaryRow(
 ) {
     val colors = Theme.colors
     val now by rememberNow(30_000)
+    val lengths = LocalLengths.current
     val details = summary?.let { s ->
-        listOfNotNull(s.summary.ifEmpty { null }, s.destination?.takeIf { it.isNotBlank() }?.let { "To ${Format.place(it)}" })
+        listOfNotNull(lengths.summary(s).ifEmpty { null }, s.destination?.takeIf { it.isNotBlank() }?.let { "To ${Format.place(it)}" })
             .joinToString(" · ")
     }.orEmpty()
     val status = status(summary, now)
@@ -271,7 +274,7 @@ private fun SummaryRow(
                     contentDescription = listOfNotNull(
                         name,
                         summary?.flag?.let { java.util.Locale.Builder().setRegion(it.uppercase()).build().displayCountry.ifEmpty { null } },
-                        summary?.let { s -> listOfNotNull(s.shipTypeName, s.length?.let { "$it metres" }).joinToString(", ").ifEmpty { null } },
+                        summary?.let { s -> lengths.spokenSummary(s).ifEmpty { null } },
                         summary?.destination?.takeIf { it.isNotBlank() }?.let { "to ${Format.place(it)}" },
                         status.spoken,
                     ).joinToString(", ")
@@ -340,13 +343,15 @@ private fun Thumbnail(url: String?) {
 /** Star that adds the ship to the favourites or takes it off */
 @Composable
 fun FavouriteToggle(mmsi: Int, name: String, starred: Boolean, onToggle: (Int, String) -> Unit, tint: androidx.compose.ui.graphics.Color? = null) {
+    val state = stringResource(if (starred) R.string.favourite_state_on else R.string.favourite_state_off)
+    val action = stringResource(if (starred) R.string.favourite_remove else R.string.favourite_add, name)
     IconButton(
         onClick = { onToggle(mmsi, name) },
-        modifier = Modifier.semantics { stateDescription = if (starred) "Favourite" else "Not a favourite" },
+        modifier = Modifier.semantics { stateDescription = state },
     ) {
         Icon(
             if (starred) Icons.Filled.Star else Icons.Filled.StarBorder,
-            contentDescription = if (starred) "Remove $name from favourites" else "Add $name to favourites",
+            contentDescription = action,
             tint = tint ?: if (starred) Theme.colors.signal else Theme.colors.secondaryText,
         )
     }

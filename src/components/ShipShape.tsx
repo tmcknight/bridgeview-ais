@@ -1,3 +1,5 @@
+import { formatLength, formatLengthNumber } from "../utils/units"
+
 interface ShipShapeProps {
   /** Overall length in metres (AIS Dimension A + B) */
   length?: number
@@ -28,7 +30,7 @@ export default function ShipShape({ length, width }: ShipShapeProps) {
   return (
     <div
       className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 whitespace-nowrap"
-      title={`Length ${length} m × beam ${width} m`}
+      title={`Length ${formatLength(length, { spoken: true })} × beam ${formatLength(width, { spoken: true })}`}
     >
       <svg
         width={MAX_DRAW_PX}
@@ -45,7 +47,7 @@ export default function ShipShape({ length, width }: ShipShapeProps) {
         />
       </svg>
       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-        {length} × {width} m
+        {formatLengthNumber(length)} × {formatLength(width)}
       </span>
     </div>
   )

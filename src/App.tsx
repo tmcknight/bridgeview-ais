@@ -22,6 +22,7 @@ import { useIdle } from "./hooks/useIdle"
 import { useTvShips } from "./hooks/useTvShips"
 import { useFavourites } from "./hooks/useFavourites"
 import { isInTrackingBounds } from "./utils/geo"
+import { spell } from "./utils/locale"
 import { hasFeed, isAdsbFiFeed } from "./utils/feedStatus"
 import type { TrackedShip } from "./types/ais"
 
@@ -283,7 +284,7 @@ function App() {
             {/* Search results take the panel's place while there's a query */}
             {!searching && (
               <>
-                <ComponentErrorBoundary componentName="Favourites">
+                <ComponentErrorBoundary componentName={spell("Favourites")}>
                   <FavouriteShips
                     favourites={favourites}
                     ships={ships}

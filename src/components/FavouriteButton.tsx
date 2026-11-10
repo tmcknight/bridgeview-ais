@@ -1,5 +1,6 @@
 import { StarIcon as StarSolid } from "@heroicons/react/20/solid"
 import { StarIcon as StarOutline } from "@heroicons/react/24/outline"
+import { spell } from "../utils/locale"
 
 interface FavouriteButtonProps {
   name: string
@@ -16,7 +17,7 @@ export default function FavouriteButton({
   onToggle,
   hidden = false,
 }: FavouriteButtonProps) {
-  const label = isFavourite ? `Remove ${name} from favourites` : `Add ${name} to favourites`
+  const label = spell(isFavourite ? `Remove ${name} from favourites` : `Add ${name} to favourites`)
   const Icon = isFavourite ? StarSolid : StarOutline
   return (
     <button

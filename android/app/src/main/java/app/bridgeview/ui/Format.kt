@@ -1,7 +1,10 @@
 package app.bridgeview.ui
 
 import android.text.format.DateUtils
+import androidx.compose.runtime.staticCompositionLocalOf
 import app.bridgeview.model.Direction
+import app.bridgeview.model.LengthUnit
+import app.bridgeview.model.Lengths
 import app.bridgeview.model.Ship
 import java.time.Duration
 import java.time.Instant
@@ -10,6 +13,9 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.roundToInt
+
+/** The user's units for ship lengths (Settings, Lengths), provided at the root */
+val LocalLengths = staticCompositionLocalOf { Lengths(LengthUnit.Metres) }
 
 object Format {
     fun distance(nm: Double): String =
@@ -96,10 +102,6 @@ object Format {
     /** "Upbound, heading north-northeast" */
     fun spokenHeading(direction: Direction?, course: Double?): String =
         listOfNotNull(direction?.label, course?.let { "heading ${compassPoint(it)}" }).joinToString(", ")
-
-    /** "Cargo, 225 metres" (Ship.summary is "Cargo · 225 m") */
-    fun spokenSummary(ship: Ship): String =
-        listOfNotNull(ship.shipTypeName, ship.length?.let { "$it metres" }).joinToString(", ")
 
     /** "Canada", the ship's flag in words */
     fun flagCountry(ship: Ship): String? = ship.flagDescription?.substringAfter(' ')

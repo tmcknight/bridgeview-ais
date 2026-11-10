@@ -2,6 +2,8 @@ package app.bridgeview
 
 import app.bridgeview.model.BridgeSnapshot
 import app.bridgeview.model.Direction
+import app.bridgeview.model.LengthUnit
+import app.bridgeview.model.Lengths
 import app.bridgeview.model.Passage
 import app.bridgeview.model.Ship
 import app.bridgeview.model.ShipCategory
@@ -48,7 +50,7 @@ class DecodingTest {
         assertEquals("ALGOMA EQUINOX", ship.name)
         assertEquals(ShipCategory.Cargo, ship.category)
         assertEquals("🇨🇦", ship.flagEmoji)
-        assertEquals("Cargo · 225 m", ship.summary)
+        assertEquals("Cargo · 225 m", Lengths(LengthUnit.Metres).summary(ship))
         assertEquals(Direction.Upbound, ship.approach?.direction)
         assertEquals(Instant.ofEpochSecond(1_793_369_435), ship.approach?.eta)
         // Dates without fractional seconds decode too

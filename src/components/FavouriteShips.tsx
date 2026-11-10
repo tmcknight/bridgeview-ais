@@ -4,6 +4,7 @@ import { ChevronDownIcon } from "@heroicons/react/20/solid"
 import type { TrackedShip } from "../types/ais"
 import { describeFavourite, type Favourites } from "../utils/favourites"
 import type { ShipLog } from "../utils/shipLog"
+import { spell } from "../utils/locale"
 import FavouriteButton from "./FavouriteButton"
 
 interface FavouriteShipsProps {
@@ -56,7 +57,7 @@ export default function FavouriteShips({
         className="group flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 tracking-wide bg-slate-300/70 dark:bg-slate-700/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-400/30 dark:border-slate-500/30 shadow-sm cursor-pointer"
         tabIndex={hidden ? -1 : 0}
       >
-        Favourites ({heard > 0 ? `${heard} of ${rows.length} heard` : rows.length})
+        {spell("Favourites")} ({heard > 0 ? `${heard} of ${rows.length} heard` : rows.length})
         <ChevronDownIcon className="w-4 h-4 transition-transform group-data-open:rotate-180" />
       </DisclosureButton>
       <DisclosurePanel className="flex flex-col gap-2 pt-2">

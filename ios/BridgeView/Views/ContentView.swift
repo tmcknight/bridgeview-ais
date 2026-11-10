@@ -52,7 +52,7 @@ struct ContentView: View {
         .onChange(of: store.snapshot?.shipCamVideoId) { openCamIfAsked() }
         .sheet(item: $router.openedShip) { link in
             NavigationStack {
-                ShipDetailView(mmsi: link.mmsi)
+                ShipDetailView(mmsi: link.mmsi, inSheet: true)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { router.openedShip = nil }

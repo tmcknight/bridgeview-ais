@@ -10,6 +10,8 @@ import { SHIP_CATEGORIES } from "./bridge-eta.js";
 export const DIRECTIONS = ["upbound", "downbound"];
 export const ENVIRONMENTS = ["sandbox", "production"];
 export const PLATFORMS = ["ios", "android"];
+// The unit alert text gives ship lengths in; `minLength` is always metres
+export const LENGTH_UNITS = ["m", "ft"];
 // Most devices there could ever be; registration is open, so cap it
 export const MAX_DEVICES = 100_000;
 
@@ -34,6 +36,7 @@ const SCHEMA = `
     directions TEXT NOT NULL,
     live_activity_ships TEXT NOT NULL DEFAULT '{}',
     platform TEXT NOT NULL DEFAULT 'ios',
+    length_unit TEXT NOT NULL DEFAULT 'm',
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -59,6 +62,9 @@ function migrate(db) {
   }
   if (!columns.includes("platform")) {
     db.exec("ALTER TABLE push_devices ADD COLUMN platform TEXT NOT NULL DEFAULT 'ios'");
+  }
+  if (!columns.includes("length_unit")) {
+    db.exec("ALTER TABLE push_devices ADD COLUMN length_unit TEXT NOT NULL DEFAULT 'm'");
   }
 }
 
@@ -98,6 +104,7 @@ export function parseDeviceRegistration(token, body) {
     minLength = 0,
     directions = DIRECTIONS,
     liveActivityShips = {},
+    lengthUnit = "m",
   } = body;
   if (!ENVIRONMENTS.includes(environment)) return { error: `environment must be one of ${ENVIRONMENTS.join(", ")}` };
   if (typeof enabled !== "boolean") return { error: "enabled must be a boolean" };
@@ -112,6 +119,7 @@ export function parseDeviceRegistration(token, body) {
   if (!isLiveActivityShips(liveActivityShips)) {
     return { error: `liveActivityShips must map up to ${MAX_LIVE_ACTIVITY_SHIPS} MMSIs to true or false` };
   }
+  if (!LENGTH_UNITS.includes(lengthUnit)) return { error: `lengthUnit must be one of ${LENGTH_UNITS.join(", ")}` };
   return {
     device: {
       token: android ? token : token.toLowerCase(),
@@ -124,6 +132,7 @@ export function parseDeviceRegistration(token, body) {
       minLength,
       directions: [...new Set(directions)],
       liveActivityShips: { ...liveActivityShips },
+      lengthUnit,
     },
   };
 }
@@ -161,6 +170,7 @@ function rowToDevice(row) {
     minLength: row.min_length,
     directions: JSON.parse(row.directions),
     liveActivityShips: JSON.parse(row.live_activity_ships),
+    lengthUnit: row.length_unit,
   };
 }
 
@@ -174,10 +184,10 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
   const upsert = db.prepare(`
     INSERT INTO push_devices (
       token, environment, enabled, push_to_start_token, live_activities,
-      categories, min_length, directions, live_activity_ships, platform, created_at, updated_at
+      categories, min_length, directions, live_activity_ships, platform, length_unit, created_at, updated_at
     ) VALUES (
       :token, :environment, :enabled, :push_to_start_token, :live_activities,
-      :categories, :min_length, :directions, :live_activity_ships, :platform, :now, :now
+      :categories, :min_length, :directions, :live_activity_ships, :platform, :length_unit, :now, :now
     )
     ON CONFLICT (token) DO UPDATE SET
       environment = :environment,
@@ -193,6 +203,7 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
       min_length = :min_length,
       directions = :directions,
       live_activity_ships = :live_activity_ships,
+      length_unit = :length_unit,
       updated_at = :now
   `);
   const exists = db.prepare("SELECT 1 FROM push_devices WHERE token = ?");
@@ -235,6 +246,7 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
         directions: JSON.stringify(device.directions),
         live_activity_ships: JSON.stringify(device.liveActivityShips ?? {}),
         platform: device.platform ?? "ios",
+        length_unit: device.lengthUnit ?? "m",
         now: now().toISOString(),
       });
       return true;

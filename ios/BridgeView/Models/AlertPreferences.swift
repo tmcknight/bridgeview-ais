@@ -6,19 +6,19 @@ struct AlertPreferences: Equatable, Sendable {
     var categories: Set<ShipCategory>
     var minLength: Int
     var directions: Set<Direction>
-    /// Only alert while this phone is within `nearBridgeRadius` km of the bridge.
+    /// Only alert while this phone is within `nearBridgeRadius` metres of the bridge.
     /// Worked out on the phone; the server only sees `enabled` turn off and on.
     var nearBridgeOnly = false
-    var nearBridgeRadius = AlertPreferences.defaultRadius
+    var nearBridgeRadius = NearBridgeRadius.defaultMetres
     /// Follow ships with a Live Activity, not just a notification (when iOS allows
     /// them), unless `liveActivityShips` says otherwise for a ship
     var liveActivities = true
     /// MMSI -> Live Activity on or off, for ships the user chose one by one
     var liveActivityShips: [Int: Bool] = [:]
+    /// "m" or "ft": the unit for lengths in the alert's text, from Settings
+    var lengthUnit = "m"
 
     static let lengthOptions = [0, 100, 150, 200]
-    static let radiusOptions = [2, 5, 10, 25]
-    static let defaultRadius = 5
 }
 
 /// PUT /api/devices/:token body (ios/API.md)
@@ -32,6 +32,8 @@ struct DeviceRegistration: Codable, Equatable, Sendable {
     var directions: [Direction]
     /// Per-ship choices, by MMSI; nil when there are none or iOS doesn't allow Live Activities
     var liveActivityShips: [String: Bool]?
+    /// "m" or "ft", for lengths in the alert's text
+    var lengthUnit: String
 
     /// `nearBridge`: whether the phone is near the bridge, nil when unknown
     /// (location off or not yet worked out), which doesn't hold alerts back.
@@ -50,6 +52,7 @@ struct DeviceRegistration: Codable, Equatable, Sendable {
         // Sorted so the body is stable and easy to compare
         categories = ShipCategory.allCases.filter(preferences.categories.contains)
         minLength = preferences.minLength
+        lengthUnit = preferences.lengthUnit
         directions = Direction.allCases.filter(preferences.directions.contains)
         // The server takes only 9-digit MMSIs, refusing the whole registration
         // otherwise, and some transponders send malformed ones
@@ -72,7 +75,6 @@ extension AlertPreferences {
         static let minLength = "alerts.minLength"
         static let directions = "alerts.directions"
         static let nearBridgeOnly = "alerts.nearBridgeOnly"
-        static let nearBridgeRadius = "alerts.nearBridgeRadius"
         static let liveActivities = "alerts.liveActivities"
         static let liveActivityShips = "alerts.liveActivityShips"
     }
@@ -82,15 +84,17 @@ extension AlertPreferences {
     static let defaultDirections = encodeSet(Set(Direction.allCases))
 
     static func load(from defaults: UserDefaults = .standard) -> AlertPreferences {
-        AlertPreferences(
+        let units = (defaults.string(forKey: LengthUnit.key).flatMap(LengthUnit.init) ?? .automatic).resolved()
+        return AlertPreferences(
             enabled: defaults.object(forKey: Key.enabled) as? Bool ?? true,
             categories: decodeSet(defaults.string(forKey: Key.categories) ?? defaultCategories),
             minLength: defaults.integer(forKey: Key.minLength),
             directions: decodeSet(defaults.string(forKey: Key.directions) ?? defaultDirections),
             nearBridgeOnly: defaults.bool(forKey: Key.nearBridgeOnly),
-            nearBridgeRadius: defaults.object(forKey: Key.nearBridgeRadius) as? Int ?? defaultRadius,
+            nearBridgeRadius: NearBridgeRadius.nearest(NearBridgeRadius.stored(in: defaults), unit: units),
             liveActivities: defaults.object(forKey: Key.liveActivities) as? Bool ?? true,
-            liveActivityShips: decodeShips(defaults.string(forKey: Key.liveActivityShips) ?? "")
+            liveActivityShips: decodeShips(defaults.string(forKey: Key.liveActivityShips) ?? ""),
+            lengthUnit: units == .feet ? "ft" : "m"
         )
     }
 

@@ -53,12 +53,16 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import app.bridgeview.AppConfig
+import app.bridgeview.R
 import app.bridgeview.graph
 import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.Appearance
 import app.bridgeview.model.Bridge
 import app.bridgeview.model.Direction
+import app.bridgeview.model.LengthSetting
+import app.bridgeview.model.NearBridgeRadius
 import app.bridgeview.model.ShipCategory
 import app.bridgeview.push.NearBridgeMonitor
 import app.bridgeview.push.ShipNotifications
@@ -81,6 +85,8 @@ fun SettingsScreen() {
     val radius by prefs.nearBridgeRadius.flow.collectAsState()
     val liveActivities by prefs.liveActivities.flow.collectAsState()
     val appearance by prefs.appearance.flow.collectAsState()
+    val lengthSetting by prefs.lengthUnit.flow.collectAsState()
+    val lengths = LocalLengths.current
     val notificationsAllowed by push.notificationsAllowed.collectAsState()
     val countdownsAllowed by push.countdownsAllowed.collectAsState()
     val registrationError by push.lastRegistrationError.collectAsState()
@@ -172,7 +178,8 @@ fun SettingsScreen() {
                                 "Length",
                                 AlertPreferences.lengthOptions,
                                 minLength,
-                                label = { if (it == 0) "Any" else "$it m or more" },
+                                // Sent to the server in metres; shown in the user's unit
+                                label = { if (it == 0) "Any" else "${lengths.minimum(it)} or more" },
                             ) {
                                 prefs.minLength.value = it
                                 push.preferencesChanged()
@@ -202,7 +209,13 @@ fun SettingsScreen() {
                             }
                             if (nearBridgeOnly) {
                                 Hairline()
-                                PickerRow("Within", AlertPreferences.radiusOptions, radius, label = { "$it km" }) {
+                                // The saved radius as one of this unit system's choices
+                                PickerRow(
+                                    "Within",
+                                    NearBridgeRadius.options(lengths.unit),
+                                    NearBridgeRadius.nearest(radius, lengths.unit),
+                                    label = { NearBridgeRadius.label(it, lengths.unit) },
+                                ) {
                                     prefs.nearBridgeRadius.value = it
                                     locationSettingsChanged()
                                 }
@@ -226,6 +239,19 @@ fun SettingsScreen() {
                                     else openNotificationSettings(context)
                                 }
                             }
+                        }
+                    }
+                    Section(footer = stringResource(R.string.settings_lengths_footer)) {
+                        PickerRow(
+                            stringResource(R.string.settings_lengths),
+                            LengthSetting.entries,
+                            LengthSetting.fromRaw(lengthSetting),
+                            label = { stringResource(it.labelRes) },
+                        ) {
+                            prefs.lengthUnit.value = it.raw
+                            // The server writes alert text in the same unit, and the
+                            // near-the-bridge circle snaps to this system's choices
+                            locationSettingsChanged()
                         }
                     }
                     Section(header = "Appearance", footer = "System matches your phone.", card = false) {
@@ -360,7 +386,7 @@ private fun SwitchRow(title: String, checked: Boolean, icon: ImageVector? = null
 }
 
 @Composable
-private fun <T> PickerRow(title: String, options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+private fun <T> PickerRow(title: String, options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().clickable(onClickLabel = "Change", role = Role.DropdownList) { open = true }.padding(vertical = 14.dp),
@@ -410,6 +436,13 @@ private fun StatusRow(icon: ImageVector, text: String, tint: Color) {
         Text(text, style = Theme.text(Theme.Style.Body), color = Theme.colors.secondaryText)
     }
 }
+
+private val LengthSetting.labelRes: Int
+    get() = when (this) {
+        LengthSetting.Automatic -> R.string.settings_lengths_automatic
+        LengthSetting.Metres -> R.string.settings_lengths_metres
+        LengthSetting.Feet -> R.string.settings_lengths_feet
+    }
 
 /** Which location prompt a disclosure comes before */
 private enum class LocationAsk { WhileUsing, AllTheTime }

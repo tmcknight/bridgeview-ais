@@ -9,11 +9,11 @@ data class AlertPreferences(
     val minLength: Int = 0,
     val directions: Set<Direction> = Direction.entries.toSet(),
     /**
-     * Only alert while this phone is within [nearBridgeRadius] km of the bridge.
+     * Only alert while this phone is within [nearBridgeRadius] metres of the bridge.
      * Worked out on the phone; the server only sees `enabled` turn off and on.
      */
     val nearBridgeOnly: Boolean = false,
-    val nearBridgeRadius: Int = DEFAULT_RADIUS,
+    val nearBridgeRadius: Int = NearBridgeRadius.DEFAULT_METRES,
     /**
      * Follow ships with a live countdown notification, not just an alert, unless
      * [liveActivityShips] says otherwise for a ship (iOS: Live Activities)
@@ -24,8 +24,6 @@ data class AlertPreferences(
 ) {
     companion object {
         val lengthOptions = listOf(0, 100, 150, 200)
-        val radiusOptions = listOf(2, 5, 10, 25)
-        const val DEFAULT_RADIUS = 5
 
         /** Per-ship choices are stored as "mmsi:1,mmsi:0", as on iOS */
         fun decodeShips(text: String): Map<Int, Boolean> = buildMap {
@@ -67,6 +65,8 @@ data class DeviceRegistration(
     val directions: List<Direction>,
     /** Per-ship choices, by MMSI; null when there are none or countdowns can't be shown */
     val liveActivityShips: Map<String, Boolean>? = null,
+    /** The unit the phone shows lengths in ("m" or "ft"), for the server's alert text */
+    val lengthUnit: String? = null,
 ) {
     companion object {
         /**
@@ -74,11 +74,13 @@ data class DeviceRegistration(
          * (location off or not yet worked out), which doesn't hold alerts back.
          * `countdownsAllowed`: whether Android lets the app post live countdowns
          * (notifications and their channel on); the user can still turn them off.
+         * `lengthUnit`: the resolved Lengths setting, so alerts match the app.
          */
         fun from(
             preferences: AlertPreferences,
             nearBridge: Boolean? = null,
             countdownsAllowed: Boolean,
+            lengthUnit: LengthUnit? = null,
         ): DeviceRegistration {
             // The server takes only 9-digit MMSIs, refusing the whole registration
             // otherwise, and some transponders send malformed ones
@@ -96,6 +98,7 @@ data class DeviceRegistration(
                 } else {
                     null
                 },
+                lengthUnit = lengthUnit?.raw,
             )
         }
     }

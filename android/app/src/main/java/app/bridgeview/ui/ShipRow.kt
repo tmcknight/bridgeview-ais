@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.bridgeview.graph
 import app.bridgeview.model.Direction
+import app.bridgeview.model.Lengths
 import app.bridgeview.model.Ship
 import java.time.Instant
 
@@ -43,15 +44,16 @@ enum class ListMode { Upcoming, Recent }
 fun ShipRow(ship: Ship, mode: ListMode) {
     val colors = Theme.colors
     val now by rememberNow(30_000)
+    val lengths = LocalLengths.current
     val direction = if (mode == ListMode.Upcoming) ship.approach?.direction else ship.lastPassage?.direction
     val details = buildList {
-        if (ship.summary.isNotEmpty()) add(ship.summary)
+        lengths.summary(ship).takeIf { it.isNotEmpty() }?.let(::add)
         if (mode == ListMode.Upcoming) ship.approach?.let { add(Format.distance(it.distanceNM)) }
     }.joinToString(" · ")
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         // Read as one sentence; the follow toggle beside it stays its own control
         Row(
-            Modifier.weight(1f).clearAndSetSemantics { contentDescription = describe(ship, mode, now) },
+            Modifier.weight(1f).clearAndSetSemantics { contentDescription = describe(ship, mode, now, lengths) },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -90,17 +92,17 @@ fun ShipRow(ship: Ship, mode: ListMode) {
  * What a screen reader says for a row: "ALGOMA EQUINOX, Cargo, 225 metres, Upbound,
  * heading north, 1.6 nautical miles away, reaches the bridge in 8 minutes, at 2:10 PM"
  */
-private fun describe(ship: Ship, mode: ListMode, now: Instant): String = when (mode) {
+private fun describe(ship: Ship, mode: ListMode, now: Instant, lengths: Lengths): String = when (mode) {
     ListMode.Upcoming -> listOfNotNull(
         ship.name,
-        Format.spokenSummary(ship).ifEmpty { null },
+        lengths.spokenSummary(ship).ifEmpty { null },
         ship.approach?.let { Format.spokenHeading(it.direction, ship.position?.course) },
         ship.approach?.let { "${Format.spokenDistance(it.distanceNM)} away" },
         ship.approach?.let { Format.spokenArrival(it.etaMinutes, it.eta) },
     )
     ListMode.Recent -> listOfNotNull(
         ship.name,
-        Format.spokenSummary(ship).ifEmpty { null },
+        lengths.spokenSummary(ship).ifEmpty { null },
         ship.lastPassage?.let { "went under the bridge ${it.direction.label.lowercase()} ${Format.relative(it.time, now)}, at ${Format.time(it.time)}" },
     )
 }.joinToString(", ")

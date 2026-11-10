@@ -14,6 +14,13 @@ afterEach(() => {
 // @ts-expect-error - Setting env var for tests
 import.meta.env.VITE_WS_PROXY_URL = 'ws://localhost:3001'
 
+// jsdom reports en-US; tests run as en-CA (Canadian spelling, metres) unless
+// they set navigator.language themselves
+Object.defineProperty(window.navigator, 'language', {
+  configurable: true,
+  get: () => 'en-CA',
+})
+
 // Mock browser APIs not in jsdom
 global.ResizeObserver = class ResizeObserver {
   observe() {}

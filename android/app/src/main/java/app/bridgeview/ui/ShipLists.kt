@@ -243,6 +243,8 @@ fun LargeTitleBar(title: String, actions: @Composable () -> Unit = {}) {
 @Composable
 fun NextShipCard(ship: Ship, approach: Approach) {
     val colors = Theme.colors
+    val lengths = LocalLengths.current
+    val summary = lengths.summary(ship)
     val now by rememberNow()
     val time by rememberAnimationSeconds()
     val shape = RoundedCornerShape(Theme.cornerRadius + 4.dp)
@@ -258,7 +260,7 @@ fun NextShipCard(ship: Ship, approach: Approach) {
                 contentDescription = listOfNotNull(
                     "Next at the bridge: ${ship.name}",
                     Format.flagCountry(ship),
-                    Format.spokenSummary(ship).ifEmpty { null },
+                    lengths.spokenSummary(ship).ifEmpty { null },
                     Format.spokenHeading(approach.direction, ship.position?.course),
                     "${Format.spokenDistance(approach.distanceNM)} away",
                     Format.spokenArrival(Duration.between(now, approach.eta).toMillis() / 60_000.0, approach.eta),
@@ -293,8 +295,8 @@ fun NextShipCard(ship: Ship, approach: Approach) {
                     Text(ship.name, style = Theme.hull(Theme.Style.Title2), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     ship.flagEmoji?.let { Text(it, style = Theme.text(Theme.Style.Title3)) }
                 }
-                if (ship.summary.isNotEmpty()) {
-                    Text(ship.summary, style = Theme.text(Theme.Style.Subheadline), color = Color.White.copy(alpha = 0.85f))
+                if (summary.isNotEmpty()) {
+                    Text(summary, style = Theme.text(Theme.Style.Subheadline), color = Color.White.copy(alpha = 0.85f))
                 }
             }
             Row(Modifier.clearAndSetSemantics {}, verticalAlignment = Alignment.Bottom) {

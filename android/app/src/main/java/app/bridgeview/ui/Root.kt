@@ -13,6 +13,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.res.stringResource
+import app.bridgeview.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,6 +32,8 @@ import app.bridgeview.data.Router
 import app.bridgeview.graph
 import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.Appearance
+import app.bridgeview.model.LengthSetting
+import app.bridgeview.model.Lengths
 import app.bridgeview.model.ShipLinks
 
 private val Router.Tab.label: String
@@ -55,7 +61,13 @@ fun BridgeViewRoot() {
         Appearance.Light -> false
         Appearance.Dark -> true
     }
-    BridgeViewTheme(dark = dark) { Tabs() }
+    // Lengths in the user's unit; the spoken word for metres follows the spelling ("meters" in the US)
+    val lengthSetting by graph.prefs.lengthUnit.flow.collectAsState()
+    val metresWord = stringResource(R.string.unit_metres_spoken)
+    val lengths = remember(lengthSetting, metresWord) { Lengths(LengthSetting.fromRaw(lengthSetting).resolve(), metresWord) }
+    CompositionLocalProvider(LocalLengths provides lengths) {
+        BridgeViewTheme(dark = dark) { Tabs() }
+    }
 }
 
 @Composable

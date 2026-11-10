@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- US spelling of the strings in values/strings.xml that differ; the rest come from there -->
+<resources>
+    <string name="favourites_title">Favorites</string>
+    <string name="favourite_state_on">Favorite</string>
+    <string name="favourite_state_off">Not a favorite</string>
+    <string name="favourite_add">Add %1$s to favorites</string>
+    <string name="favourite_remove">Remove %1$s from favorites</string>
+
+    <string name="detail_draught">Draft</string>
+
+    <string name="unit_metres_spoken">meters</string>
+    <string name="settings_lengths_footer">For ship lengths, widths and drafts, and distances. Automatic uses feet and miles when your phone\'s region uses US measurements.</string>
+</resources>

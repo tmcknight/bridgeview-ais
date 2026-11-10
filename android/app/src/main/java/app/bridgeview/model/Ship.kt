@@ -34,10 +34,6 @@ data class Ship(
     /** The latest passage, whichever endpoint the ship came from */
     val lastPassage: Passage? get() = passage ?: passages?.firstOrNull()
 
-    /** "Cargo · 225 m" */
-    val summary: String
-        get() = listOfNotNull(shipTypeName, length?.let { "$it m" }).joinToString(" · ")
-
     val flagEmoji: String? get() = flagEmoji(flag)
 
     /** "🇨🇦 Canada": the flag and its country's name in the device's language */
@@ -82,10 +78,6 @@ data class ShipSummary(
     val photoUrl: String? = null,
 ) {
     val flagEmoji: String? get() = flagEmoji(flag)
-
-    /** "Cargo · 225 m" */
-    val summary: String
-        get() = listOfNotNull(shipTypeName, length?.let { "$it m" }).joinToString(" · ")
 }
 
 /** GET /api/ships?q= and ?mmsi= */

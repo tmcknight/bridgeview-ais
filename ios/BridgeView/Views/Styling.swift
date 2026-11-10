@@ -107,18 +107,29 @@ extension View {
 /// Small caps label above a group of cards
 struct SectionLabel: View {
     var text: String
+    /// A small symbol before the text, in the theme colour
+    var systemImage: String?
 
-    init(_ text: String) {
+    init(_ text: String, systemImage: String? = nil) {
         self.text = text
+        self.systemImage = systemImage
     }
 
     var body: some View {
-        Text(text.uppercased())
+        HStack(spacing: 5) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .foregroundStyle(Theme.signal)
+                    .accessibilityHidden(true)
+            }
+            Text(text.uppercased())
+                .tracking(1.4)
+                .foregroundStyle(.secondary)
+        }
             .font(.caption.weight(.bold))
-            .tracking(1.4)
-            .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 4)
+            .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
     }
 }

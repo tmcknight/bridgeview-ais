@@ -74,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import app.bridgeview.AppConfig
+import app.bridgeview.R
 import app.bridgeview.graph
 import app.bridgeview.model.Approach
 import app.bridgeview.model.Bridge
@@ -91,7 +92,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Duration
-import java.util.Locale
+import androidx.compose.ui.res.stringResource
 
 /** How often a ship's page fetches the ship again while it's open */
 private const val SHIP_REFRESH_INTERVAL_MS = 10_000L
@@ -417,14 +418,16 @@ private fun Header(
             }
         }
         val description = ship.info?.description
-        if (description != null || ship.cargo != null || ship.summary.isNotEmpty()) {
+        val lengths = LocalLengths.current
+        val summary = lengths.summary(ship)
+        if (description != null || ship.cargo != null || summary.isNotEmpty()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (ship.summary.isNotEmpty()) {
+                if (summary.isNotEmpty()) {
                     Text(
-                        ship.summary.uppercase(),
+                        summary.uppercase(),
                         style = Theme.text(Theme.Style.Caption, FontWeight.Bold).copy(letterSpacing = 1.2.sp),
                         color = colors.signal,
-                        modifier = Modifier.semantics { contentDescription = Format.spokenSummary(ship) },
+                        modifier = Modifier.semantics { contentDescription = lengths.spokenSummary(ship) },
                     )
                 }
                 description?.let { Text(it, color = colors.secondaryText, style = Theme.text(Theme.Style.Body)) }
@@ -486,15 +489,17 @@ private fun Facts(ship: Ship) {
     val info = ship.info
     // USCG service type, e.g. "Freight Ship, Self-Discharging"
     val service = info?.uscg?.serviceType?.let { listOfNotNull(it, info.uscg.serviceSubType).joinToString(", ") }
-    val size = when {
-        ship.length != null && ship.width != null -> "${ship.length} × ${ship.width} m"
-        ship.length != null -> "${ship.length} m long"
-        else -> null
+    val lengths = LocalLengths.current
+    val draughtTitle = stringResource(R.string.detail_draught)
+    // How a screen reader should say the figures with units ("225 by 24 metres")
+    val spokenFigures = buildMap {
+        ship.length?.let { put("Size", lengths.spokenSize(it, ship.width)) }
+        ship.draught?.let { put(draughtTitle, lengths.spokenDraught(it)) }
     }
     val rows = listOf(
         "Type" to ship.shipTypeName,
-        "Size" to size,
-        "Draught" to ship.draught?.let { String.format(Locale.US, "%.1f m", it) },
+        "Size" to ship.length?.let { lengths.size(it, ship.width) },
+        draughtTitle to ship.draught?.let(lengths::draught),
         "Destination" to ship.destination?.let(Format::place),
         "Built" to info?.yearBuilt?.toString(),
         "Builder" to info?.builder,
@@ -511,10 +516,8 @@ private fun Facts(ship: Ship) {
         "MMSI" to ship.mmsi.toString(),
         "Call sign" to ship.callSign,
     ).mapNotNull { (title, value) -> value?.takeIf { it.isNotEmpty() }?.let { title to it } }
-    // How a screen reader should say the figures with units ("225 by 24 metres")
     fun spoken(title: String, value: String): String = when (title) {
-        "Size" -> value.replace(" × ", " by ").replace(" m", " metres")
-        "Draught" -> value.replace(" m", " metres")
+        in spokenFigures -> spokenFigures.getValue(title)
         "Deadweight" -> value.replace(" t", " tonnes")
         "Engine power" -> value.replace(" kW", " kilowatts")
         "Flag" -> Format.flagCountry(ship) ?: value

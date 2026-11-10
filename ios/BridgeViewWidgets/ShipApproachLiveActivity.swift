@@ -343,7 +343,7 @@ private struct DetailLine: View {
     private func parts(spoken: Bool) -> [String] {
         var parts: [String] = []
         if let type = attributes.shipTypeName { parts.append(type) }
-        if let length = attributes.length { parts.append(spoken ? "\(length) metres" : "\(length) m") }
+        if let length = attributes.length { parts.append(Lengths.format(length, spoken: spoken)) }
         if state.phase == .approaching {
             parts.append(String(format: spoken ? "%.1f nautical miles away" : "%.1f NM", state.distanceNM))
             parts.append(String(format: spoken ? "%.1f knots" : "%.1f kn", state.sog))

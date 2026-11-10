@@ -71,31 +71,40 @@ function titleCase(text) {
   return text.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
 
+const FEET_PER_METRE = 3.28084;
+const feetFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+
+// A length in metres as the device's unit (`lengthUnit` "m" or "ft"): "225 m", "1,013 ft"
+export function formatLength(metres, unit = "m") {
+  return unit === "ft" ? `${feetFormat.format(Math.round(metres * FEET_PER_METRE))} ft` : `${metres} m`;
+}
+
 // "Upbound · Cargo · 225 m"
-function subtitleFor(ship) {
+function subtitleFor(ship, unit) {
   return [
     ship.approach.direction === "upbound" ? "Upbound" : "Downbound",
     ship.shipTypeName,
-    ship.length ? `${ship.length} m` : undefined,
+    ship.length ? formatLength(ship.length, unit) : undefined,
   ]
     .filter(Boolean)
     .join(" · ");
 }
 
-export function alertContent(ship) {
+// `unit` is the device's `lengthUnit`
+export function alertContent(ship, unit = "m") {
   const minutes = Math.max(1, Math.round(ship.approach.etaMinutes));
   const heading = ship.destination ? `Heading for ${titleCase(ship.destination)}.` : "Heading for the Blue Water Bridge.";
   return {
     title: `${ship.name} in ~${minutes} min`,
-    subtitle: subtitleFor(ship),
+    subtitle: subtitleFor(ship, unit),
     body: ship.cargo ? `${heading} ${ship.cargo}.` : heading,
   };
 }
 
-export function alertPayload(ship) {
+export function alertPayload(ship, unit = "m") {
   return {
     aps: {
-      alert: alertContent(ship),
+      alert: alertContent(ship, unit),
       sound: "default",
       "thread-id": "bridge",
       "interruption-level": "time-sensitive",
@@ -138,8 +147,9 @@ export function activityAttributes(ship, startedAt) {
   };
 }
 
-export function pushToStartPayload(ship, channelId, t) {
-  const { title, subtitle, body } = alertContent(ship);
+// Sent to one device's push-to-start token, so its alert text is in that device's unit
+export function pushToStartPayload(ship, channelId, t, unit = "m") {
+  const { title, subtitle, body } = alertContent(ship, unit);
   const etaMs = Date.parse(ship.approach.eta);
   return {
     aps: {
@@ -176,10 +186,10 @@ function fcmMessage(token, data, expiresAt, t, extra = {}) {
 }
 
 // Android: the alert's notification, built by the app
-export function fcmAlertMessage(token, ship, t) {
+export function fcmAlertMessage(token, ship, t, unit = "m") {
   return fcmMessage(
     token,
-    { type: "alert", mmsi: ship.mmsi, ...alertContent(ship) },
+    { type: "alert", mmsi: ship.mmsi, ...alertContent(ship, unit) },
     Date.parse(ship.approach.eta),
     t,
     { collapse_key: `ship-${ship.mmsi}` }
@@ -203,8 +213,8 @@ function activityData(event, attributes, current, phase, t) {
   };
 }
 
-export function fcmActivityStartMessage(token, ship, t) {
-  const { title, subtitle, body } = alertContent(ship);
+export function fcmActivityStartMessage(token, ship, t, unit = "m") {
+  const { title, subtitle, body } = alertContent(ship, unit);
   const etaMs = Date.parse(ship.approach.eta);
   return fcmMessage(
     token,
@@ -541,7 +551,7 @@ export function createApproachAlerts({
           await apns.sendLiveActivity({
             token: device.pushToStartToken,
             environment: device.environment,
-            payload: pushToStartPayload(current, channel.channelId, t),
+            payload: pushToStartPayload(current, channel.channelId, t, device.lengthUnit),
             expiresAt,
           });
           activity?.started.add(device.token);
@@ -550,7 +560,7 @@ export function createApproachAlerts({
           await apns.sendAlert({
             deviceToken: device.token,
             environment: device.environment,
-            payload: alertPayload(current),
+            payload: alertPayload(current, device.lengthUnit),
             collapseId: `ship-${mmsi}`,
             expiresAt,
           });
@@ -574,12 +584,12 @@ export function createApproachAlerts({
       const follow = wantsLiveActivity(device, mmsi);
       try {
         if (follow) {
-          await fcm.send(fcmActivityStartMessage(device.token, current, t));
+          await fcm.send(fcmActivityStartMessage(device.token, current, t, device.lengthUnit));
           activity?.fcmTokens.add(device.token);
           activity?.started.add(device.token);
           liveActivities++;
         } else {
-          await fcm.send(fcmAlertMessage(device.token, current, t));
+          await fcm.send(fcmAlertMessage(device.token, current, t, device.lengthUnit));
           notified++;
         }
       } catch (err) {

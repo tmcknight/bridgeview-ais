@@ -15,9 +15,10 @@ struct SettingsView: View {
     @AppStorage(Key.minLength) private var minLength = 0
     @AppStorage(Key.directions) private var directions = AlertPreferences.defaultDirections
     @AppStorage(Key.nearBridgeOnly) private var nearBridgeOnly = false
-    @AppStorage(Key.nearBridgeRadius) private var nearBridgeRadius = AlertPreferences.defaultRadius
+    @AppStorage(NearBridgeRadius.key) private var nearBridgeRadius = NearBridgeRadius.stored()
     @AppStorage(Key.liveActivities) private var liveActivities = true
     @AppStorage(Appearance.key) private var appearance = Appearance.system
+    @AppStorage(LengthUnit.key) private var lengthUnit = LengthUnit.automatic
 
     var body: some View {
         NavigationStack {
@@ -43,7 +44,7 @@ struct SettingsView: View {
                         }
                         Picker("Length", selection: $minLength) {
                             ForEach(AlertPreferences.lengthOptions, id: \.self) { length in
-                                Text(length == 0 ? "Any" : "\(length) m or more").tag(length)
+                                Text(length == 0 ? "Any" : "\(Lengths.format(length, unit: lengthUnit.resolved())) or more").tag(length)
                             }
                         }
                     }
@@ -65,9 +66,9 @@ struct SettingsView: View {
                     Section {
                         Toggle("Only when I'm near the bridge", isOn: $nearBridgeOnly)
                         if nearBridgeOnly {
-                            Picker("Within", selection: $nearBridgeRadius) {
-                                ForEach(AlertPreferences.radiusOptions, id: \.self) { km in
-                                    Text("\(km) km").tag(km)
+                            Picker("Within", selection: radiusChoice) {
+                                ForEach(NearBridgeRadius.options(for: units), id: \.self) { metres in
+                                    Text(NearBridgeRadius.label(metres, unit: units)).tag(metres)
                                 }
                             }
                             nearBridgeStatus
@@ -104,6 +105,16 @@ struct SettingsView: View {
                 } footer: {
                     Text("System matches your iPhone.")
                 }
+                Section {
+                    Picker("Units", selection: $lengthUnit) {
+                        ForEach(LengthUnit.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                } footer: {
+                    Text("For ship lengths and distances. Automatic uses feet and miles when your iPhone is set to US measurements. The Live Activity always follows your iPhone.")
+                }
+                .listRowBackground(Theme.surface)
                 if let error = push.lastRegistrationError {
                     Section {
                         Label(error, systemImage: "exclamationmark.triangle")
@@ -146,8 +157,22 @@ struct SettingsView: View {
             .onChange(of: minLength) { push.preferencesChanged() }
             .onChange(of: directions) { push.preferencesChanged() }
             .onChange(of: liveActivities) { push.preferencesChanged() }
+            // The alert's text and the near-the-bridge circle both go by it
+            .onChange(of: lengthUnit) { locationSettingsChanged() }
             .onChange(of: nearBridgeOnly) { locationSettingsChanged() }
             .onChange(of: nearBridgeRadius) { locationSettingsChanged() }
+        }
+    }
+
+    private var units: UnitLength { lengthUnit.resolved() }
+
+    /// The saved radius as one of this unit system's choices, so the picker always
+    /// has one selected
+    private var radiusChoice: Binding<Int> {
+        Binding {
+            NearBridgeRadius.nearest(nearBridgeRadius, unit: units)
+        } set: {
+            nearBridgeRadius = $0
         }
     }
 

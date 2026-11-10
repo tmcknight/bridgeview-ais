@@ -6,6 +6,10 @@ struct ShipDetailView: View {
     @Environment(BridgeStore.self) private var store
 
     var mmsi: Int
+    /// In the sheet opened from a link or notification, whose Done button is on the
+    /// right: the star goes on the left. Pushed onto a list or the map, it sits on
+    /// the right of the title
+    var inSheet = false
     @State private var ship: Ship?
     @State private var error: String?
 
@@ -37,8 +41,7 @@ struct ShipDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let name = ship?.name ?? cachedShip?.name {
-                // On the left, away from the sheet's Done button
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: inSheet ? .topBarLeading : .topBarTrailing) {
                     FavouriteButton(mmsi: mmsi, name: name)
                 }
             }
@@ -431,7 +434,7 @@ private struct ShipDetailContent: View {
         let rows: [(String, String?)] = [
             ("Type", ship.shipTypeName),
             ("Size", size),
-            ("Draught", ship.draught.map { String(format: "%.1f m", $0) }),
+            (String(localized: "Draught"), ship.draught.map { Lengths.format($0, decimals: 1) }),
             ("Destination", ship.destination.map(Format.place)),
             ("Built", ship.info?.yearBuilt.map(String.init)),
             ("Builder", ship.info?.builder),
@@ -538,8 +541,8 @@ private struct ShipDetailContent: View {
 
     private var size: String? {
         switch (ship.length, ship.width) {
-        case let (length?, width?): "\(length) × \(width) m"
-        case let (length?, nil): "\(length) m long"
+        case let (length?, width?): Lengths.size(length: length, width: width)
+        case let (length?, nil): "\(Lengths.format(length)) long"
         default: nil
         }
     }

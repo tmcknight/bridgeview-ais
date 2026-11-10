@@ -8,6 +8,7 @@ import {
   createApproachAlerts,
   fcmAlertMessage,
   fcmActivityStartMessage,
+  formatLength,
   pushToStartPayload,
   swiftDate,
 } from "./approach-alerts.js";
@@ -96,6 +97,18 @@ describe("payloads", () => {
     const plain = alertPayload(shipAt(6, { destination: undefined, cargo: undefined, length: undefined, shipTypeName: undefined }));
     expect(plain.aps.alert.subtitle).toBe("Upbound");
     expect(plain.aps.alert.body).toBe("Heading for the Blue Water Bridge.");
+  });
+
+  it("gives lengths in the device's unit", () => {
+    expect(formatLength(225)).toBe("225 m");
+    expect(formatLength(225, "m")).toBe("225 m");
+    expect(formatLength(225, "ft")).toBe("738 ft");
+    expect(formatLength(309, "ft")).toBe("1,014 ft");
+    expect(alertPayload(shipAt(8.4), "ft").aps.alert.subtitle).toBe("Upbound · Cargo · 738 ft");
+    expect(alertPayload(shipAt(8.4), "m").aps.alert.subtitle).toBe("Upbound · Cargo · 225 m");
+    expect(pushToStartPayload(shipAt(8), "chan==", START, "ft").aps.alert.body).toMatch(/^Upbound · Cargo · 738 ft\. /);
+    // The activity's attributes keep the length as a number of metres, for the widget to format
+    expect(pushToStartPayload(shipAt(8), "chan==", START, "ft").aps.attributes.length).toBe(225);
   });
 
   it("starts the Live Activity on its channel with Swift dates", () => {
@@ -606,6 +619,32 @@ describe("createApproachAlerts with Android devices", () => {
     });
     expect(fcm.send).toHaveBeenCalledTimes(1);
     expect(fcm.send.mock.calls[0][0]).toEqual(fcmAlertMessage(`${FCM_TOKEN}1`, current, START));
+  });
+
+  it("words each device's alert in its own length unit", async () => {
+    start();
+    pushDevices.register(device(1, { lengthUnit: "ft" }));
+    pushDevices.register(device(2));
+    pushDevices.register(device(3, { lengthUnit: "ft", liveActivities: true, pushToStartToken: "ef".repeat(40) }));
+    pushDevices.register(androidDevice(1, { lengthUnit: "ft" }));
+    pushDevices.register(androidDevice(2, { lengthUnit: "ft", liveActivities: true }));
+    current = shipAt(9);
+    alerts.handleMessage(position());
+    await settle();
+
+    const subtitles = Object.fromEntries(
+      apns.sendAlert.mock.calls.map(([call]) => [call.deviceToken, call.payload.aps.alert.subtitle])
+    );
+    expect(subtitles).toEqual({
+      [device(1).token]: "Upbound · Cargo · 738 ft",
+      [device(2).token]: "Upbound · Cargo · 225 m",
+    });
+    expect(apns.sendLiveActivity.mock.calls[0][0].payload.aps.alert.body).toMatch(/738 ft/);
+    const android = Object.fromEntries(fcm.send.mock.calls.map(([m]) => [m.token, m.data]));
+    expect(android[`${FCM_TOKEN}1`].subtitle).toBe("Upbound · Cargo · 738 ft");
+    expect(android[`${FCM_TOKEN}2`].body).toMatch(/^Upbound · Cargo · 738 ft\. /);
+    expect(android[`${FCM_TOKEN}2`].length).toBe("225");
+    await alerts.cleanUp();
   });
 
   it("skips devices whose platform isn't set up", async () => {
