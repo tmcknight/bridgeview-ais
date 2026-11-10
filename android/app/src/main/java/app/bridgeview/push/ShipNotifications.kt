@@ -15,6 +15,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import app.bridgeview.MainActivity
 import app.bridgeview.R
+import app.bridgeview.graph
+import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.DeepLink
 import app.bridgeview.model.Direction
 import app.bridgeview.model.Lengths
@@ -119,6 +121,12 @@ object ShipNotifications {
 
     private fun countdown(context: Context, data: Map<String, String>) {
         val mmsi = data["mmsi"]?.toIntOrNull() ?: return
+        // The user stopped following this ship; the server keeps sending to phones that
+        // were following until the countdown ends, which would put it back
+        if (AlertPreferences.decodeShips(context.graph.prefs.liveActivityShips.value)[mmsi] == false) {
+            NotificationManagerCompat.from(context).cancel(TAG_LIVE, mmsi)
+            return
+        }
         val name = data["name"] ?: return
         val direction = Direction.fromRaw(data["direction"])
         val phase = data["phase"] ?: "approaching"

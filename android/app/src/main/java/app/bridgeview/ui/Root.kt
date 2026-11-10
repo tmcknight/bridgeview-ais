@@ -20,6 +20,7 @@ import app.bridgeview.R
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
@@ -127,7 +128,8 @@ private fun Tabs() {
         Box(Modifier.fillMaxSize()) {
             val top = stack.lastOrNull()
             if (top != null) {
-                ShipDetailScreen(top, onBack = { stack.removeAt(stack.lastIndex) })
+                // Keyed by ship, so one ship's map and scroll position aren't carried to the next
+                key(top) { ShipDetailScreen(top, onBack = { stack.removeAt(stack.lastIndex) }) }
             } else {
                 when (tab) {
                     Router.Tab.Upcoming -> UpcomingScreen(open)
@@ -146,7 +148,7 @@ private fun Tabs() {
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
         ) {
             BridgeViewTheme(dark = Theme.colors.isDark) {
-                ShipDetailScreen(mmsi, onBack = { router.openedShip.value = null }, closeIcon = true)
+                key(mmsi) { ShipDetailScreen(mmsi, onBack = { router.openedShip.value = null }, closeIcon = true) }
             }
         }
     }

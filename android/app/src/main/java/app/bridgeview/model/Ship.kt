@@ -116,6 +116,8 @@ data class Approach(
     @Serializable(with = InstantSerializer::class) val eta: Instant,
     val distanceNM: Double,
     val direction: Direction,
+    /** Just through the bridge (within 0.5 NM, carrying on): ETA and distance are 0 */
+    val passing: Boolean = false,
 )
 
 @Serializable

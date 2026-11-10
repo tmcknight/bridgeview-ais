@@ -11,13 +11,15 @@ data class Coordinate(val latitude: Double, val longitude: Double)
 val MAX_DEAD_RECKONING: Duration = Duration.ofMinutes(3)
 private const val METRES_PER_NM = 1852.0
 const val METRES_PER_DEGREE_LATITUDE = 111_320.0
+private const val SPEED_NOT_AVAILABLE_KN = 102.2
 
 /** Under way: moving at half a knot or more, with a course, and not at anchor or moored */
 val Position.isUnderWay: Boolean
     get() {
         val sog = sog ?: return false
         val cog = cog ?: return false
-        if (sog < 0.5 || cog >= 360) return false
+        // 102.3 kn is AIS for "speed not available"
+        if (sog < 0.5 || sog >= SPEED_NOT_AVAILABLE_KN || cog >= 360) return false
         return navStatus != 1 && navStatus != 5
     }
 
