@@ -41,7 +41,9 @@ struct RecentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background { RiverBackground() }
             .navigationTitle("Recent")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            // Not .inlineLarge like the other tabs: with the search field under it, pulling
+            // to refresh opened a gap above the list and put the spinner over the field
+            .toolbarTitleDisplayMode(.large)
             .searchable(text: $query, prompt: "Name, MMSI or IMO number")
             .autocorrectionDisabled()
             .textInputAutocapitalization(.never)
