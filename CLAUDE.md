@@ -77,9 +77,9 @@ src/
 ### Backend
 
 - `server/server.js`: Secure WebSocket proxy server that connects to AISStream.io and relays messages to clients
-  - Rate limiting (20 connections per IP by default, 60 messages per minute); a 30s ping drops dead connections
+  - Rate limiting (20 connections per IP by default, 60 messages per minute, 16 KB per message); a 30s ping drops dead connections
   - Optional authentication token support
-  - Input validation and bounding box size limits
+  - Input validation and bounding box size limits (`server/subscription.js`)
   - Subscription timeout protection
 - `server/upstream.js`: One AISStream.io connection shared by all clients (AISStream allows only 3 per account/IP)
   - Subscribes to the union of every client's area, re-subscribing at most once a second; the server filters messages per client
@@ -175,7 +175,7 @@ services/vessel-notifier/
 │   └── __tests__/            # Unit tests
 ├── package.json
 ├── tsconfig.json
-├── config/vitest.config.ts
+├── vitest.config.ts
 └── README.md
 ```
 

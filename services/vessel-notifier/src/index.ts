@@ -3,6 +3,18 @@ import { parseWatchPoints } from "./watch-points.js";
 import { CLOSE_APPROACH_DISTANCE_NM } from "./geo.js";
 import type { NotifierConfig } from "./types.js";
 
+// A number setting from the environment. A typo would otherwise become NaN, which
+// every comparison lets through: alerts for any ship nearby, with no cooldown.
+function numberSetting(name: string, { min }: { min: number }): number | undefined {
+  const text = process.env[name];
+  if (!text) return undefined;
+  const value = Number(text);
+  if (!Number.isFinite(value) || value < min) {
+    throw new Error(`${name} must be a number of at least ${min}, got "${text}"`);
+  }
+  return value;
+}
+
 function loadConfig(): Partial<NotifierConfig> {
   const config: Partial<NotifierConfig> = {};
 
@@ -15,17 +27,14 @@ function loadConfig(): Partial<NotifierConfig> {
   if (process.env.WEBHOOK_SECRET) config.webhookSecret = process.env.WEBHOOK_SECRET;
   if (process.env.VESSEL_INFO_LOOKUP)
     config.vesselInfoLookup = process.env.VESSEL_INFO_LOOKUP !== "false";
-  if (process.env.BRIDGE_THRESHOLD_NM)
-    config.bridgeThresholdNM = parseFloat(process.env.BRIDGE_THRESHOLD_NM);
-  if (process.env.NOTIFICATION_COOLDOWN_MS)
-    config.notificationCooldownMs = parseInt(
-      process.env.NOTIFICATION_COOLDOWN_MS,
-      10
-    );
-  if (process.env.PREDICTION_HORIZON_SECONDS)
-    config.predictionHorizonSeconds = parseInt(process.env.PREDICTION_HORIZON_SECONDS, 10);
-  if (process.env.PREDICTION_LEAD_SECONDS)
-    config.predictionLeadSeconds = parseInt(process.env.PREDICTION_LEAD_SECONDS, 10);
+  const thresholdNM = numberSetting("BRIDGE_THRESHOLD_NM", { min: 0.01 });
+  if (thresholdNM !== undefined) config.bridgeThresholdNM = thresholdNM;
+  const cooldownMs = numberSetting("NOTIFICATION_COOLDOWN_MS", { min: 0 });
+  if (cooldownMs !== undefined) config.notificationCooldownMs = cooldownMs;
+  const horizonSeconds = numberSetting("PREDICTION_HORIZON_SECONDS", { min: 0 });
+  if (horizonSeconds !== undefined) config.predictionHorizonSeconds = horizonSeconds;
+  const leadSeconds = numberSetting("PREDICTION_LEAD_SECONDS", { min: 0 });
+  if (leadSeconds !== undefined) config.predictionLeadSeconds = leadSeconds;
   if (process.env.WATCH_POINTS)
     config.watchPoints = parseWatchPoints(
       process.env.WATCH_POINTS,

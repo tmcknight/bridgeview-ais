@@ -452,7 +452,9 @@ export function createAdminApi({
   // Handles /api/admin/, /api/photos/, and POST /api/ships/:mmsi/photos and
   // /api/ships/:mmsi/photos/report requests; returns false for any other path
   function handleRequest(req, res, clientIP) {
-    const url = new URL(req.url, "http://localhost");
+    // A request target that isn't a path (e.g. "//") doesn't parse; it isn't ours either
+    const url = URL.parse(req.url, "http://localhost");
+    if (!url) return false;
     const photo = url.pathname.match(/^\/api\/photos\/([^/]+)$/);
     if (photo) {
       localPhotos.serve(req, res, photo[1]);

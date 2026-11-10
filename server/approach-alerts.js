@@ -294,7 +294,8 @@ export function createApproachAlerts({
       apns
         .deleteChannel(channel)
         .catch((err) => logger?.warn(`[alerts] could not delete channel: ${err.message}`))
-        .finally(() => pushDevices.removeChannel(channel));
+        .then(() => pushDevices.removeChannel(channel))
+        .catch((err) => logger?.warn(`[alerts] could not forget channel: ${err.message}`));
     }, CHANNEL_DELETE_DELAY_MS);
     timer.unref?.();
     pendingDeletes.add(timer);
@@ -344,7 +345,13 @@ export function createApproachAlerts({
 
   function scheduleTimeout(activity) {
     clearTimeout(activity.timeout);
-    activity.timeout = setTimeout(() => endActivity(activity.mmsi, "lost"), Math.max(0, deadline(activity) - now()));
+    activity.timeout = setTimeout(() => {
+      try {
+        endActivity(activity.mmsi, "lost");
+      } catch (err) {
+        logger?.error(`[alerts] ending the activity for ${activity.mmsi} failed: ${err.message}`);
+      }
+    }, Math.max(0, deadline(activity) - now()));
     activity.timeout.unref?.();
   }
 
@@ -704,5 +711,21 @@ export function createApproachAlerts({
     for (const timer of pendingDeletes) clearTimeout(timer);
   }
 
-  return Object.assign(emitter, { handleMessage, handleShipLogEntry, cleanUp, stop });
+  // These run inside the AIS feeds' and ship log's event handlers and on timers, where
+  // a throw (the database full or locked, say) would take the whole server down
+  const guarded = (what, fn) => (...args) => {
+    try {
+      return fn(...args);
+    } catch (err) {
+      logger?.error(`[alerts] ${what} failed: ${err.message}`);
+      return undefined;
+    }
+  };
+
+  return Object.assign(emitter, {
+    handleMessage: guarded("handling a position", handleMessage),
+    handleShipLogEntry: guarded("handling a passage", handleShipLogEntry),
+    cleanUp,
+    stop,
+  });
 }

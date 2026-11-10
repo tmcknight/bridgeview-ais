@@ -15,9 +15,9 @@ const val METRES_PER_DEGREE_LATITUDE = 111_320.0
 /** Under way: moving at half a knot or more, with a course, and not at anchor or moored */
 val Position.isUnderWay: Boolean
     get() {
-        val sog = sog ?: return false
+        val speed = speed ?: return false
         val cog = cog ?: return false
-        if (sog < 0.5 || cog >= 360) return false
+        if (speed < 0.5 || cog >= 360) return false
         return navStatus != 1 && navStatus != 5
     }
 

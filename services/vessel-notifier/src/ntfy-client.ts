@@ -106,6 +106,7 @@ export class NtfyClient {
         method: "POST",
         headers,
         body: JSON.stringify(message),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!response.ok) {

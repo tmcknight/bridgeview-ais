@@ -27,7 +27,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
         )
-        handle(intent)
+        // Not when recreated (rotation, dark mode): the launch link would open again
+        if (savedInstanceState == null) handle(intent)
         // Ask for notification permission (the prompt shows the first time only)
         if (Build.VERSION.SDK_INT >= 33 && savedInstanceState == null) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -38,7 +39,8 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 graph.push.refreshAuthorization()
-                graph.nearBridge.refreshAuthorization()
+                // On its own: it can wait on a location fix, which shouldn't hold up the lists
+                launch { graph.nearBridge.refreshAuthorization() }
                 graph.push.appBecameActive()
                 graph.store.poll()
             }

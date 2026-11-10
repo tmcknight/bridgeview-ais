@@ -36,6 +36,8 @@ class DeadReckoningTest {
         assertEquals(42.95, position(12.0, 360.0).coordinateAt(later).latitude, 0.0)
         assertEquals(42.95, position(12.0, 0.0, navStatus = 5).coordinateAt(later).latitude, 0.0)
         assertEquals(42.95, position(null, 0.0).coordinateAt(later).latitude, 0.0)
+        // 102.3 kn means the speed isn't available
+        assertEquals(42.95, position(102.3, 0.0).coordinateAt(later).latitude, 0.0)
         // A report "from the future" (clock skew) isn't moved backwards
         assertEquals(42.95, position(12.0, 0.0).coordinateAt(reported.minusSeconds(30)).latitude, 0.0)
     }

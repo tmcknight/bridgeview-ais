@@ -119,9 +119,11 @@ export function estimatedTimeToBridge(
 export function formatETA(minutes: number | null): string {
   if (minutes === null) return "N/A";
   if (minutes < 1) return "< 1 min";
-  if (minutes < 60) return `~${Math.round(minutes)} min`;
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
+  // Round before splitting, so 119.7 is "~2h 0m" rather than "~1h 60m"
+  const total = Math.round(minutes);
+  if (total < 60) return `~${total} min`;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
   return `~${hours}h ${mins}m`;
 }
 

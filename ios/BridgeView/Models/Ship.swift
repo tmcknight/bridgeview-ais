@@ -66,6 +66,12 @@ struct Position: Codable, Hashable, Sendable {
     var navStatus: Int?
     var time: Date
 
+    /// Speed over ground in knots, when the ship sends one (AIS uses 102.3 for "not available")
+    var speed: Double? {
+        guard let sog, sog < 102.2 else { return nil }
+        return sog
+    }
+
     /// Which way the ship points, in degrees true: its heading, or its course
     /// over ground when it sends no heading (AIS uses 511 and 360 for "not available")
     var course: Double? {

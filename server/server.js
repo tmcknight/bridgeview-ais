@@ -41,6 +41,7 @@ function webUrlOrUndefined(value) {
   }
 }
 import { createAishubFeed, enclosingBox } from "./aishub.js";
+import { parseClientMessage, tokenMatches, validateSubscription } from "./subscription.js";
 
 const PORT = process.env.PORT || 3001;
 const API_KEY = process.env.AISSTREAM_API_KEY;
@@ -128,16 +129,8 @@ const RATE_LIMITS = {
   MAX_CONNECTIONS_PER_IP: Number(process.env.MAX_CONNECTIONS_PER_IP) || 20,
   MAX_MESSAGES_PER_MINUTE: 60,
   SUBSCRIPTION_TIMEOUT_MS: 10000, // Must subscribe within 10s
+  MAX_MESSAGE_BYTES: 16 * 1024, // Clients only send an auth token and subscriptions
   HEARTBEAT_INTERVAL_MS: 30000, // Drop clients that miss a ping, so dead links free their IP slot
-};
-
-// Validation bounds for AISStream.io subscription
-const VALID_BOUNDS = {
-  LAT_MIN: -90,
-  LAT_MAX: 90,
-  LON_MIN: -180,
-  LON_MAX: 180,
-  MAX_BOUNDING_BOX_AREA: 100, // Limit to ~100 square degrees
 };
 
 if (!process.env.AIS_SOURCES && LEGACY_AIS_SOURCE) {
@@ -423,8 +416,11 @@ function checkIPRateLimit(ip) {
 // Helper: Release IP connection slot
 function releaseIPConnection(ip) {
   const count = connectionsByIP.get(ip) || 0;
-  if (count > 0) {
+  // Forget an IP with nothing open, so the map doesn't grow with every visitor
+  if (count > 1) {
     connectionsByIP.set(ip, count - 1);
+  } else {
+    connectionsByIP.delete(ip);
   }
 }
 
@@ -450,100 +446,21 @@ function checkMessageRateLimit(clientId) {
   return true;
 }
 
-// Helper: Validate subscription object
-function validateSubscription(subscription) {
-  // Must be an object
-  if (!subscription || typeof subscription !== "object") {
-    return { valid: false, error: "Subscription must be an object" };
-  }
-
-  // Must have BoundingBoxes array
-  if (!Array.isArray(subscription.BoundingBoxes)) {
-    return { valid: false, error: "BoundingBoxes array is required" };
-  }
-
-  // Validate each bounding box
-  for (const box of subscription.BoundingBoxes) {
-    if (!Array.isArray(box) || box.length !== 2) {
-      return { valid: false, error: "Each bounding box must be an array of 2 coordinate pairs" };
-    }
-
-    const [[lat1, lon1], [lat2, lon2]] = box;
-
-    // Validate coordinate bounds
-    if (
-      lat1 < VALID_BOUNDS.LAT_MIN || lat1 > VALID_BOUNDS.LAT_MAX ||
-      lat2 < VALID_BOUNDS.LAT_MIN || lat2 > VALID_BOUNDS.LAT_MAX ||
-      lon1 < VALID_BOUNDS.LON_MIN || lon1 > VALID_BOUNDS.LON_MAX ||
-      lon2 < VALID_BOUNDS.LON_MIN || lon2 > VALID_BOUNDS.LON_MAX
-    ) {
-      return { valid: false, error: "Coordinates out of valid range" };
-    }
-
-    // Calculate bounding box area to prevent abuse
-    const latDiff = Math.abs(lat2 - lat1);
-    const lonDiff = Math.abs(lon2 - lon1);
-    const area = latDiff * lonDiff;
-
-    if (area > VALID_BOUNDS.MAX_BOUNDING_BOX_AREA) {
-      return { valid: false, error: `Bounding box area too large (max ${VALID_BOUNDS.MAX_BOUNDING_BOX_AREA} sq degrees)` };
-    }
-  }
-
-  // Limit number of bounding boxes
-  if (subscription.BoundingBoxes.length > 5) {
-    return { valid: false, error: "Maximum 5 bounding boxes allowed" };
-  }
-
-  // Validate FilterMessageTypes if present
-  if (subscription.FilterMessageTypes && !Array.isArray(subscription.FilterMessageTypes)) {
-    return { valid: false, error: "FilterMessageTypes must be an array" };
-  }
-
-  // Allow both numeric types and string names
-  const allowedMessageTypes = [1, 2, 3, 18, 19, 27];
-  const allowedMessageNames = [
-    "PositionReport",
-    "ShipStaticData",
-    "StandardClassBPositionReport",
-    "ExtendedClassBPositionReport",
-    "StaticDataReport",
-  ];
-
-  if (subscription.FilterMessageTypes) {
-    for (const type of subscription.FilterMessageTypes) {
-      const isValidNumber = allowedMessageTypes.includes(type);
-      const isValidString = typeof type === "string" && allowedMessageNames.includes(type);
-
-      if (!isValidNumber && !isValidString) {
-        return {
-          valid: false,
-          error: `Invalid message type: ${type}. Allowed numbers: ${allowedMessageTypes.join(", ")} or names: ${allowedMessageNames.join(", ")}`
-        };
-      }
-    }
-  }
-
-  // Strip any suspicious fields (prevent injection)
-  const sanitized = {
-    BoundingBoxes: subscription.BoundingBoxes,
-  };
-
-  if (subscription.FilterMessageTypes) {
-    sanitized.FilterMessageTypes = subscription.FilterMessageTypes;
-  }
-
-  return { valid: true, subscription: sanitized };
-}
-
 // The iOS app's /api/ over HTTP, and the WebSocket on the same port
 const httpServer = http.createServer((req, res) => {
-  if (adminApi.handleRequest(req, res, getClientIP(req))) return;
-  if (bridgeApi.handleRequest(req, res, getClientIP(req))) return;
-  res.writeHead(426, { "content-type": "text/plain" });
-  res.end("Connect with a WebSocket, or use /api/");
+  // A throw here would take the whole server down, and every client with it
+  try {
+    if (adminApi.handleRequest(req, res, getClientIP(req))) return;
+    if (bridgeApi.handleRequest(req, res, getClientIP(req))) return;
+    res.writeHead(426, { "content-type": "text/plain" });
+    res.end("Connect with a WebSocket, or use /api/");
+  } catch (err) {
+    logger.error(`[proxy] ${req.method} request failed: ${err.message}`);
+    if (!res.headersSent) res.writeHead(500, { "content-type": "text/plain" });
+    res.end();
+  }
 });
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({ server: httpServer, maxPayload: RATE_LIMITS.MAX_MESSAGE_BYTES });
 httpServer.listen(PORT);
 
 // client -> heartbeat check. A link that dies without a close (a sleeping laptop, a dropped
@@ -558,6 +475,12 @@ wss.on("connection", (client, req) => {
   const clientId = Math.random().toString(36).substring(7);
 
   logger.log(`[proxy] client ${clientId} connected from ${clientIP}`);
+
+  // ws always emits "close" after "error", and the close handler cleans up. Listen
+  // before anything can close the client: an "error" with no listener is thrown.
+  client.on("error", (err) => {
+    logger.error(`[proxy] client ${clientId} error: ${err.message}`);
+  });
 
   // Check IP rate limit
   if (!checkIPRateLimit(clientIP)) {
@@ -606,10 +529,8 @@ wss.on("connection", (client, req) => {
 
     // First message: handle authentication and subscription
     if (!subscribed) {
-      let message;
-      try {
-        message = JSON.parse(data.toString());
-      } catch {
+      const message = parseClientMessage(data);
+      if (message === undefined) {
         logger.error(`[proxy] client ${clientId} sent invalid JSON`);
         client.close(1007, "Invalid JSON");
         clearTimeout(subscriptionTimeout);
@@ -618,7 +539,7 @@ wss.on("connection", (client, req) => {
 
       // Check authentication if required
       if (AUTH_TOKEN && !authenticated) {
-        if (message.authToken !== AUTH_TOKEN) {
+        if (!tokenMatches(message?.authToken, AUTH_TOKEN)) {
           logger.warn(`[proxy] client ${clientId} failed authentication`);
           client.close(1008, "Authentication failed");
           clearTimeout(subscriptionTimeout);
@@ -721,13 +642,7 @@ wss.on("connection", (client, req) => {
     }
 
     // Subsequent messages: a new subscription replaces the client's current one
-    let message;
-    try {
-      message = JSON.parse(data.toString());
-    } catch {
-      return;
-    }
-    const validation = validateSubscription(message);
+    const validation = validateSubscription(parseClientMessage(data));
     if (!validation.valid) {
       logger.warn(`[proxy] client ${clientId} invalid subscription update: ${validation.error}`);
       return;
@@ -759,11 +674,6 @@ wss.on("connection", (client, req) => {
     if (clientSubscriptions.delete(client)) {
       updateUpstreamSubscription();
     }
-  });
-
-  // ws always emits "close" after "error", and the close handler cleans up
-  client.on("error", (err) => {
-    logger.error(`[proxy] client ${clientId} error: ${err.message}`);
   });
 });
 

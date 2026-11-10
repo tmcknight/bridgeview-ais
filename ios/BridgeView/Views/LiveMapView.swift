@@ -87,7 +87,7 @@ struct LiveMapView: View {
             .onChange(of: reduceMotion, initial: true) { motion.eases = !reduceMotion }
             // The Live Activity's Map button: select the ship, and centre on it once it's in
             .onChange(of: router.mapShip, initial: true) { focusRequestedShip() }
-            .onChange(of: snapshot?.generatedAt) { focusRequestedShip() }
+            .onChange(of: snapshot?.generatedAt) { focusRequestedShip(fresh: true) }
         }
     }
 
@@ -95,12 +95,18 @@ struct LiveMapView: View {
         snapshot?.ships.filter { $0.position != nil } ?? []
     }
 
-    private func focusRequestedShip() {
+    /// `fresh`: the map's ships have just loaded. A ship still not among them isn't on
+    /// the map (unheard lately, or placed by AISHub), so stop asking for it; otherwise
+    /// every poll would select it again over whatever the user taps.
+    private func focusRequestedShip(fresh: Bool = false) {
         guard let mmsi = router.mapShip else { return }
         selected = mmsi
         guard let ship = ships.first(where: { $0.mmsi == mmsi }),
               let coordinate = motion.drawn(ship, at: .now)?.coordinate
-        else { return }
+        else {
+            if fresh { router.mapShip = nil }
+            return
+        }
         router.mapShip = nil
         withAnimation(reduceMotion ? nil : .easeInOut) {
             camera = .region(MKCoordinateRegion(center: coordinate, latitudinalMeters: 4000, longitudinalMeters: 4000))
@@ -189,7 +195,7 @@ struct MapShipMarker: View {
             case 1: sentences.append("At anchor")
             case 5: sentences.append("Moored")
             default:
-                if let sog = position.sog { sentences.append(Format.spoken(Format.speed(sog))) }
+                if let sog = position.speed { sentences.append(Format.spoken(Format.speed(sog))) }
             }
         }
         return sentences.joined(separator: ". ")
@@ -315,7 +321,7 @@ private struct SelectedShipCard: View {
             case 1: parts.append("At anchor")
             case 5: parts.append("Moored")
             default:
-                if let sog = position.sog { parts.append(Format.speed(sog)) }
+                if let sog = position.speed { parts.append(Format.speed(sog)) }
             }
         }
         return parts.joined(separator: " · ")

@@ -147,6 +147,22 @@ describe("createApproachAlerts", () => {
     vi.useRealTimers();
   });
 
+  it("logs a failure instead of throwing into the feed that called it", () => {
+    const logger = { error: vi.fn(), warn: vi.fn(), log: vi.fn() };
+    const failing = createApproachAlerts({
+      apns,
+      pushDevices,
+      logger,
+      ship: () => {
+        throw new Error("database is locked");
+      },
+    });
+    const report = { MessageType: "PositionReport", MetaData: { MMSI: 316001234 }, Message: { PositionReport: {} } };
+    expect(() => failing.handleMessage(report)).not.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("database is locked"));
+    failing.stop();
+  });
+
   it("alerts once when the ETA falls to 10 minutes", async () => {
     pushDevices.register(device(1));
     current = shipAt(15);

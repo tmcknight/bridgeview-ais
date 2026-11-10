@@ -141,6 +141,8 @@ export function createLocalPhotoStore({ dir, logger }) {
           res.end();
         } else {
           stream.pipe(res);
+          // pipe() leaves the file open when the client goes away mid-download
+          res.on("close", () => stream.destroy());
         }
       });
       stream.on("error", () => {

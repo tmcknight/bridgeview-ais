@@ -282,7 +282,7 @@ private fun describeOnMap(ship: Ship, lengths: Lengths): String = listOfNotNull(
         when (position.navStatus) {
             1 -> "at anchor"
             5 -> "moored"
-            else -> position.sog?.let(Format::spokenSpeed)
+            else -> position.speed?.let(Format::spokenSpeed)
         }
     },
     ship.approach?.let { Format.spokenArrival(it.etaMinutes, it.eta) },

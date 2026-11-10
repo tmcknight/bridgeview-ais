@@ -147,7 +147,8 @@ export function useAISStream(): UseAISStreamReturn {
       type: Notification["type"]
     ) => {
       const notification: Notification = {
-        id: `${mmsi}-${Date.now()}`,
+        // The type too: one report can raise both "approaching" and "passing"
+        id: `${mmsi}-${type}-${Date.now()}`,
         shipName,
         mmsi,
         message,
@@ -158,12 +159,18 @@ export function useAISStream(): UseAISStreamReturn {
       setNotifications((prev) => [notification, ...prev].slice(0, MAX_NOTIFICATIONS));
 
       // Browser notification if permission granted
-      if (globalThis.Notification?.permission === "granted") {
-        new globalThis.Notification(`🚢 ${shipName}`, {
-          body: message,
-          icon: "/ship-icon.png",
-          tag: `${mmsi}-${type}`,
-        });
+      // Chrome on Android has the permission but throws on the constructor; a throw
+      // here would drop the position report that raised the notification
+      try {
+        if (globalThis.Notification?.permission === "granted") {
+          new globalThis.Notification(`🚢 ${shipName}`, {
+            body: message,
+            icon: "/ship-icon.png",
+            tag: `${mmsi}-${type}`,
+          });
+        }
+      } catch (err) {
+        logger.warn("Browser notification failed:", err);
       }
     },
     []
@@ -184,7 +191,17 @@ export function useAISStream(): UseAISStreamReturn {
     (mmsi: number, updates: Partial<TrackedShip>) => {
       const existing = latestShip(mmsi);
       if (existing) {
-        queueShip({ ...existing, ...updates });
+        // A feed that doesn't know a detail sends it blank; keep what the ship already has
+        const known = Object.fromEntries(
+          Object.entries(updates).filter(([, value]) => {
+            if (value === undefined || value === "" || value === 0) return false;
+            if (value && typeof value === "object" && "toBow" in value) {
+              return value.toBow + value.toStern + value.toPort + value.toStarboard > 0;
+            }
+            return true;
+          })
+        );
+        queueShip({ ...existing, ...known });
         return;
       }
       const pendingDetails = pendingDetailsRef.current;

@@ -477,7 +477,7 @@ private fun ApproachCard(ship: Ship, approach: Approach) {
             }
             Row {
                 Stat("Direction", approach.direction.label, Modifier.weight(1f))
-                ship.position?.sog?.let { Stat("Speed", Format.speed(it), Modifier.weight(1f), spokenValue = Format.spokenSpeed(it)) } ?: Box(Modifier.weight(1f))
+                ship.position?.speed?.let { Stat("Speed", Format.speed(it), Modifier.weight(1f), spokenValue = Format.spokenSpeed(it)) } ?: Box(Modifier.weight(1f))
             }
             FollowToggle(ship.mmsi, FollowStyle.Pill)
         }

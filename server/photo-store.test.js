@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Writable } from "node:stream";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import {
   createLocalPhotoStore,
@@ -38,6 +39,28 @@ describe("createLocalPhotoStore", () => {
     expect(fs.readdirSync(dir)).toHaveLength(1);
     await store.remove(url);
     expect(fs.readdirSync(dir)).toHaveLength(0);
+  });
+
+  it("closes the file when the client goes away mid-download", async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "photos-"));
+    const store = createLocalPhotoStore({ dir });
+    const url = await store.save(Buffer.concat([JPEG, Buffer.alloc(4 * 1024 * 1024)]), "jpg");
+
+    const streams = [];
+    const createReadStream = vi.spyOn(fs, "createReadStream").mockImplementation((...args) => {
+      const stream = new fs.ReadStream(...args);
+      streams.push(stream);
+      return stream;
+    });
+    const res = new Writable({ highWaterMark: 1024, write() {} }); // never drains
+    res.writeHead = () => {};
+    store.serve({ method: "GET" }, res, url.split("/").pop());
+    await vi.waitFor(() => expect(streams[0].bytesRead).toBeGreaterThan(0));
+    expect(streams[0].destroyed).toBe(false);
+
+    res.destroy();
+    await vi.waitFor(() => expect(streams[0].destroyed).toBe(true));
+    createReadStream.mockRestore();
   });
 });
 

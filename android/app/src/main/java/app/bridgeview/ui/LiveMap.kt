@@ -139,7 +139,7 @@ private fun SelectedShipCard(ship: Ship, open: () -> Unit, close: () -> Unit) {
             when (position.navStatus) {
                 1 -> add("At anchor")
                 5 -> add("Moored")
-                else -> position.sog?.let { add(Format.speed(it)) }
+                else -> position.speed?.let { add(Format.speed(it)) }
             }
         }
     }.joinToString(" · ")
@@ -189,7 +189,7 @@ private fun spokenDetails(ship: Ship, lengths: Lengths): String = listOfNotNull(
         when (position.navStatus) {
             1 -> "at anchor"
             5 -> "moored"
-            else -> position.sog?.let(Format::spokenSpeed)
+            else -> position.speed?.let(Format::spokenSpeed)
         }
     },
 ).joinToString(", ")
