@@ -17,11 +17,13 @@ import app.bridgeview.MainActivity
 import app.bridgeview.R
 import app.bridgeview.model.DeepLink
 import app.bridgeview.model.Direction
+import app.bridgeview.model.Lengths
 import app.bridgeview.net.InstantSerializer
 import app.bridgeview.ui.Format
 import java.time.Duration
 import java.time.Instant
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /**
  * Bridge alerts, and the live countdown that stands in for the iOS Live Activity:
@@ -127,7 +129,7 @@ object ShipNotifications {
 
         val details = listOfNotNull(
             data["shipTypeName"],
-            data["length"]?.let { "$it m" },
+            data["length"]?.toDoubleOrNull()?.let { Lengths.current(context).length(it.roundToInt()) },
         ).toMutableList()
         val headline: String
         val critical: String

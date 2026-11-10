@@ -3,6 +3,7 @@ package app.bridgeview
 import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.DeviceRegistration
 import app.bridgeview.model.Direction
+import app.bridgeview.model.LengthUnit
 import app.bridgeview.model.ShipCategory
 import app.bridgeview.net.ApiJson
 import kotlinx.serialization.json.jsonObject
@@ -36,6 +37,13 @@ class RegistrationTest {
         )
         // Android never sends a push-to-start token (the server refuses one)
         assertFalse("pushToStartToken" in ApiJson.parseToJsonElement(json).jsonObject)
+    }
+
+    @Test fun sendsTheLengthUnitWhenGiven() {
+        val feet = ApiJson.encodeToString(DeviceRegistration.serializer(), DeviceRegistration.from(base, countdownsAllowed = true, lengthUnit = LengthUnit.Feet))
+        assertTrue(feet.endsWith(""","lengthUnit":"ft"}"""))
+        assertEquals("m", DeviceRegistration.from(base, countdownsAllowed = true, lengthUnit = LengthUnit.Metres).lengthUnit)
+        assertNull(DeviceRegistration.from(base, countdownsAllowed = true).lengthUnit)
     }
 
     @Test fun holdsAlertsBackAwayFromTheBridge() {
@@ -94,6 +102,6 @@ class RegistrationTest {
         assertEquals(0, defaults.minLength)
         assertTrue(defaults.liveActivities)
         assertFalse(defaults.nearBridgeOnly)
-        assertEquals(5, defaults.nearBridgeRadius)
+        assertEquals(5_000, defaults.nearBridgeRadius)
     }
 }

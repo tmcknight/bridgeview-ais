@@ -24,12 +24,25 @@ enum Format {
     }
 
     /// Units in words for VoiceOver, which reads "NM" and "kn" as letters:
-    /// "Cargo · 225 × 24 m · 1.6 NM" becomes "Cargo, 225 by 24 metres, 1.6 nautical miles"
-    static func spoken(_ text: String) -> String {
+    /// "Cargo · 225 × 24 m · 1.6 NM" becomes "Cargo, 225 by 24 metres, 1.6 nautical miles".
+    /// Lengths are spelled for the locale ("meters" in the US)
+    static func spoken(_ text: String, locale: Locale = Lengths.english) -> String {
         var spoken = text
             .replacingOccurrences(of: " · ", with: ", ")
             .replacingOccurrences(of: " × ", with: " by ")
-        for (unit, words) in [("NM", "nautical miles"), ("kn", "knots"), ("kW", "kilowatts"), ("km", "kilometres"), ("m", "metres"), ("t", "tonnes")] {
+        let lengths: [(String, UnitLength)] = [("km", .kilometers), ("m", .meters), ("ft", .feet)]
+        for (symbol, unit) in lengths {
+            spoken = spoken.replacing(try! Regex("(\\d[\\d,]*(?:\\.\\d+)?) \(symbol)\\b")) { match in
+                let digits = String(match.output[1].substring ?? "")
+                guard let value = Double(digits.replacingOccurrences(of: ",", with: "")) else { return String(match.output[0].substring ?? "") }
+                let fraction = digits.split(separator: ".").dropFirst().first?.count ?? 0
+                return Measurement(value: value, unit: unit).formatted(
+                    .measurement(width: .wide, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(fraction)).locale(locale))
+                    .locale(locale)
+                )
+            }
+        }
+        for (unit, words) in [("NM", "nautical miles"), ("kn", "knots"), ("kW", "kilowatts"), ("t", "tonnes")] {
             spoken = spoken.replacingOccurrences(of: "(\\d) \(unit)\\b", with: "$1 \(words)", options: .regularExpression)
         }
         return spoken

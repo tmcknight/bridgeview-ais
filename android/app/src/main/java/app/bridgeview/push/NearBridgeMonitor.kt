@@ -106,7 +106,7 @@ class NearBridgeMonitor(private val context: Context, private val prefs: Prefs) 
             return
         }
         if (readAuthorization() != Authorization.Always) return
-        val radius = preferences.nearBridgeRadius * 1000f
+        val radius = preferences.nearBridgeRadius.toFloat()
         val geofence = Geofence.Builder()
             .setRequestId(REQUEST_ID)
             .setCircularRegion(Bridge.LATITUDE, Bridge.LONGITUDE, radius)

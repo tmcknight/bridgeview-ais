@@ -44,7 +44,7 @@ struct RecentView: View {
             .toolbarTitleDisplayMode(.inlineLarge)
             .searchable(text: $query, prompt: "Name, MMSI or IMO number")
             .autocorrectionDisabled()
-            .textInputAutocapitalization(.characters)
+            .textInputAutocapitalization(.never)
             .navigationDestination(for: Int.self) { mmsi in
                 ShipDetailView(mmsi: mmsi)
             }
@@ -83,7 +83,7 @@ struct RecentView: View {
                 )
                 .padding(.top, favourites.ships.isEmpty ? 72 : 16)
             } else {
-                ForEach(ships) { ship in
+                ForEach(ships, id: \.recentRowID) { ship in
                     NavigationLink(value: ship.mmsi) {
                         ShipRow(ship: ship, mode: .recent)
                             .card(padding: 12)
@@ -137,9 +137,11 @@ struct RecentView: View {
     /// Nothing at all until a ship's starred, so the recent list stays at the top
     @ViewBuilder private var favouritesList: some View {
         if !favourites.ships.isEmpty {
-            SectionLabel("Favourites")
+            SectionLabel(String(localized: "Favourites"), systemImage: "star.fill")
                 .padding(.top, 8)
-            ForEach(sortedFavourites) { ship in
+            // Own IDs: a favourite that also passed in the last day is in both lists, and
+            // the same ID twice in one LazyVStack leaves a gap until it's scrolled
+            ForEach(sortedFavourites, id: \.favouriteRowID) { ship in
                 SummaryCard(ship: ship)
             }
             if let favouritesError {
@@ -231,23 +233,16 @@ struct RecentView: View {
     }
 }
 
-/// A ship from search or Favourites: a link to its page, with a star beside it when
-/// it's a favourite (added from its page or by pressing and holding)
+/// A ship from search or Favourites: a link to its page. Starred from its page or by
+/// pressing and holding
 private struct SummaryCard: View {
-    @Environment(Favourites.self) private var favourites
-
     var ship: Ship
 
     var body: some View {
-        HStack(spacing: 4) {
-            NavigationLink(value: ship.mmsi) {
-                ShipSummaryRow(ship: ship)
-            }
-            .buttonStyle(.plain)
-            if favourites.contains(ship.mmsi) {
-                FavouriteButton(mmsi: ship.mmsi, name: ship.name)
-            }
+        NavigationLink(value: ship.mmsi) {
+            ShipSummaryRow(ship: ship)
         }
+        .buttonStyle(.plain)
         .card(padding: 12)
         .contextMenu {
             FavouriteToggle(mmsi: ship.mmsi, name: ship.name)
@@ -327,7 +322,7 @@ struct ShipSummaryRow: View {
     }
 }
 
-/// "Favourite" as a ticked menu item, for pressing and holding a ship
+/// "Favourite" ("Favorite" in the US) as a ticked menu item, for pressing and holding a ship
 struct FavouriteToggle: View {
     @Environment(Favourites.self) private var favourites
 
@@ -343,4 +338,9 @@ struct FavouriteToggle: View {
             Label("Favourite", systemImage: "star")
         }
     }
+}
+
+private extension Ship {
+    var favouriteRowID: String { "favourite-\(mmsi)" }
+    var recentRowID: String { "recent-\(mmsi)" }
 }

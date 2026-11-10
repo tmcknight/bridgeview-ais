@@ -1,8 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<!-- Canadian spelling; values-en-rUS overrides the strings spelt differently in the US -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en">
     <string name="app_name">BridgeView</string>
     <string name="channel_alerts">Bridge alerts</string>
     <string name="channel_alerts_description">A ship is about 10 minutes from the Blue Water Bridge</string>
     <string name="channel_live">Live countdowns</string>
     <string name="channel_live_description">A countdown to a ship you follow reaching the bridge, until it has passed</string>
+
+    <!-- Favourites (Recent tab, ship page star) -->
+    <string name="favourites_title">Favourites</string>
+    <string name="favourite_state_on">Favourite</string>
+    <string name="favourite_state_off">Not a favourite</string>
+    <string name="favourite_add">Add %1$s to favourites</string>
+    <string name="favourite_remove">Remove %1$s from favourites</string>
+
+    <!-- Ship details -->
+    <string name="detail_draught">Draught</string>
+
+    <!-- Lengths: spoken unit, and the setting -->
+    <string name="unit_metres_spoken">metres</string>
+    <string name="settings_lengths">Units</string>
+    <string name="settings_lengths_automatic">Automatic</string>
+    <string name="settings_lengths_metres">Metric</string>
+    <string name="settings_lengths_feet">US</string>
+    <string name="settings_lengths_footer">For ship lengths, widths and draughts, and distances. Automatic uses feet and miles when your phone\'s region uses US measurements.</string>
 </resources>

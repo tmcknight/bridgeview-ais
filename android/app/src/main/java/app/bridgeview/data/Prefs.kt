@@ -6,6 +6,8 @@ import androidx.core.content.edit
 import app.bridgeview.model.AlertPreferences
 import app.bridgeview.model.Appearance
 import app.bridgeview.model.Favourites
+import app.bridgeview.model.LengthSetting
+import app.bridgeview.model.NearBridgeRadius
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -21,12 +23,15 @@ class Prefs(context: Context) {
         const val MIN_LENGTH = "alerts.minLength"
         const val DIRECTIONS = "alerts.directions"
         const val NEAR_BRIDGE_ONLY = "alerts.nearBridgeOnly"
+        /** Whole kilometres, before the radius was stored in metres */
         const val NEAR_BRIDGE_RADIUS = "alerts.nearBridgeRadius"
+        const val NEAR_BRIDGE_RADIUS_METRES = "alerts.nearBridgeRadiusMetres"
         const val LIVE_ACTIVITIES = "alerts.liveActivities"
         const val LIVE_ACTIVITY_SHIPS = "alerts.liveActivityShips"
         const val APPEARANCE = "appearance"
         const val PHOTO_CREDIT = "photoCreditName"
         const val FAVOURITES = "favourites"
+        const val LENGTH_UNIT = "units.length"
     }
 
     private val store: SharedPreferences = context.getSharedPreferences("bridgeview", Context.MODE_PRIVATE)
@@ -61,13 +66,26 @@ class Prefs(context: Context) {
     val minLength = int(Key.MIN_LENGTH, 0)
     val directions = string(Key.DIRECTIONS, AlertPreferences.encodeDirections(defaults.directions))
     val nearBridgeOnly = bool(Key.NEAR_BRIDGE_ONLY, false)
-    val nearBridgeRadius = int(Key.NEAR_BRIDGE_RADIUS, AlertPreferences.DEFAULT_RADIUS)
+    /** In metres (NearBridgeRadius); from the old kilometre setting if that's all there is */
+    val nearBridgeRadius = Setting(
+        Key.NEAR_BRIDGE_RADIUS_METRES,
+        {
+            when {
+                contains(Key.NEAR_BRIDGE_RADIUS_METRES) -> getInt(Key.NEAR_BRIDGE_RADIUS_METRES, NearBridgeRadius.DEFAULT_METRES)
+                contains(Key.NEAR_BRIDGE_RADIUS) -> getInt(Key.NEAR_BRIDGE_RADIUS, 5) * 1000
+                else -> NearBridgeRadius.DEFAULT_METRES
+            }
+        },
+        { putInt(Key.NEAR_BRIDGE_RADIUS_METRES, it) },
+    )
     val liveActivities = bool(Key.LIVE_ACTIVITIES, true)
     val liveActivityShips = string(Key.LIVE_ACTIVITY_SHIPS, "")
     val appearance = string(Key.APPEARANCE, Appearance.System.raw)
     val photoCredit = string(Key.PHOTO_CREDIT, "")
     /** Starred ships as JSON (Favourites.encode); the server doesn't know them */
     val favourites = string(Key.FAVOURITES, "")
+    /** Units for ship lengths: LengthSetting.raw ("auto", "m" or "ft") */
+    val lengthUnit = string(Key.LENGTH_UNIT, LengthSetting.Automatic.raw)
 
     fun toggleFavourite(mmsi: Int, name: String) {
         favourites.value = Favourites.encode(Favourites.toggle(Favourites.decode(favourites.value), mmsi, name))
@@ -79,7 +97,7 @@ class Prefs(context: Context) {
         minLength = minLength.value,
         directions = AlertPreferences.decodeDirections(directions.value),
         nearBridgeOnly = nearBridgeOnly.value,
-        nearBridgeRadius = nearBridgeRadius.value,
+        nearBridgeRadius = NearBridgeRadius.nearest(nearBridgeRadius.value, LengthSetting.fromRaw(lengthUnit.value).resolve()),
         liveActivities = liveActivities.value,
         liveActivityShips = AlertPreferences.decodeShips(liveActivityShips.value),
     )

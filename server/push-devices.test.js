@@ -31,6 +31,7 @@ describe("parseDeviceRegistration", () => {
       minLength: 0,
       directions: ["upbound", "downbound"],
       liveActivityShips: {},
+      lengthUnit: "m",
     });
   });
 
@@ -54,6 +55,9 @@ describe("parseDeviceRegistration", () => {
     [{ minLength: -1 }, TOKEN],
     [{ minLength: 1.5 }, TOKEN],
     [{ directions: ["sideways"] }, TOKEN],
+    [{ lengthUnit: "yd" }, TOKEN],
+    [{ lengthUnit: "FT" }, TOKEN],
+    [{ lengthUnit: null }, TOKEN],
   ])("rejects %j", (body, token) => {
     expect(register(body, token).error).toBeTruthy();
   });
@@ -70,6 +74,12 @@ describe("parseDeviceRegistration", () => {
     // An FCM token isn't an APNs one
     expect(register({}, FCM_TOKEN).error).toMatch(/token/);
     expect(register({ platform: "windows" }).error).toMatch(/platform/);
+  });
+
+  it("takes the device's length unit", () => {
+    expect(register({ lengthUnit: "ft" }).device.lengthUnit).toBe("ft");
+    expect(registerAndroid({ lengthUnit: "ft" }).device.lengthUnit).toBe("ft");
+    expect(register({ lengthUnit: "yd" }).error).toMatch(/lengthUnit/);
   });
 
   it("rejects a body that isn't an object", () => {
@@ -173,7 +183,18 @@ describe("createPushDevices", () => {
     expect(devices.matching(ship)).toEqual([]);
   });
 
-  it("adds the platform column to an older database", () => {
+  it("stores each device's length unit", () => {
+    devices = createPushDevices();
+    const ship = { category: "cargo", length: 200, direction: "upbound" };
+    devices.register(register().device);
+    expect(devices.matching(ship)[0].lengthUnit).toBe("m");
+    devices.register(register({ lengthUnit: "ft" }).device);
+    expect(devices.matching(ship)[0].lengthUnit).toBe("ft");
+    devices.register(register({ liveActivityShips: { 316001234: true }, lengthUnit: "ft" }).device);
+    expect(devices.followers(316001234)[0].lengthUnit).toBe("ft");
+  });
+
+  it("adds the platform and length unit columns to an older database", () => {
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "push-devices-")), "old.db");
     const old = new DatabaseSync(file);
     old.exec(`CREATE TABLE push_devices (
@@ -184,7 +205,7 @@ describe("createPushDevices", () => {
     old.close();
     devices = createPushDevices({ file });
     expect(devices.matching({ category: "cargo", length: 0, direction: "upbound" })).toMatchObject([
-      { token: TOKEN, platform: "ios", liveActivityShips: {} },
+      { token: TOKEN, platform: "ios", liveActivityShips: {}, lengthUnit: "m" },
     ]);
   });
 

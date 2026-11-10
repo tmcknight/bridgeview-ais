@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { screen } from '@testing-library/react'
 import { renderWithProviders } from '../test/utils/renderWithProviders'
 import ShipShape from './ShipShape'
@@ -8,7 +8,21 @@ describe('ShipShape', () => {
     renderWithProviders(<ShipShape length={225} width={24} />)
 
     expect(screen.getByText('225 × 24 m')).toBeInTheDocument()
-    expect(screen.getByTitle('Length 225 m × beam 24 m')).toBeInTheDocument()
+    expect(screen.getByTitle('Length 225 metres × beam 24 metres')).toBeInTheDocument()
+  })
+
+  describe('in the US', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('shows the length and beam in feet', () => {
+      vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US')
+      renderWithProviders(<ShipShape length={225} width={24} />)
+
+      expect(screen.getByText('738 × 79 ft')).toBeInTheDocument()
+      expect(screen.getByTitle('Length 738 feet × beam 79 feet')).toBeInTheDocument()
+    })
   })
 
   it.each([

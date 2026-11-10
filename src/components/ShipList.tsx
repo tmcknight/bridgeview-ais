@@ -1,6 +1,7 @@
 import { memo, useMemo, useState, useEffect } from "react"
 import type { TrackedShip } from "../types/ais"
 import { NAV_STATUS_LABELS } from "../types/ais"
+import { spell } from "../utils/locale"
 import {
   formatDistance,
   formatSpeed,
@@ -180,7 +181,7 @@ const ShipRow = memo(function ShipRow({
         <div
           className="flex items-center gap-1.5 min-w-0"
           title={[
-            NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown",
+            spell(NAV_STATUS_LABELS[ship.navStatus] ?? "Unknown"),
             ship.navStatus !== 1 && ship.navStatus !== 5
               ? `Heading ${formatHeading(headingDeg)}`
               : null,

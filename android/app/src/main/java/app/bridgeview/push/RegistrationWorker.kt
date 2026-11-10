@@ -6,6 +6,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import app.bridgeview.graph
 import app.bridgeview.model.DeviceRegistration
+import app.bridgeview.model.LengthSetting
 import app.bridgeview.net.ApiError
 import app.bridgeview.net.ApiJson
 import kotlinx.coroutines.CancellationException
@@ -24,6 +25,8 @@ class RegistrationWorker(context: Context, params: WorkerParameters) : Coroutine
             preferences = prefs.alertPreferences(),
             nearBridge = graph.nearBridge.effectiveIsNear(),
             countdownsAllowed = ShipNotifications.countdownsAllowed(applicationContext),
+            // Resolved now, so a change of region (Automatic) is sent the next time the app opens
+            lengthUnit = LengthSetting.fromRaw(prefs.lengthUnit.value).resolve(),
         )
         val signature = "$token\n${ApiJson.encodeToString(DeviceRegistration.serializer(), body)}"
         if (prefs.lastRegistration == signature) return Result.success()

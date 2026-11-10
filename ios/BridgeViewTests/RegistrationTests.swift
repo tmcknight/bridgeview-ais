@@ -17,7 +17,7 @@ struct RegistrationTests {
             liveActivities: true
         )
         let json = String(decoding: try JSONEncoder.api.encode(body), as: UTF8.self)
-        #expect(json == #"{"categories":["cargo","tanker","passenger"],"directions":["upbound","downbound"],"enabled":true,"environment":"production","liveActivities":true,"minLength":100,"pushToStartToken":"80f7"}"#)
+        #expect(json == #"{"categories":["cargo","tanker","passenger"],"directions":["upbound","downbound"],"enabled":true,"environment":"production","lengthUnit":"m","liveActivities":true,"minLength":100,"pushToStartToken":"80f7"}"#)
     }
 
     @Test func omitsMissingPushToStartToken() throws {
@@ -100,7 +100,7 @@ struct RegistrationTests {
         #expect(preferences.minLength == 0)
         #expect(preferences.liveActivities)
         #expect(!preferences.nearBridgeOnly)
-        #expect(preferences.nearBridgeRadius == 5)
+        #expect(preferences.nearBridgeRadius == NearBridgeRadius.nearest(5_000, unit: LengthUnit.automatic.resolved()))
 
         defaults.set("tanker,bogus", forKey: AlertPreferences.Key.categories)
         #expect(AlertPreferences.load(from: defaults).categories == [.tanker])

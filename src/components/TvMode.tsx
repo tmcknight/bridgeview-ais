@@ -11,6 +11,7 @@ import { withLiveVideo, type ShipCamVideoIds } from "../utils/shipCams"
 import { formatDistance, formatSpeed } from "../utils/geo"
 import { describeCargo, guessCargo } from "../utils/cargo"
 import { passageDirection } from "../utils/tvMode"
+import { formatLength } from "../utils/units"
 import type { TvShips } from "../hooks/useTvShips"
 import type { TrackedShip } from "../types/ais"
 import PhotoCarousel from "./PhotoCarousel"
@@ -25,7 +26,6 @@ export const CAM_PRELOAD_MIN = 3
 // ...and is unloaded this long after the last ship has gone, once it's faded
 const CAM_UNLOAD_MS = 2000
 
-const M_TO_FT = 3.28084
 
 interface TvModeProps extends TvShips {
   /** Mouse still: hide the exit button */
@@ -136,9 +136,7 @@ function ShipCard({ ship, onCam = false, etaMinutes }: ShipCardProps) {
   const cargo = guessCargo(ship)
 
   const facts = [
-    ship.length
-      ? `${ship.length} m (${Math.round(ship.length * M_TO_FT)} ft)`
-      : null,
+    ship.length ? formatLength(ship.length) : null,
     formatSpeed(ship.sog),
     `${formatDistance(ship.distanceToBridge)} from the bridge`,
   ].filter(Boolean)

@@ -279,7 +279,8 @@ Idempotent; call on every launch and whenever a setting changes.
   "categories": ["cargo", "tanker", "passenger"],
   "minLength": 100,
   "directions": ["upbound", "downbound"],
-  "liveActivityShips": { "316001234": true, "366999000": false }
+  "liveActivityShips": { "316001234": true, "366999000": false },
+  "lengthUnit": "m"
 }
 ```
 
@@ -302,7 +303,13 @@ Idempotent; call on every launch and whenever a setting changes.
   Activities on or off for, overriding `liveActivities` for that ship. `true` also
   alerts for that ship when `categories`, `minLength` or `directions` would skip it
   (still not while `enabled` is false). Optional; the app sends only ships coming up.
-- `minLength`: 0 for any; ships of unknown length count as 0.
+- `minLength`: 0 for any; ships of unknown length count as 0. Always in metres,
+  whatever `lengthUnit` is (the app converts it for display).
+- `lengthUnit`: `m` or `ft`, the unit the app shows lengths in (its setting, with
+  Automatic resolved to one of the two). Alert text gives the ship's length in it:
+  "225 m", or "738 ft" (rounded, with a thousands separator, as in "1,014 ft").
+  Optional, `m` when left out. Live Activity attributes and Android countdown data
+  still carry `length` as a number of metres, for the app to format.
 
 204 on success, 400 with `{ "error": "…" }` on bad input.
 

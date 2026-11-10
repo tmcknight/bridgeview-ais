@@ -33,9 +33,9 @@ struct Ship: Codable, Identifiable, Hashable, Sendable {
     /// The latest passage, whichever endpoint the ship came from
     var lastPassage: Passage? { passage ?? passages?.first }
 
-    /// "Cargo · 225 m"
+    /// "Cargo · 225 m" ("Cargo · 738 ft" when lengths are in feet)
     var summary: String {
-        [shipTypeName, length.map { "\($0) m" }].compactMap { $0 }.joined(separator: " · ")
+        [shipTypeName, length.map { Lengths.format($0) }].compactMap { $0 }.joined(separator: " · ")
     }
 
     var flagEmoji: String? {

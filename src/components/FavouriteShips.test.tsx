@@ -44,4 +44,14 @@ describe('FavouriteShips', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Remove AWAY from favourites' }))
     expect(onToggleFavourite).toHaveBeenCalledWith(1, 'AWAY')
   })
+
+  it('spells it "favorites" in the US', () => {
+    const language = vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US')
+    renderWithProviders(
+      <FavouriteShips favourites={favourites} ships={ships} log={log} onToggleFavourite={vi.fn()} />,
+    )
+    expect(screen.getByText('Favorites (1 of 2 heard)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove AWAY from favorites' })).toBeInTheDocument()
+    language.mockRestore()
+  })
 })

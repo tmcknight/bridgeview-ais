@@ -52,6 +52,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.bridgeview.model.Bridge
 import app.bridgeview.model.Coordinate
+import app.bridgeview.model.Lengths
 import app.bridgeview.model.METRES_PER_DEGREE_LATITUDE
 import app.bridgeview.model.Ship
 import app.bridgeview.model.ShipMotion
@@ -210,6 +211,7 @@ fun ShipMap(
 
     val measurer = rememberTextMeasurer()
     val colors = Theme.colors
+    val lengths = LocalLengths.current
     Box(modifier) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
         Canvas(Modifier.fillMaxSize()) {
@@ -237,7 +239,7 @@ fun ShipMap(
                 drawShip(ship, point, drawn.course, isSelected, metresPerPx, colors)
                 if (ship.mmsi == selected) drawLabel(ship.name, point + Offset(0f, 22.dp.toPx()), measurer)
             }
-            if (interactive && metresPerPx > 0) drawScale(metresPerPx, measurer, colors.isDark)
+            if (interactive && metresPerPx > 0) drawScale(metresPerPx, lengths, measurer, colors.isDark)
         }
         // The ships and the bridge are drawn, not views, so screen readers get an
         // invisible 48dp target over each, following it as it moves (placed at
@@ -259,7 +261,7 @@ fun ShipMap(
                     key(ship.mmsi) {
                         Box(
                             target { motion.drawn(ship, Instant.ofEpochMilli(frameTime))?.coordinate }.semantics {
-                                contentDescription = describeOnMap(ship)
+                                contentDescription = describeOnMap(ship, lengths)
                                 this.selected = ship.mmsi == selectedMmsi
                                 onSelect?.let { select -> onClick(label = "Show details") { select(ship.mmsi); true } }
                             },
@@ -272,9 +274,9 @@ fun ShipMap(
 }
 
 /** "ALGOMA EQUINOX, Cargo, 225 metres, Upbound, heading north, 11.2 knots, reaches the bridge in 8 minutes, at 2:10 PM" */
-private fun describeOnMap(ship: Ship): String = listOfNotNull(
+private fun describeOnMap(ship: Ship, lengths: Lengths): String = listOfNotNull(
     ship.name,
-    Format.spokenSummary(ship).ifEmpty { null },
+    lengths.spokenSummary(ship).ifEmpty { null },
     Format.spokenHeading(ship.approach?.direction, ship.position?.course).ifEmpty { null },
     ship.position?.let { position ->
         when (position.navStatus) {
@@ -410,12 +412,10 @@ private fun DrawScope.drawLabel(text: String, at: Offset, measurer: androidx.com
 }
 
 /** A scale bar in the bottom-left corner (iOS: MapScaleView) */
-private fun DrawScope.drawScale(metresPerPx: Double, measurer: androidx.compose.ui.text.TextMeasurer, dark: Boolean) {
-    val target = 90.dp.toPx() * metresPerPx
-    val steps = listOf(50.0, 100.0, 200.0, 500.0, 1000.0, 2000.0, 5000.0, 10_000.0, 20_000.0, 50_000.0)
-    val metres = steps.lastOrNull { it <= target } ?: steps.first()
+private fun DrawScope.drawScale(metresPerPx: Double, lengths: Lengths, measurer: androidx.compose.ui.text.TextMeasurer, dark: Boolean) {
+    // Metres and kilometres, or feet and miles
+    val (metres, label) = lengths.scaleStep(90.dp.toPx() * metresPerPx)
     val length = (metres / metresPerPx).toFloat()
-    val label = if (metres >= 1000) "${(metres / 1000).toInt()} km" else "${metres.toInt()} m"
     val color = if (dark) Color.White else Color(0xFF0B1A26)
     val x = 16.dp.toPx()
     val y = size.height - 28.dp.toPx()

@@ -1,5 +1,6 @@
 import type { TrackedShip } from "../types/ais";
 import { NAV_STATUS_LABELS } from "../types/ais";
+import { spell } from "./locale";
 import { formatDistance, formatETA, formatRelativeTime, formatSpeed, isSpeedAvailable } from "./geo";
 import type { ShipLog } from "./shipLog";
 import { getUpcomingPassage } from "./upcoming";
@@ -90,7 +91,7 @@ export function describeFavourite(ship: TrackedShip | undefined, log: ShipLog, m
     const status =
       ship.sog > 0.5 && isSpeedAvailable(ship.sog)
         ? formatSpeed(ship.sog)
-        : (NAV_STATUS_LABELS[ship.navStatus] ?? "Stopped");
+        : spell(NAV_STATUS_LABELS[ship.navStatus] ?? "Stopped");
     return `${formatDistance(ship.distanceToBridge)} from the bridge · ${status}`;
   }
   const entry = log.get(mmsi);

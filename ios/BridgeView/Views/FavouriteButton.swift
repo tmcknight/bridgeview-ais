@@ -15,7 +15,7 @@ struct FavouriteButton: View {
             Image(systemName: "star")
                 .symbolVariant(on ? .fill : .none)
                 .contentTransition(.symbolEffect(.replace))
-                .foregroundStyle(on ? AnyShapeStyle(Color.yellow) : AnyShapeStyle(.secondary))
+                .foregroundStyle(on ? AnyShapeStyle(Theme.signal) : AnyShapeStyle(.secondary))
                 .font(.body.weight(.semibold))
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(.rect)
@@ -25,7 +25,7 @@ struct FavouriteButton: View {
         .accessibilityLabel("Favourite")
         .accessibilityAddTraits(.isToggle)
         .accessibilityValue(on ? "On" : "Off")
-        .accessibilityInputLabels(["Favourite", "Star"])
-        .accessibilityHint(on ? "Takes \(name) out of Favourites" : "Keeps \(name) in Favourites")
+        .accessibilityInputLabels([Text("Favourite"), Text("Star")])
+        .accessibilityHint(on ? Text("Takes \(name) out of Favourites") : Text("Keeps \(name) in Favourites"))
     }
 }
