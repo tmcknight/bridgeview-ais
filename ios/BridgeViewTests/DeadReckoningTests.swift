@@ -31,6 +31,8 @@ struct DeadReckoningTests {
         #expect(position(sog: 12, cog: 360).coordinate(at: later).latitude == 42.95)
         #expect(position(sog: 12, cog: 0, navStatus: 5).coordinate(at: later).latitude == 42.95)
         #expect(position(sog: nil, cog: 0).coordinate(at: later).latitude == 42.95)
+        // 102.3 kn means the speed isn't available
+        #expect(position(sog: 102.3, cog: 0).coordinate(at: later).latitude == 42.95)
         // A report "from the future" (clock skew) isn't moved backwards
         #expect(position(sog: 12, cog: 0).coordinate(at: reported.addingTimeInterval(-30)).latitude == 42.95)
     }

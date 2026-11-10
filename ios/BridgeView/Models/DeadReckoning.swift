@@ -8,7 +8,7 @@ extension Position {
 
     /// Under way: moving at half a knot or more, with a course, and not at anchor or moored
     var isUnderWay: Bool {
-        guard let sog, sog >= 0.5, let cog, cog < 360 else { return false }
+        guard let speed, speed >= 0.5, let cog, cog < 360 else { return false }
         return navStatus != 1 && navStatus != 5
     }
 

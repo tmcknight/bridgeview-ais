@@ -66,6 +66,9 @@ struct ShipDetailView: View {
         do {
             ship = try await api.ship(mmsi: mmsi)
             error = nil
+        } catch is CancellationError {
+            // Left the page mid-load; the next appearance loads again
+        } catch let urlError as URLError where urlError.code == .cancelled {
         } catch {
             self.error = APIError.message(for: error)
         }
@@ -414,7 +417,7 @@ private struct ShipDetailContent: View {
                 }
                 GridRow {
                     Stat(label: "Direction", value: Text(approach.direction.label))
-                    if let sog = ship.position?.sog {
+                    if let sog = ship.position?.speed {
                         Stat(label: "Speed", value: Text(Format.speed(sog)), spoken: Format.spoken(Format.speed(sog)))
                     }
                 }

@@ -98,6 +98,10 @@ data class Position(
     val navStatus: Int? = null,
     @Serializable(with = InstantSerializer::class) val time: Instant,
 ) {
+    /** Speed over ground in knots, when the ship sends one (AIS uses 102.3 for "not available") */
+    val speed: Double?
+        get() = sog?.takeIf { it < 102.2 }
+
     /**
      * Which way the ship points, in degrees true: its heading, or its course over
      * ground when it sends no heading (AIS uses 511 and 360 for "not available")
