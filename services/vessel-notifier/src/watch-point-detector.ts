@@ -67,10 +67,18 @@ const DEFAULT_CONFIG: WatchPointDetectorConfig = {
  * is also observed on the first report after the vessel has come abeam; that
  * is returned from `processMessage`. Cooldown ensures only one of the two fires.
  */
+/** What a ShipStaticData message tells us about a vessel */
+type StaticDetails = Partial<
+  Pick<TrackedVessel, "name" | "destination" | "callSign" | "imo" | "shipType" | "length" | "beam">
+>;
+
 export class WatchPointDetector {
   private vessels = new Map<number, TrackedVessel>();
   private notified = new Map<string, number>(); // "pointId:mmsi" -> timestamp of last notification
   private predictions = new Map<string, ReturnType<typeof setTimeout>>(); // "pointId:mmsi" -> pending timer
+  // Details heard before a vessel's first position. The server sends a ship's stored
+  // details just ahead of its first position, so they'd otherwise be thrown away.
+  private pendingDetails = new Map<number, { details: StaticDetails; receivedAt: number }>();
   private config: WatchPointDetectorConfig;
 
   constructor(config: Partial<WatchPointDetectorConfig> = {}) {
@@ -117,12 +125,21 @@ export class WatchPointDetector {
 
     const now = Date.now();
     const existing = this.vessels.get(mmsi);
+    const pending = existing ? undefined : this.pendingDetails.get(mmsi)?.details;
+    const placeholder = `MMSI ${mmsi}`;
+    this.pendingDetails.delete(mmsi);
 
     // Update tracked vessel
     const vessel: TrackedVessel = {
       ...existing,
+      ...pending,
       mmsi,
-      name: existing?.name || meta.ShipName?.trim() || `MMSI ${mmsi}`,
+      // The placeholder stands in only until a name is heard
+      name:
+        (existing?.name !== placeholder && existing?.name) ||
+        pending?.name ||
+        meta.ShipName?.trim() ||
+        placeholder,
       latitude: lat,
       longitude: lon,
       cog: report.Cog,
@@ -292,17 +309,23 @@ export class WatchPointDetector {
     const data = message.Message.ShipStaticData!;
     const mmsi = message.MetaData.MMSI;
 
+    const details: StaticDetails = {};
+    if (data.Name?.trim()) details.name = data.Name.trim();
+    if (data.Destination?.trim()) details.destination = data.Destination.trim();
+    if (data.CallSign?.trim()) details.callSign = data.CallSign.trim();
+    if (data.ImoNumber) details.imo = data.ImoNumber;
+    if (data.Type) details.shipType = data.Type;
+    if (data.Dimension) {
+      details.length = data.Dimension.A + data.Dimension.B;
+      details.beam = data.Dimension.C + data.Dimension.D;
+    }
+
     const existing = this.vessels.get(mmsi);
     if (existing) {
-      if (data.Name?.trim()) existing.name = data.Name.trim();
-      if (data.Destination?.trim()) existing.destination = data.Destination.trim();
-      if (data.CallSign?.trim()) existing.callSign = data.CallSign.trim();
-      if (data.ImoNumber) existing.imo = data.ImoNumber;
-      if (data.Type) existing.shipType = data.Type;
-      if (data.Dimension) {
-        existing.length = data.Dimension.A + data.Dimension.B;
-        existing.beam = data.Dimension.C + data.Dimension.D;
-      }
+      Object.assign(existing, details);
+    } else {
+      const pending = this.pendingDetails.get(mmsi)?.details;
+      this.pendingDetails.set(mmsi, { details: { ...pending, ...details }, receivedAt: Date.now() });
     }
   }
 
@@ -321,6 +344,10 @@ export class WatchPointDetector {
         }
         removed++;
       }
+    }
+
+    for (const [mmsi, { receivedAt }] of this.pendingDetails) {
+      if (now - receivedAt > this.config.staleTimeoutMs) this.pendingDetails.delete(mmsi);
     }
 
     // Also clean up old notification records

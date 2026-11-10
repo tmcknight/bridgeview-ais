@@ -163,8 +163,8 @@ GitHub Actions workflow runs on:
 
 ### Workflow Steps
 
-1. **Checkout code** (actions/checkout@v4)
-2. **Setup Node.js** (actions/setup-node@v4)
+1. **Checkout code** (actions/checkout)
+2. **Setup Node.js** (actions/setup-node)
    - Matrix: Node 26.x
    - npm cache enabled
 3. **Install dependencies** (`npm ci`)

@@ -674,10 +674,13 @@ const ShipMarker = memo(
       </MovingMarker>
     );
   },
-  // Custom comparison: only re-render if ship data or popup state has changed
+  // Custom comparison: only re-render if ship data or popup state has changed.
+  // A ship keeps its object until something about it changes, details included
+  // (a name or photo can arrive between position reports).
   (prevProps, nextProps) => {
     return (
-      prevProps.ship.lastUpdate === nextProps.ship.lastUpdate &&
+      prevProps.ship === nextProps.ship &&
+      prevProps.onSelectShip === nextProps.onSelectShip &&
       prevProps.isPopupOpen === nextProps.isPopupOpen &&
       prevProps.isSelected === nextProps.isSelected &&
       prevProps.is3D === nextProps.is3D &&

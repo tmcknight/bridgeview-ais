@@ -62,7 +62,13 @@ function defaultRequest(sessions, origin, headers, body) {
       sessions.set(origin, session);
     }
     const req = session.request(headers);
-    req.setTimeout(REQUEST_TIMEOUT_MS, () => req.close(http2.constants.NGHTTP2_CANCEL));
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      req.close(http2.constants.NGHTTP2_CANCEL);
+      // A connection that stopped answering (dropped silently by a NAT, say) would
+      // time out every later request too; start the next one on a new connection
+      sessions.delete(origin);
+      session.destroy();
+    });
     let responseHeaders = {};
     const chunks = [];
     req.on("response", (h) => {
@@ -77,9 +83,9 @@ function defaultRequest(sessions, origin, headers, body) {
       })
     );
     req.on("error", reject);
-    req.on("close", () => {
-      if (!responseHeaders[":status"]) reject(new Error("APNs request was cancelled or timed out"));
-    });
+    // Always settles: a no-op after "end", else the request was cut short, even if
+    // its headers had arrived (a promise left pending would block that ship's alerts)
+    req.on("close", () => reject(new Error("APNs request was cancelled or timed out")));
     req.end(body);
   });
 }

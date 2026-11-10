@@ -76,6 +76,10 @@ describe("createAdminApi", () => {
     expect(await call(setup(), "GET", "/api/bridge")).toBeNull();
   });
 
+  it("leaves a request target that isn't a path to the next handler", async () => {
+    expect(await call(setup(), "GET", "//")).toBeNull();
+  });
+
   it("is off without a password", async () => {
     const api = setup({ password: "" });
     expect((await call(api, "POST", "/api/admin/login", { body: { password: "" } })).status).toBe(404);

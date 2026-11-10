@@ -257,6 +257,32 @@ describe("WatchPointDetector", () => {
       expect(event!.length).toBe(150);
     });
 
+    it("keeps details heard before the vessel's first position", () => {
+      const mmsi = 123456789;
+
+      // The server sends a ship's stored details just ahead of its first position
+      detector.processMessage(
+        makeStaticDataMessage(mmsi, "LAKE FREIGHTER", "DETROIT", 70)
+      );
+      expect(detector.trackedCount).toBe(0);
+      detector.processMessage(makePositionMessage(mmsi, 43.02, -82.42, 180, 8, ""));
+
+      const vessel = detector.getVessel(mmsi);
+      expect(vessel!.name).toBe("LAKE FREIGHTER");
+      expect(vessel!.destination).toBe("DETROIT");
+      expect(vessel!.imo).toBe(1234567);
+      expect(vessel!.length).toBe(150);
+    });
+
+    it("takes a name heard after the MMSI placeholder", () => {
+      const mmsi = 123456789;
+      detector.processMessage(makePositionMessage(mmsi, 43.02, -82.42, 180, 8, ""));
+      expect(detector.getVessel(mmsi)!.name).toBe("MMSI 123456789");
+
+      detector.processMessage(makePositionMessage(mmsi, 43.019, -82.42, 180, 8, "LATE NAME"));
+      expect(detector.getVessel(mmsi)!.name).toBe("LATE NAME");
+    });
+
     it("tracks multiple vessels independently", () => {
       detector.processMessage(makePositionMessage(111111111, 43.02, -82.42));
       detector.processMessage(makePositionMessage(222222222, 43.05, -82.42));

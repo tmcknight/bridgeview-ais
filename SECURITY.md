@@ -37,8 +37,8 @@ Multiple rate limiting mechanisms protect against abuse:
 
 - **Limit:** 60 messages per minute per client
 - **Scope:** Prevents message spam after connection is established
-- **Configuration:** `RATE_LIMITS.MAX_MESSAGES_PER_MINUTE` in [server/server.js:17](server/server.js#L17)
-- **Window:** Rolling 1-minute window
+- **Configuration:** `RATE_LIMITS.MAX_MESSAGES_PER_MINUTE` in [server/server.js](server/server.js)
+- **Window:** Fixed 1-minute window
 
 #### Subscription Timeout
 

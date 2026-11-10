@@ -291,6 +291,17 @@ describe("createBridgeApi", () => {
     expect((await call(api, "PUT", `/api/devices/${TOKEN}`, { environment: "sandbox" })).status).toBe(503);
   });
 
+  it("leaves a request target that isn't a path to the next handler", async () => {
+    const { api } = setup();
+    expect(await call(api, "GET", "//")).toBeNull();
+    expect(await call(api, "GET", "http://[/")).toBeNull();
+  });
+
+  it("refuses a device token that isn't valid percent-encoding", async () => {
+    const { api } = setup({ devices: true });
+    expect((await call(api, "DELETE", "/api/devices/%E0%A4%A")).status).toBe(400);
+  });
+
   it("rate-limits writes per IP", async () => {
     const { api } = setup({ devices: true });
     for (let i = 0; i < RATE_LIMITS.WRITES; i++) {

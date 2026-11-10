@@ -228,6 +228,7 @@ export function createBridgeApi({
         eta: new Date(Math.round((Date.parse(position.time) + approach.etaMinutes * 60_000) / 1000) * 1000).toISOString(),
         distanceNM: round(approach.distanceNM, 2),
         direction: approach.direction,
+        ...(approach.passing && { passing: true }),
       },
       info: info ?? undefined,
     };
@@ -431,8 +432,9 @@ export function createBridgeApi({
 
   // Handles /api/ requests; returns false for any other path
   function handleRequest(req, res, clientIP) {
-    const url = new URL(req.url, "http://localhost");
-    if (!url.pathname.startsWith("/api/")) return false;
+    // A request target that isn't a path (e.g. "//") doesn't parse; it isn't ours either
+    const url = URL.parse(req.url, "http://localhost");
+    if (!url?.pathname.startsWith("/api/")) return false;
 
     const isWrite = req.method === "PUT" || req.method === "DELETE";
     if (!allow(clientIP, isWrite ? "write" : "read")) {
@@ -468,7 +470,14 @@ export function createBridgeApi({
         if (s) sendJson(res, 200, withAbsolutePhotoUrls(forApiVersion(s, v2), origin), { "cache-control": "public, max-age=5" });
         else sendJson(res, 404, { error: "Unknown ship" });
       } else if (deviceMatch && isWrite) {
-        handleDevice(req, res, decodeURIComponent(deviceMatch[1])).catch((err) => {
+        let token;
+        try {
+          token = decodeURIComponent(deviceMatch[1]);
+        } catch {
+          sendJson(res, 400, { error: "Invalid device token" });
+          return true;
+        }
+        handleDevice(req, res, token).catch((err) => {
           logger?.error(`[api] device registration failed: ${err.message}`);
           if (!res.headersSent) sendJson(res, 500, { error: "Internal error" });
         });

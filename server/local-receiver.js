@@ -11,6 +11,8 @@ const STATIC_TYPE = 5;
 const CLASS_B_POSITION_TYPES = new Set([18, 19]);
 const CLASS_B_STATIC_TYPE = 24;
 const RECONNECT_DELAY_MS = 5000;
+// Idle time before TCP keep-alive probes start
+const KEEP_ALIVE_DELAY_MS = 30_000;
 const DEDUP_TTL_MS = 60000;
 
 function isValidPosition(lat, lon) {
@@ -307,6 +309,9 @@ export function createLocalReceiver({ host, port, logger, nameFor }) {
     // While retrying, stay "down" rather than flickering back to "connecting"
     if (!retrying) emitter.emit("link", "connecting");
     socket = net.connect({ host, port });
+    // The antenna is often another machine; if it loses power or its network, no close
+    // arrives. Keep-alive probes notice, so the link shows as down and reconnects.
+    socket.setKeepAlive(true, KEEP_ALIVE_DELAY_MS);
 
     socket.on("connect", () => {
       connected = true;

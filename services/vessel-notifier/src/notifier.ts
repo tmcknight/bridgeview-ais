@@ -116,7 +116,7 @@ export class VesselNotifier {
     console.log(`[notifier] Connecting to ${this.config.wsProxyUrl}...`);
 
     try {
-      this.ws = new WebSocket(this.config.wsProxyUrl);
+      this.ws = new WebSocket(this.config.wsProxyUrl, { handshakeTimeout: 10000 });
     } catch (error) {
       console.error(
         `[notifier] Connection creation failed: ${error instanceof Error ? error.message : error}`

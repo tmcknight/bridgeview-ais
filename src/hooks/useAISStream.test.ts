@@ -217,6 +217,36 @@ describe('useAISStream', () => {
       })
     })
 
+    it('keeps details when a later static message leaves them blank', async () => {
+      const { result } = renderHook(() => useAISStream())
+      await waitFor(() => {
+        expect(result.current.connectionStatus).toBe('connected')
+      })
+
+      act(() => {
+        mockServer.sendPositionReport(mockAISPositionMessage(367123456))
+        mockServer.sendStaticData(mockAISStaticDataMessage(367123456, 'BIG FREIGHTER', 'DULUTH'))
+      })
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)?.destination).toBe('DULUTH')
+      })
+
+      // Another feed knows the ship's name but not where it's going or its size
+      const blank = mockAISStaticDataMessage(367123456, 'BIG FREIGHTER RENAMED', '')
+      blank.Message.ShipStaticData!.Dimension = { A: 0, B: 0, C: 0, D: 0 }
+      act(() => {
+        mockServer.sendStaticData(blank)
+      })
+
+      await waitFor(() => {
+        expect(result.current.ships.get(367123456)?.name).toBe('BIG FREIGHTER RENAMED')
+      })
+      const ship = result.current.ships.get(367123456)!
+      expect(ship.destination).toBe('DULUTH')
+      expect(ship.length).toBe(200)
+      expect(ship.dimensions).toEqual({ toBow: 150, toStern: 50, toPort: 15, toStarboard: 15 })
+    })
+
     it('keeps IMO number from static data across position updates', async () => {
       const { result } = renderHook(() => useAISStream())
 
@@ -450,6 +480,38 @@ describe('useAISStream', () => {
       await waitFor(() => {
         expect(result.current.ships.size).toBe(1)
       })
+    })
+
+    it('still tracks the ship when the browser notification throws', async () => {
+      // Chrome on Android: permission granted, but the constructor is illegal
+      class ThrowingNotification {
+        static permission = 'granted'
+        constructor() {
+          throw new TypeError('Illegal constructor')
+        }
+      }
+      vi.stubGlobal('Notification', ThrowingNotification)
+      try {
+        const { result } = renderHook(() => useAISStream())
+        await waitFor(() => {
+          expect(result.current.connectionStatus).toBe('connected')
+        })
+
+        const closeLat = 42.9982 + (APPROACH_NOTIFICATION_DISTANCE_NM - 0.5) / 60
+        act(() => {
+          mockServer.sendPositionReport(
+            mockAISPositionMessage(367123456, closeLat, -82.423, 180, 8)
+          )
+        })
+
+        await waitFor(() => {
+          expect(result.current.ships.size).toBe(1)
+        })
+        expect(result.current.notifications).toHaveLength(1)
+        expect(result.current.ships.get(367123456)!.notified).toBe(true)
+      } finally {
+        vi.unstubAllGlobals()
+      }
     })
 
     it('marks Class B craft and sends no alerts for them', async () => {

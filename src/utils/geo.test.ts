@@ -402,6 +402,11 @@ describe('formatETA', () => {
     expect(formatETA(60)).toBe('~1h 0m')
   })
 
+  it('should never show 60 minutes within an hour', () => {
+    expect(formatETA(59.7)).toBe('~1h 0m')
+    expect(formatETA(119.7)).toBe('~2h 0m')
+  })
+
   it('should format 125 minutes as "~2h 5m"', () => {
     expect(formatETA(125)).toBe('~2h 5m')
   })
