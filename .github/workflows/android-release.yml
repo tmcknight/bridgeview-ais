@@ -70,7 +70,7 @@ jobs:
           for name in BRIDGEVIEW_APPLICATION_ID BRIDGEVIEW_API_URL BRIDGEVIEW_FIREBASE_APP_ID BRIDGEVIEW_FIREBASE_PROJECT_ID; do
             [ -n "${!name}" ] || { echo "::error::Set the repository variable for $name (android/README.md, Releases)"; exit 1; }
           done
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "21"
