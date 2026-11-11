@@ -3,7 +3,12 @@ package app.bridgeview.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsBoat
 import androidx.compose.material.icons.filled.History
@@ -125,7 +130,9 @@ private fun Tabs() {
     ) {
         BackHandler(enabled = stack.isNotEmpty()) { stack.removeAt(stack.lastIndex) }
         val open: (Int) -> Unit = { stack.add(it) }
-        Box(Modifier.fillMaxSize()) {
+        // Edge to edge, the screens pad for the status bar themselves; keep them clear of a side navigation
+        // bar or camera cutout in landscape (a navigation rail has already taken its side)
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
             val top = stack.lastOrNull()
             if (top != null) {
                 // Keyed by ship, so one ship's map and scroll position aren't carried to the next
@@ -148,7 +155,9 @@ private fun Tabs() {
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
         ) {
             BridgeViewTheme(dark = Theme.colors.isDark) {
-                key(mmsi) { ShipDetailScreen(mmsi, onBack = { router.openedShip.value = null }, closeIcon = true) }
+                Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+                    key(mmsi) { ShipDetailScreen(mmsi, onBack = { router.openedShip.value = null }, closeIcon = true) }
+                }
             }
         }
     }
