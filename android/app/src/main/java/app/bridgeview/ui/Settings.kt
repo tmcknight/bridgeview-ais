@@ -447,18 +447,26 @@ private val LengthSetting.labelRes: Int
 /** Which location prompt a disclosure comes before */
 private enum class LocationAsk { WhileUsing, AllTheTime }
 
-/** Says what location is for before Android asks for it (Google Play's prominent disclosure) */
+/**
+ * Says what location is for before Android asks for it (Google Play's prominent disclosure). Play's
+ * review wants the data named, what it's used for, that it's used in the background, and whether it
+ * leaves the phone, in the words of its template ("collects location data to enable \u2026, even when the
+ * app is closed or not in use"). Keep it in step with public/privacy.html.
+ */
 @Composable
 private fun LocationDisclosure(ask: LocationAsk, onContinue: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ask == LocationAsk.WhileUsing) "Use your location?" else "Allow location all the time?") },
+        title = { Text("BridgeView collects location data") },
         text = {
             Text(
                 buildString {
-                    append("BridgeView uses your location to pause bridge alerts while you're away from the ${Bridge.NAME} ")
-                    append("and start them again when you're back, even when the app is closed or not in use. ")
-                    append("Your location stays on this phone and is never sent to BridgeView or anyone else.")
+                    append("BridgeView collects location data to enable \u201cOnly when I'm near the bridge\u201d, ")
+                    append("even when the app is closed or not in use.\n\n")
+                    append("Your precise location is used only to tell when you arrive near the ${Bridge.NAME} ")
+                    append("and when you leave, so bridge alerts pause while you're away and start again when you're back.\n\n")
+                    append("This check happens on your phone. Your location is not sent to BridgeView, stored or shared ")
+                    append("with anyone; the app only tells our server whether to send you alerts right now.")
                     if (ask == LocationAsk.AllTheTime) append("\n\nOn the next screen, choose \u201cAllow all the time\u201d.")
                 },
             )
