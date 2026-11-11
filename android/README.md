@@ -110,10 +110,10 @@ cd android
 Like iOS, merging a PR ships nothing. A release is a GitHub release tagged
 `android-vX.Y.Z`; publishing it runs `.github/workflows/android-release.yml`, which builds a
 signed app bundle from that tag and uploads it to Google Play's internal testing track (or
-`ANDROID_PLAY_TRACK`), with the first 500 characters of the release notes as "What's new".
-The version name comes from the tag and the version code is one more than the highest Play
-has. Run the workflow by hand for a dry run (build and sign, no upload; the bundle is kept
-as an artifact).
+`ANDROID_PLAY_TRACK`), with the first 500 characters of the release notes as "What's new" in
+English (Canada) and English (United States). The version name comes from the tag and the
+version code is one more than the highest Play has. Run the workflow by hand for a dry run
+(build and sign, no upload; the bundle is kept as an artifact).
 
 ```bash
 gh release create android-v1.0.0 --prerelease --target main --title "Android 1.0.0: <headline>" --notes-file notes.md

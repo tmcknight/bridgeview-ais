@@ -93,10 +93,14 @@ jobs:
         env:
           NOTES: ${{ github.event.release.body || inputs.notes }}
         run: |
-          # Play takes at most 500 characters of "What's new", in the listing's default
-          # language (English (Canada))
-          mkdir -p app/src/main/play/release-notes/en-CA
-          printf '%s' "$NOTES" | head -c 500 > app/src/main/play/release-notes/en-CA/default.txt
+          # Play takes at most 500 characters of "What's new" (characters, not bytes: bullets
+          # are 3 bytes), for each of the listing's languages: English (Canada), the default,
+          # and English (United States), the same text
+          for lang in en-CA en-US; do
+            mkdir -p "app/src/main/play/release-notes/$lang"
+            printf '%s' "$NOTES" | python3 -c 'import sys; sys.stdout.write(sys.stdin.read()[:500])' \
+              > "app/src/main/play/release-notes/$lang/default.txt"
+          done
       - name: Build and sign
         env:
           BRIDGEVIEW_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
