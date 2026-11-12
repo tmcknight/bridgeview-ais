@@ -31,8 +31,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.app.NotificationManagerCompat
 import app.bridgeview.graph
 import app.bridgeview.model.AlertPreferences
+import app.bridgeview.push.ShipNotifications
 
 /**
  * Live countdown on or off for one ship coming up (iOS: the Live Activity toggle);
@@ -51,7 +53,8 @@ class FollowState(val visible: Boolean, val on: Boolean, val set: (Boolean) -> U
 
 @Composable
 fun rememberFollowState(mmsi: Int): FollowState {
-    val graph = LocalContext.current.graph
+    val context = LocalContext.current
+    val graph = context.graph
     val alertsEnabled by graph.prefs.enabled.flow.collectAsState()
     val byDefault by graph.prefs.liveActivities.flow.collectAsState()
     val choices by graph.prefs.liveActivityShips.flow.collectAsState()
@@ -62,6 +65,9 @@ fun rememberFollowState(mmsi: Int): FollowState {
         ships[mmsi] = value
         graph.prefs.liveActivityShips.value = AlertPreferences.encodeShips(ships)
         graph.push.preferencesChanged()
+        // Take down the countdown already showing now, as Stop following does,
+        // rather than on the server's next update
+        if (!value) NotificationManagerCompat.from(context).cancel(ShipNotifications.TAG_LIVE, mmsi)
     }
 }
 

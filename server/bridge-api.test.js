@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { attributionFor, createBridgeApi, createRateLimiter, RATE_LIMITS, withAbsolutePhotoUrls } from "./bridge-api.js";
 import { createVesselDetails } from "./vessel-details.js";
@@ -70,7 +70,7 @@ describe("createBridgeApi", () => {
     pushDevices?.close();
   });
 
-  function setup({ log = [], devices = false, attribution, details = {} } = {}) {
+  function setup({ log = [], devices = false, attribution, details = {}, onDeviceRegistered } = {}) {
     vesselDetails = createVesselDetails(details);
     const latestPositions = createLatestPositions({ now: () => NOW });
     pushDevices = devices ? createPushDevices() : null;
@@ -81,6 +81,7 @@ describe("createBridgeApi", () => {
       pushDevices,
       shipCamVideoId: () => "VIDEO",
       attribution,
+      onDeviceRegistered,
       now: () => NOW,
     });
     const hear = (message) => {
@@ -261,6 +262,15 @@ describe("createBridgeApi", () => {
 
     expect((await call(api, "DELETE", `/api/devices/${TOKEN}`)).status).toBe(204);
     expect(pushDevices.matching(ship)).toEqual([]);
+  });
+
+  it("tells the alerts about each saved registration", async () => {
+    const onDeviceRegistered = vi.fn();
+    const { api } = setup({ devices: true, onDeviceRegistered });
+    await call(api, "PUT", `/api/devices/${TOKEN}`, { environment: "moon" });
+    expect(onDeviceRegistered).not.toHaveBeenCalled();
+    await call(api, "PUT", `/api/devices/${TOKEN}`, { environment: "production" });
+    expect(onDeviceRegistered).toHaveBeenCalledWith(TOKEN);
   });
 
   it("registers Android devices by their FCM token, case kept", async () => {

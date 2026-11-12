@@ -207,6 +207,7 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
       updated_at = :now
   `);
   const exists = db.prepare("SELECT 1 FROM push_devices WHERE token = ?");
+  const selectDevice = db.prepare("SELECT * FROM push_devices WHERE token = ?");
   const count = db.prepare("SELECT COUNT(*) AS n FROM push_devices");
   // iOS tokens are stored lowercase; FCM tokens exactly as sent
   const remove = db.prepare(
@@ -250,6 +251,12 @@ export function createPushDevices({ file = ":memory:", logger, now = () => new D
         now: now().toISOString(),
       });
       return true;
+    },
+
+    // One device as stored, or undefined
+    device(token) {
+      const row = selectDevice.get(token);
+      return row ? rowToDevice(row) : undefined;
     },
 
     remove(token) {

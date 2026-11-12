@@ -267,6 +267,8 @@ const bridgeApi = createBridgeApi({
   photoSharing: Boolean(ADMIN_PASSWORD && R2_PHOTOS?.config),
   // Photo reports wait for the admin page too
   photoReporting: Boolean(ADMIN_PASSWORD),
+  // Declared below; only called for requests, once the server is listening
+  onDeviceRegistered: (token) => approachAlerts?.deviceChanged(token),
   logger,
 });
 // The admin page's API, and photos uploaded there
