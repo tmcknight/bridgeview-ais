@@ -399,6 +399,45 @@ describe("following, updates and restarts", () => {
     expect(apns.sendAlert).toHaveBeenCalledTimes(1);
   });
 
+  it("starts a new one for a phone that stops following a ship and follows it again", async () => {
+    pushDevices.register(device(1, { pushToStartToken: TOKEN, liveActivityShips: { [MMSI]: true } }));
+    current = shipAt(30);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).toHaveBeenCalledTimes(1);
+
+    // Turned off in the app (which ends it on the phone)...
+    pushDevices.register(device(1, { pushToStartToken: TOKEN, liveActivityShips: { [MMSI]: false } }));
+    alerts.deviceChanged(device(1).token);
+    current = shipAt(29);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).toHaveBeenCalledTimes(1);
+
+    // ...and on again: started on the ship's next position, without waiting out the check interval
+    pushDevices.register(device(1, { pushToStartToken: TOKEN, liveActivityShips: { [MMSI]: true } }));
+    alerts.deviceChanged(device(1).token);
+    current = shipAt(28);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).toHaveBeenCalledTimes(2);
+    expect(apns.sendLiveActivity.mock.calls[1][0].payload.aps["input-push-channel"]).toBe("channel1");
+  });
+
+  it("keeps counting in a phone whose other settings change", async () => {
+    pushDevices.register(device(1, { pushToStartToken: TOKEN, liveActivityShips: { [MMSI]: true } }));
+    current = shipAt(30);
+    alerts.handleMessage(position());
+    await settle();
+
+    pushDevices.register(device(1, { pushToStartToken: TOKEN, minLength: 50, liveActivityShips: { [MMSI]: true } }));
+    alerts.deviceChanged(device(1).token);
+    current = shipAt(29);
+    alerts.handleMessage(position());
+    await settle();
+    expect(apns.sendLiveActivity).toHaveBeenCalledTimes(1);
+  });
+
   it("ends as lost when the ship stops heading for the bridge, but not near it", async () => {
     pushDevices.register(device(1, { liveActivities: true, pushToStartToken: TOKEN }));
     current = shipAt(9);

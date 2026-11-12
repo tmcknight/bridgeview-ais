@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 
 /// Live Activity on or off for one ship coming up, on the ship's page; starts out
@@ -76,6 +77,18 @@ struct LiveActivityToggle: View {
             ships[mmsi] = on
             choices.wrappedValue = AlertPreferences.encodeShips(ships)
             push.preferencesChanged()
+            // The server stops counting this phone in, but its broadcast channel
+            // would keep the one already showing going: end it here, as Stop
+            // following on the Live Activity does
+            if !on { endActivities(mmsi: mmsi) }
+        }
+    }
+
+    private static func endActivities(mmsi: Int) {
+        Task {
+            for activity in Activity<ShipApproachAttributes>.activities where activity.attributes.mmsi == mmsi {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
         }
     }
 }

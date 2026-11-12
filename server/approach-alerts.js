@@ -706,6 +706,22 @@ export function createApproachAlerts({
     }
   }
 
+  // A device sent new settings. One that stopped following a ship whose Live
+  // Activity is under way (turned off in the app, which ends it on the phone) is
+  // forgotten for it, so following it again starts a new one; and ships are looked
+  // at again on their next position, so a newly followed ship's starts straight away
+  function deviceChanged(token) {
+    const device = pushDevices.device(token);
+    for (const activity of active.values()) {
+      if (!activity.started.has(token)) continue;
+      if (device && wantsLiveActivity(device, activity.mmsi)) continue;
+      activity.started.delete(token);
+      activity.fcmTokens.delete(token);
+      save(activity);
+    }
+    followCheckedAt.clear();
+  }
+
   function stop() {
     for (const activity of active.values()) clearTimeout(activity.timeout);
     for (const timer of pendingDeletes) clearTimeout(timer);
@@ -725,6 +741,7 @@ export function createApproachAlerts({
   return Object.assign(emitter, {
     handleMessage: guarded("handling a position", handleMessage),
     handleShipLogEntry: guarded("handling a passage", handleShipLogEntry),
+    deviceChanged: guarded("handling a device's settings", deviceChanged),
     cleanUp,
     stop,
   });

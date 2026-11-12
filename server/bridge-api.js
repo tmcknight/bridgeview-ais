@@ -160,6 +160,8 @@ export function createBridgeApi({
   attribution = [],
   photoSharing = false,
   photoReporting = false,
+  // A device's registration was saved (approach-alerts.js picks up changed choices)
+  onDeviceRegistered = () => {},
   now = Date.now,
   logger,
 }) {
@@ -427,6 +429,7 @@ export function createBridgeApi({
     const { device, error } = parseDeviceRegistration(token, body);
     if (error) return sendJson(res, 400, { error });
     if (!pushDevices.register(device)) return sendJson(res, 503, { error: "Too many devices registered" });
+    onDeviceRegistered(device.token);
     return sendJson(res, 204);
   }
 
