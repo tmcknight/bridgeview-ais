@@ -86,13 +86,21 @@ footer {
 
 .badge {
   display: inline-block;
-  margin: 12px 0 8px;
+  margin: 12px 8px 0 0;
+  vertical-align: top;
 }
 
 .badge img {
   display: block;
   height: 54px;
   width: auto;
+}
+
+.badge-play img {
+  /* Google's badge art has clear space around the badge itself (40 of 250 px): size it so
+     the badge is as tall as the App Store one and line its edges up with it */
+  height: 78.5px;
+  margin: -12.5px 0 -12.5px -12.5px;
 }
 
 .shots {

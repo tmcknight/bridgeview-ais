@@ -13,7 +13,7 @@ A real-time ship tracking application that displays vessel traffic near the Blue
 
 BridgeView AIS is a web-based maritime tracking tool that provides live visualization of ship movements and detailed vessel information. Built with modern web technologies, it offers an intuitive interface for monitoring shipping activity in the Blue Water Bridge area.
 
-It runs at [bluewaterbridge.app](https://bluewaterbridge.app) (the app's page) and [map.bluewaterbridge.app](https://map.bluewaterbridge.app) (the live map), with companion apps for iPhone ([App Store](https://apps.apple.com/app/id6829033068)) and Android.
+It runs at [bluewaterbridge.app](https://bluewaterbridge.app) (the app's page) and [map.bluewaterbridge.app](https://map.bluewaterbridge.app) (the live map), with companion apps for iPhone ([App Store](https://apps.apple.com/app/id6829033068)) and Android ([Google Play](https://play.google.com/store/apps/details?id=com.utilityos.bridgeview)).
 
 ## ✨ Features
 
